@@ -93,7 +93,7 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
           'w-full justify-start h-auto rounded-lg transition-all duration-200',
           'group relative overflow-hidden',
           isActive && 'bg-primary text-primary-foreground shadow-md',
-          'bg-white'
+          'bg-background'
         )}
         style={{ paddingLeft, paddingRight: 12, paddingTop: 8, paddingBottom: 8 }}
         asChild
@@ -103,7 +103,7 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
             className={cn(
               'flex p-1.5 rounded-md transition-colors',
               isActive ? 'bg-primary-foreground/10' : 'bg-transparent',
-              'bg-white'
+              'bg-background'
             )}
           >
             <Icon className={cn('h-5 w-5', 'text-foreground')} />
@@ -141,7 +141,7 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
             'w-full justify-start h-auto rounded-lg transition-all duration-200',
             'group relative overflow-hidden',
             isActive && 'bg-primary text-primary-foreground shadow-md',
-            'bg-white'
+            'bg-background'
           )}
           style={{ paddingLeft, paddingRight: 12, paddingTop: 8, paddingBottom: 8 }}
         >
@@ -149,7 +149,7 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
             className={cn(
               'flex p-1.5 rounded-md transition-colors',
               isActive ? 'bg-primary-foreground/10' : 'bg-transparent',
-              'bg-white'
+              'bg-background'
             )}
           >
             <Icon className={cn('h-5 w-5', 'text-foreground')} />
@@ -188,7 +188,7 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-1 pt-1.5 pb-1">
-        <div className="ml-4 pl-3 border-l-2 border-primary/20 ring-1 ring-primary/10 space-y-1 bg-white rounded-md">
+        <div className="ml-4 pl-3 border-l-2 border-primary/20 ring-1 ring-primary/10 space-y-1 bg-background rounded-md">
           {item.children?.map((child, i) => (
             <NavItem key={i} item={child} collapsed={collapsed} level={level + 1} />
           ))}
