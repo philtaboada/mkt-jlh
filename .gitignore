@@ -37,5 +37,5 @@ yarn-error.log*
 .vercel
 
 # typescript
-*.tsbuildinfo
-next-env.d.ts
+# Ignore environment variable files
+google-account-file.json
