@@ -17,6 +17,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  //comentario
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
