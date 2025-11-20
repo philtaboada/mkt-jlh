@@ -2,7 +2,7 @@
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { navItems } from '@/features/config/navigation';
+import { navItems } from '@/config/navigation';
 import { NavItem } from './NavItem';
 
 interface MobileSidebarProps {

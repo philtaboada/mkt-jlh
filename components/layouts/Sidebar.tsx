@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { navItems } from '@/features/config/navigation';
+import { navItems } from '@/config/navigation';
 import { cn } from '@/lib/utils';
 import { PanelLeft, PanelLeftClose } from 'lucide-react';
 import { NavItem } from './NavItem';
@@ -20,7 +20,9 @@ export function Sidebar({ className, collapsed, onCollapsedChange }: SidebarProp
         {/* Header con toggle */}
         <div className="px-3 py-2">
           <div className="flex items-center justify-between mb-2">
-            {!collapsed && <h2 className="px-4 text-xl font-semibold tracking-tight">Mi App</h2>}
+            {!collapsed && (
+              <h2 className="px-4 text-xl font-bold tracking-tight text-primary">JLH</h2>
+            )}
             <Button
               variant="ghost"
               size="icon"

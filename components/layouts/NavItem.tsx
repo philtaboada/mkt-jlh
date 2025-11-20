@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type { NavItem as NavItemType } from '@/features/config/navigation';
+import type { NavItem as NavItemType } from '@/config/navigation';
 import { cn } from '@/lib/utils';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
@@ -46,18 +46,18 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              variant={isActive ? 'default' : 'ghost'}
+              variant="ghost"
               size="icon"
               className={cn(
                 'w-full justify-center rounded-lg h-12 transition-all duration-200',
-                isActive && 'shadow-lg',
+                isActive && 'bg-primary text-primary-foreground shadow-lg',
                 !isActive && 'hover:bg-accent/50'
               )}
               asChild={!!item.href && !hasChildren}
             >
               {item.href && !hasChildren ? (
                 <Link href={item.href}>
-                  <Icon className={cn('h-5 w-5', isActive && 'text-primary-foreground')} />
+                  <Icon className={cn('h-5 w-5', 'text-foreground')} />
                 </Link>
               ) : (
                 <div>
@@ -88,12 +88,11 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
   if (!hasChildren && item.href) {
     return (
       <Button
-        variant={isActive ? 'default' : 'ghost'}
+        variant="ghost"
         className={cn(
           'w-full justify-start h-auto rounded-lg transition-all duration-200',
           'group relative overflow-hidden',
-          isActive && 'shadow-md',
-          !isActive && 'hover:bg-accent/30 hover:translate-x-0.5',
+          isActive && 'bg-primary text-primary-foreground shadow-md',
           'bg-white'
         )}
         style={{ paddingLeft, paddingRight: 12, paddingTop: 8, paddingBottom: 8 }}
@@ -103,27 +102,21 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
           <div
             className={cn(
               'flex p-1.5 rounded-md transition-colors',
-              isActive ? 'bg-primary-foreground/10' : 'bg-transparent group-hover:bg-accent/20',
-              'text-primary',
+              isActive ? 'bg-primary-foreground/10' : 'bg-transparent',
               'bg-white'
             )}
           >
-            <Icon className={cn('h-5 w-5', isActive && 'text-primary')} />
+            <Icon className={cn('h-5 w-5', 'text-foreground')} />
           </div>
           <div className="flex flex-col text-left flex-1 min-w-0">
-            <span
-              className={cn(
-                'font-medium text-[14px] leading-tight',
-                isActive ? 'text-primary' : 'text-foreground'
-              )}
-            >
+            <span className={cn('font-medium text-[14px] leading-tight', 'text-foreground')}>
               {item.name}
             </span>
             {item.description && (
               <span
                 className={cn(
                   'text-[11px] leading-tight mt-0.5 line-clamp-2',
-                  isActive ? 'text-primary/70' : 'text-muted-foreground'
+                  'text-muted-foreground'
                 )}
               >
                 {item.description}
@@ -143,12 +136,11 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
         <Button
-          variant={isActive ? 'default' : 'ghost'}
+          variant="ghost"
           className={cn(
             'w-full justify-start h-auto rounded-lg transition-all duration-200',
             'group relative overflow-hidden',
-            isActive && 'shadow-md',
-            !isActive && 'hover:bg-accent/30',
+            isActive && 'bg-primary text-primary-foreground shadow-md',
             'bg-white'
           )}
           style={{ paddingLeft, paddingRight: 12, paddingTop: 8, paddingBottom: 8 }}
@@ -156,27 +148,21 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
           <div
             className={cn(
               'flex p-1.5 rounded-md transition-colors',
-              isActive ? 'bg-primary-foreground/10' : 'bg-transparent group-hover:bg-accent/20',
-              'text-primary',
+              isActive ? 'bg-primary-foreground/10' : 'bg-transparent',
               'bg-white'
             )}
           >
-            <Icon className={cn('h-5 w-5', isActive && 'text-primary')} />
+            <Icon className={cn('h-5 w-5', 'text-foreground')} />
           </div>
           <div className="flex flex-col text-left flex-1 min-w-0 mx-3">
-            <span
-              className={cn(
-                'font-medium text-[14px] leading-tight',
-                isActive ? 'text-primary' : 'text-foreground'
-              )}
-            >
+            <span className={cn('font-medium text-[14px] leading-tight', 'text-foreground')}>
               {item.name}
             </span>
             {item.description && (
               <span
                 className={cn(
                   'text-[11px] leading-tight mt-0.5 line-clamp-2',
-                  isActive ? 'text-primary/70' : 'text-muted-foreground'
+                  'text-muted-foreground'
                 )}
               >
                 {item.description}
@@ -191,13 +177,9 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
             )}
           >
             {isOpen ? (
-              <ChevronDown
-                className={cn('h-4 w-4', isActive ? 'text-primary/70' : 'text-muted-foreground')}
-              />
+              <ChevronDown className={cn('h-4 w-4', 'text-muted-foreground')} />
             ) : (
-              <ChevronRight
-                className={cn('h-4 w-4', isActive ? 'text-primary/70' : 'text-muted-foreground')}
-              />
+              <ChevronRight className={cn('h-4 w-4', 'text-muted-foreground')} />
             )}
           </div>
           {isActive && (
