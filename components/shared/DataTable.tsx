@@ -137,7 +137,7 @@ export function DataTable<TData>({
 
   return (
     <div className="w-full space-y-2">
-      <div className="flex items-center justify-between pb-2">
+      <div className="flex items-center justify-between pb-2 sticky top-0 bg-white dark:bg-zinc-900 z-20 border-b">
         <div className="flex items-center gap-4">
           {urlSearchKey ? (
             <UrlSearchInput
@@ -265,7 +265,8 @@ export function DataTable<TData>({
                           'bg-muted/5 text-xs uppercase tracking-wide text-muted-foreground font-bold',
                           'sticky top-0 z-10',
                           'px-4 py-3',
-                          isHiddenOnMobile && 'hidden md:table-cell'
+                          isHiddenOnMobile && 'hidden md:table-cell',
+                          header.column.id === 'actions' && 'sticky right-0 bg-muted/5 z-20'
                         )}
                       >
                         {canSort ? (
@@ -305,7 +306,12 @@ export function DataTable<TData>({
                       return (
                         <TableCell
                           key={cell.id}
-                          className={cn('px-4 py-3', isHiddenOnMobile && 'hidden md:table-cell')}
+                          className={cn(
+                            'px-4 py-3',
+                            isHiddenOnMobile && 'hidden md:table-cell',
+                            cell.column.id === 'actions' &&
+                              'sticky right-0 bg-white dark:bg-zinc-900 z-20'
+                          )}
                         >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
