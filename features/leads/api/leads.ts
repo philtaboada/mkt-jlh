@@ -199,13 +199,13 @@ export async function updateLead(id: string, updates: Partial<Lead>) {
 }
 
 // Actualizar status del lead
-export async function updateLeadStatus(id: string, status: LeadStatus) {
+export async function updateLeadStatus(id: string, status: LeadStatus, assigned_to?: string) {
   const supabase = await createClient();
 
   try {
     const { data, error } = await supabase
       .from('leads_mkt')
-      .update({ status })
+      .update({ status, assigned_to })
       .eq('id', id)
       .select()
       .single();

@@ -1,6 +1,24 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
 
+const protectedPaths = [
+  '/dashboard',
+  '/leads',
+  '/prospects',
+  '/companies',
+  '/partnerships',
+  '/activities',
+  '/chat',
+  '/chat/inbox',
+  '/chat/conversations',
+  '/chat/mentions',
+  '/chat/settings/integrations',
+  '/chat/settings/api-keys',
+  '/analytics',
+  '/calendar',
+  '/settings',
+];
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -36,7 +54,12 @@ export async function proxy(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+    if (
+      !user &&
+      protectedPaths.some(
+        (p) => request.nextUrl.pathname === p || request.nextUrl.pathname.startsWith(p + '/')
+      )
+    ) {
       const loginUrl = new URL('/auth/login', request.url);
       return NextResponse.redirect(loginUrl);
     }
@@ -50,5 +73,21 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/auth/:path*'],
+  matcher: [
+    '/dashboard',
+    '/leads',
+    '/prospects',
+    '/companies',
+    '/partnerships',
+    '/activities',
+    '/chat',
+    '/chat/inbox',
+    '/chat/conversations',
+    '/chat/mentions',
+    '/chat/settings/integrations',
+    '/chat/settings/api-keys',
+    '/analytics',
+    '/calendar',
+    '/settings',
+  ],
 };

@@ -88,7 +88,10 @@ export function SegurosForm({ defaultValues, type, onSubmit, onCancel }: Seguros
           document_type: 'RUC', //insurance
           department: 'LIMA', //insurance
           document_name: defaultValues.ruc || '', // insurance
-          business_name: defaultValues.business_or_person_name || '',
+          business_name:
+            defaultValues.business_or_person_name ||
+            `${defaultValues?.first_name} ${defaultValues.last_name}` ||
+            '',
           phone: defaultValues.phone || defaultValues.whatsapp || '', //isunrance
           address: '', //insurance
           observation: defaultValues.notes || '', //insurance

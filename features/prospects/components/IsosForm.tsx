@@ -57,7 +57,10 @@ export function IsosForm({ defaultValues, type, onSubmit, onCancel }: IsosFormPr
           email: defaultValues.email || '',
           department: 'LIMA',
           ruc: defaultValues.ruc || '',
-          business_name: defaultValues.business_or_person_name || '',
+          business_name:
+            defaultValues.business_or_person_name ||
+            `${defaultValues?.first_name} ${defaultValues.last_name}` ||
+            '',
           business_or_person_name: defaultValues.business_or_person_name || '',
           phone: defaultValues.phone || defaultValues.whatsapp || '',
           business_id: defaultValues.business_or_partnership_id,

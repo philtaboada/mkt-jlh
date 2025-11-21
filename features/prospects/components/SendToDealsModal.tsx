@@ -77,6 +77,7 @@ export function SendToDealsModal({ isOpen, onClose, lead, type, onSubmit }: Send
                   return (
                     <CartaFianzaForm
                       defaultValues={lead}
+                      type={type}
                       onSubmit={handleFormSubmit}
                       onCancel={closeDialog}
                     />

@@ -29,6 +29,7 @@ interface CartaFianzaFormProps {
 }
 
 export function CartaFianzaForm({ defaultValues, type, onSubmit, onCancel }: CartaFianzaFormProps) {
+  console.log('Default types:', type);
   const today = new Date().toISOString().split('T')[0];
 
   const { data: workers = [], isLoading: workersLoading } = useWorkers();
@@ -48,7 +49,10 @@ export function CartaFianzaForm({ defaultValues, type, onSubmit, onCancel }: Car
   const form = useForm({
     defaultValues: defaultValues
       ? {
-          postor: defaultValues?.business_or_person_name || '',
+          postor:
+            defaultValues?.business_or_person_name ||
+            `${defaultValues?.first_name} ${defaultValues.last_name}` ||
+            '',
           ruc: defaultValues?.ruc || '',
           department: 'LIMA',
           nomenclatura: '',
@@ -200,7 +204,7 @@ export function CartaFianzaForm({ defaultValues, type, onSubmit, onCancel }: Car
             name="status"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Status</FormLabel>
+                <FormLabel>Estado</FormLabel>
                 <FormControl>
                   <SelectOptions
                     placeholder="Selecciona el status"
