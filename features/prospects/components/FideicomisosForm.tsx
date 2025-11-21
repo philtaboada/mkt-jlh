@@ -58,7 +58,10 @@ export function FideicomisosForm({
   const form = useForm({
     defaultValues: defaultValues
       ? {
-          business_name: defaultValues.business_or_person_name || '',
+          business_name:
+            defaultValues.business_or_person_name ||
+            `${defaultValues?.first_name} ${defaultValues.last_name}` ||
+            '',
           ruc: defaultValues.ruc || '',
           department: 'LIMA',
           email: defaultValues.email || '',

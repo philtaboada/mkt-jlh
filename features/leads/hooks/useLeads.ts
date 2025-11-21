@@ -84,8 +84,15 @@ export const useUpdateLeadStatus = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
-      updateLeadStatus(id, status),
+    mutationFn: ({
+      id,
+      status,
+      assigned_to,
+    }: {
+      id: string;
+      status: LeadStatus;
+      assigned_to?: string;
+    }) => updateLeadStatus(id, status, assigned_to),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads_mkt'] });
     },

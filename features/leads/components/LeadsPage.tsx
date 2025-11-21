@@ -82,6 +82,7 @@ export function LeadsPageClient() {
         await updateStatusMutation.mutateAsync({
           id: payload.mkt_lead_id,
           status: 'deals',
+          assigned_to: payload?.worker_id || null,
         });
         toast.success('Prospecto creado y lead movido a Deals exitosamente');
       } else {
