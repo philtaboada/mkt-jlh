@@ -92,13 +92,13 @@ export const navItems: NavItem[] = [
         icon: AtSign,
         description: 'Donde te mencionan',
       },
-      {
+      /*  {
         name: 'Archivadas',
         href: '/chat/archived',
         icon: Archive,
         description: 'Conversaciones archivadas',
-      },
-      {
+      }, */
+      /* {
         name: 'Etiquetas',
         href: '/chat/tags',
         icon: Tag,
@@ -109,7 +109,7 @@ export const navItems: NavItem[] = [
         href: '/chat/reports',
         icon: BarChart3,
         description: 'Reportes y métricas',
-      },
+      }, */
       {
         name: 'Configuración',
         icon: Settings,
