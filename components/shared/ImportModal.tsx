@@ -8,8 +8,6 @@ import {
   Upload,
   File,
   X,
-  CheckCircle,
-  AlertCircle,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -33,7 +31,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { mapFacebookLeadToLead, FacebookLeadData } from '@/types/lead';
+import { FacebookLeadData, mapFacebookLeadToLead } from '@/features/leads/types/leadFacebook';
 
 interface ImportResult {
   inserted: number;

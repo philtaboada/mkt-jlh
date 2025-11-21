@@ -1,0 +1,14 @@
+// Mapeo de plataformas y función para obtener la etiqueta legible
+export const PlatformLabels: Record<string, string> = {
+  fb: 'Facebook',
+  ig: 'Instagram',
+  twitter: 'Twitter',
+  linkedin: 'LinkedIn',
+  tiktok: 'TikTok',
+  youtube: 'YouTube',
+  other: 'Otro',
+};
+
+export function getPlatformLabel(platform: string): string {
+  return PlatformLabels[platform] || platform;
+}

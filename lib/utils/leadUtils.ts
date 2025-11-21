@@ -1,4 +1,4 @@
-import { LeadProductTypeEnum } from '@/lib/enums/leadEnums';
+import { LeadProductTypeEnum } from "@/features/leads/types/leadEnums";
 
 export function formatCurrency(amount: number | null): string {
   if (!amount) return '$0';

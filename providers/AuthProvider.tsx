@@ -1,22 +1,50 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { createContext, useContext, useEffect } from "react";
 
-type AuthContextType = ReturnType<typeof useAuth> | null;
+interface AuthContextType {}
 
-const AuthContext = React.createContext<AuthContextType>(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const auth = useAuth();
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  const supabase = createClient();
 
-  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN") {
+        queryClient.invalidateQueries({ queryKey: ["user"] });
+      }
+
+      if (event === "SIGNED_OUT") {
+        queryClient.setQueryData(["user"], null);
+      }
+
+      if (event === "TOKEN_REFRESHED") {
+        queryClient.invalidateQueries({ queryKey: ["user"] });
+      }
+
+      router.refresh();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase, queryClient, router]);
+
+  return <AuthContext.Provider value={{}}>{children}</AuthContext.Provider>;
 }
 
 export function useAuthContext() {
-  const ctx = React.useContext(AuthContext);
-  if (!ctx) throw new Error('useAuthContext must be used within AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuthContext debe usarse dentro de AuthProvider");
+  }
+  return context;
 }
-
-export default AuthProvider;
