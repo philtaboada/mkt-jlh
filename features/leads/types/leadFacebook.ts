@@ -1,11 +1,11 @@
 // Tipos y funciones para Facebook Leads
-import { LeadEntityTypeEnum } from './leadEnums';
+import { LeadEntityTypeEnum, LeadEntityType } from './leadEnums';
 import { Lead } from './leads';
 import { getPlatformLabel } from './platformLabels';
 
 export interface FacebookLeadData {
   id: string;
-  created_time: string;
+  created_time: string | number;
   ad_id?: string;
   ad_name?: string;
   adset_id?: string;
@@ -16,58 +16,105 @@ export interface FacebookLeadData {
   form_name?: string;
   is_organic: string;
   platform: string;
+  // Campos del primer formato
   '¿cuenta_con_una_licitación_pública_o_privada_aprobada?': string;
   '¿ganó_el_proyecto_o_servicio_como_empresa_o_consorcio?': string;
   '¿por_cuál_medio_prefiere_que_nos_comuniquemos_con_usted?': string;
-  ruc: string;
-  nombre_y_apellidos: string;
-  phone_number: string;
-  correo_electrónico: string;
-  provincia: string;
+  ruc?: string;
+  nombre_y_apellidos?: string;
+  phone_number?: string;
+  correo_electrónico?: string;
+  provincia?: string;
+  // Campos del segundo formato
+  'solo_atendemos_fideicomisos_públicos,_¿deseas_recibir_información?': string;
+  '¿cuenta_con_un_proceso_de_fideicomiso_ganado?': string;
+  '¿qué_medio_prefiere_para_ponernos_en_contacto_con_usted?_': string;
+  déjenos_su_ruc_de_empresa?: number;
+  full_name?: string;
+  phone?: string;
+  email?: string;
+  city?: string;
   lead_status: string;
 }
 
 export function mapFacebookLeadToLead(
   fbData: FacebookLeadData
 ): Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'assigned_user'> {
-  // Separar nombre y apellido
-  const nameParts = fbData.nombre_y_apellidos.trim().split(' ');
+  // Determinar el formato basado en campos presentes
+  const isFirstFormat = !!fbData.nombre_y_apellidos;
+  const isSecondFormat = !!fbData.full_name;
+
+  // Nombre completo
+  const fullName = isFirstFormat ? fbData.nombre_y_apellidos! : fbData.full_name!;
+  const nameParts = fullName.trim().split(' ');
   const first_name = nameParts[0] || '';
   const last_name = nameParts.slice(1).join(' ') || '';
 
-  // Limpiar número de teléfono
-  const phone = fbData.phone_number.replace('p:+', '').replace('+', '');
+  // Número de teléfono
+  const phoneRaw = isFirstFormat ? fbData.phone_number! : fbData.phone!;
+  const phone = phoneRaw.replace('p:+', '').replace('+', '');
 
-  // Determinar tipo de entidad basado en la respuesta
-  const tipoRespuesta = fbData['¿ganó_el_proyecto_o_servicio_como_empresa_o_consorcio?'];
-  const type_entity = tipoRespuesta.toLowerCase().includes('consorcio')
-    ? LeadEntityTypeEnum.PARTNERSHIPS
-    : LeadEntityTypeEnum.BUSINESS;
+  // Email
+  const email = isFirstFormat ? fbData['correo_electrónico']! : fbData.email!;
+
+  // Provincia/Ciudad
+  const province = isFirstFormat ? fbData.provincia! : fbData.city!;
+
+  // RUC
+  const ruc = isFirstFormat ? fbData.ruc! : fbData['déjenos_su_ruc_de_empresa']?.toString()!;
+
+  // Determinar tipo de entidad
+  let type_entity: LeadEntityType = LeadEntityTypeEnum.BUSINESS;
+  if (isFirstFormat) {
+    const tipoRespuesta = fbData['¿ganó_el_proyecto_o_servicio_como_empresa_o_consorcio?'];
+    type_entity = tipoRespuesta.toLowerCase().includes('consorcio')
+      ? LeadEntityTypeEnum.PARTNERSHIPS
+      : LeadEntityTypeEnum.BUSINESS;
+  } else if (isSecondFormat) {
+    // Para fideicomisos, asumir BUSINESS
+    type_entity = LeadEntityTypeEnum.BUSINESS;
+  }
 
   // Crear notas organizadas con las respuestas del formulario
-  const notes = `
+  let notes = '';
+  if (isFirstFormat) {
+    notes = `
 Preguntas del formulario:
 • ¿Cuenta con una licitación pública o privada aprobada?: ${fbData['¿cuenta_con_una_licitación_pública_o_privada_aprobada?']}
 • ¿Ganó el proyecto o servicio como empresa o consorcio?: ${fbData['¿ganó_el_proyecto_o_servicio_como_empresa_o_consorcio?']}
 • ¿Por cuál medio prefiere que nos comuniquemos?: ${fbData['¿por_cuál_medio_prefiere_que_nos_comuniquemos_con_usted?']}
 
 Información adicional:
-• Provincia: ${fbData.provincia}
+• Provincia: ${province}
 • Plataforma: ${getPlatformLabel(fbData.platform)}
 • Campaña: ${fbData.campaign_name || 'N/A'}
 • Formulario: ${fbData.form_name || 'N/A'}
-  `.trim();
+    `.trim();
+  } else if (isSecondFormat) {
+    notes = `
+Preguntas del formulario:
+• Solo atendemos fideicomisos públicos, ¿deseas recibir información?: ${fbData['solo_atendemos_fideicomisos_públicos,_¿deseas_recibir_información?']}
+• ¿Cuenta con un proceso de fideicomiso ganado?: ${fbData['¿cuenta_con_un_proceso_de_fideicomiso_ganado?']}
+• ¿Qué medio prefiere para ponernos en contacto?: ${fbData['¿qué_medio_prefiere_para_ponernos_en_contacto_con_usted?_']}
+
+Información adicional:
+• Ciudad: ${province}
+• Plataforma: ${getPlatformLabel(fbData.platform)}
+• Campaña: ${fbData.campaign_name || 'N/A'}
+• Formulario: ${fbData.form_name || 'N/A'}
+    `.trim();
+  }
 
   return {
     first_name,
     last_name,
-    email: fbData['correo_electrónico'],
+    email,
     phone,
     whatsapp: phone,
     type_entity,
     business_or_person_name: null,
-    ruc: fbData.ruc,
-    province: fbData.provincia,
+    ruc,
+    province,
     facebook_lead_id: fbData.id,
     platform: fbData.platform,
     status: 'new',
