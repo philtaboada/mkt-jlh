@@ -91,6 +91,15 @@ async function fetchLeadData(leadgenId: string) {
       '¿por_cuál_medio_prefiere_que_nos_comuniquemos_con_usted?': getFieldValue(
         '¿por_cuál_medio_prefiere_que_nos_comuniquemos_con_usted?'
       ),
+      'solo_atendemos_fideicomisos_públicos,_¿deseas_recibir_información?': getFieldValue(
+        'solo_atendemos_fideicomisos_públicos,_¿deseas_recibir_información?'
+      ),
+      '¿cuenta_con_un_proceso_de_fideicomiso_ganado?': getFieldValue(
+        '¿cuenta_con_un_proceso_de_fideicomiso_ganado?'
+      ),
+      '¿qué_medio_prefiere_para_ponernos_en_contacto_con_usted?_': getFieldValue(
+        '¿qué_medio_prefiere_para_ponernos_en_contacto_con_usted?_'
+      ),
       ruc: getFieldValue('ruc'),
       nombre_y_apellidos: getFieldValue('nombre_y_apellidos'),
       phone_number: getFieldValue('phone_number'),
