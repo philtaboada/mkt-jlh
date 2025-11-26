@@ -4,6 +4,7 @@ import { createLead } from '@/features/leads/api/leads';
 import { FacebookLeadData, mapFacebookLeadToLead } from '@/features/leads/types/leadFacebook';
 
 // Environment variables required:
+
 // META_VERIFY_TOKEN: Token para verificar el webhook en la configuración de la App
 // META_APP_SECRET: App Secret para validar la firma de las peticiones (seguridad)
 // META_PAGE_ACCESS_TOKEN: Token de acceso a la página (con permiso leads_retrieval)
