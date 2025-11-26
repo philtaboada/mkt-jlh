@@ -26,9 +26,10 @@ export interface GetProspectsResult {
 export async function getProspects(params: GetProspectsParams): Promise<GetProspectsResult> {
   const supabase = await createClient();
   try {
+    params.page_index = (params?.page_index ?? 1) - 1;
     const { data: result, error } = await supabase.rpc('mkt_prospect', { params });
     if (error) throw error;
-    const pageIndex = params.page_index ?? 1;
+    const pageIndex = params.page_index ?? 0;
     const pageSize = params.page_size ?? 10;
     return {
       data: result.data || [],
