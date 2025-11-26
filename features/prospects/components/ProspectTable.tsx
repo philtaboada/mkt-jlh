@@ -21,6 +21,7 @@ interface ProspectTableProps {
   onPageChange?: (pageIndex: number, pageSize: number) => void;
   onSearch?: () => void;
   onView?: (prospect: Prospect) => void;
+  urlSearchKey?: string;
 }
 
 export default function ProspectTable({
@@ -29,13 +30,9 @@ export default function ProspectTable({
   pagination,
   onPageChange,
   onSearch,
+  urlSearchKey,
   onView,
 }: ProspectTableProps) {
-
-
- 
-
-
   const copyName = (name?: string | null) => {
     if (!name) return;
     navigator.clipboard.writeText(name);
@@ -78,9 +75,7 @@ export default function ProspectTable({
         return (
           <div className="flex flex-col gap-1">
             <span className="font-medium">{name}</span>
-            {typeLabel && (
-              <span className="text-xs text-muted-foreground">{typeLabel}</span>
-            )}
+            {typeLabel && <span className="text-xs text-muted-foreground">{typeLabel}</span>}
           </div>
         );
       },
@@ -96,7 +91,10 @@ export default function ProspectTable({
           </div>
         );
       }
-      const initials = getInitials(worker.name.split(' ')[0], worker.name.split(' ').slice(1).join(' '));
+      const initials = getInitials(
+        worker.name.split(' ')[0],
+        worker.name.split(' ').slice(1).join(' ')
+      );
       return (
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-linear-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-semibold shadow-sm">
@@ -124,8 +122,11 @@ export default function ProspectTable({
                 className={`text-xs font-semibold text-white ${productColors[prod.type] || 'bg-gray-500'}`}
               >
                 {prod.type === LeadProductTypeEnum.SEGUROS
-                  ? prod.insurance_type || LeadProductTypeLabels[prod.type as keyof typeof LeadProductTypeLabels] || prod.type
-                  : LeadProductTypeLabels[prod.type as keyof typeof LeadProductTypeLabels] || prod.type}
+                  ? prod.insurance_type ||
+                    LeadProductTypeLabels[prod.type as keyof typeof LeadProductTypeLabels] ||
+                    prod.type
+                  : LeadProductTypeLabels[prod.type as keyof typeof LeadProductTypeLabels] ||
+                    prod.type}
               </Badge>
             ))}
           </div>
@@ -196,6 +197,7 @@ export default function ProspectTable({
         columns={columns}
         pagination={pagination}
         onPageChange={onPageChange}
+        urlSearchKey={urlSearchKey}
         searchPlaceholder="Buscar prospectos..."
         showSearch={true}
         searchColumn="business_or_person_name"

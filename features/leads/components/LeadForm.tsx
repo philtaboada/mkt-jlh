@@ -17,7 +17,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { useWorkers } from '@/hooks/useWorkers';
-import { useCompanies, useCreateCompany, useSearchCompanies } from '@/features/companies/hooks/useCompanies';
+import {
+  useCompanies,
+  useCreateCompany,
+  useSearchCompanies,
+} from '@/features/companies/hooks/useCompanies';
 import {
   usePartnerships,
   useCreatePartnership,
@@ -31,7 +35,7 @@ import { LeadFormInput, leadFormSchema } from '../schemas/leadSchemas';
 import { LeadEntityTypeOptions, LeadSourceOptions, LeadStatusOptions } from '../types/leadLabels';
 import { PlatformLabels } from '../types/platformLabels';
 import { PartnershipForm } from '@/features/partnerships/components/PartnershipForm';
-
+import { LeadEntityTypeEnum } from '../types/leadEnums';
 
 interface LeadFormProps {
   defaultValues?: LeadFormInput;
@@ -62,7 +66,7 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
       phone: '',
       whatsapp: '',
       job_title: '',
-      type_entity: 'business',
+      type_entity: LeadEntityTypeEnum.BUSINESS,
       business_or_partnership_id: null,
       business_or_person_name: null,
       ruc: '',
@@ -104,7 +108,7 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
   );
 
   const { data: partnershipResults = [], isFetching: isFetchingPartnerships } =
-    useSearchPartnerships(debouncedTerm, typeEntity === 'partnerships');
+    useSearchPartnerships(debouncedTerm, typeEntity === LeadEntityTypeEnum.PARTNERSHIPS);
 
   const createCompanyMutation = useCreateCompany();
   const createPartnershipMutation = useCreatePartnership();
@@ -166,7 +170,12 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
               <FormItem>
                 <FormLabel>Email *</FormLabel>
                 <FormControl>
-                  <Input placeholder="john@example.com" type="email" {...field} value={field.value || ''} />
+                  <Input
+                    placeholder="john@example.com"
+                    type="email"
+                    {...field}
+                    value={field.value || ''}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -274,14 +283,13 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
             name="business_or_partnership_id"
             render={({ field }) => {
               // Combinar items con el elemento seleccionado por defecto si no está en la lista
-              const baseItems =
-                debouncedTerm
-                  ? typeEntity === 'partnerships'
-                    ? partnershipResults
-                    : companyResults
-                  : typeEntity === 'partnerships'
-                    ? initialPartnerships?.data || []
-                    : initialCompanies?.data || [];
+              const baseItems = debouncedTerm
+                ? typeEntity === LeadEntityTypeEnum.PARTNERSHIPS
+                  ? partnershipResults
+                  : companyResults
+                : typeEntity === LeadEntityTypeEnum.PARTNERSHIPS
+                  ? initialPartnerships?.data || []
+                  : initialCompanies?.data || [];
 
               let combinedItems = baseItems;
 
@@ -289,7 +297,8 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
               if (field.value && !baseItems.find((item: any) => item.id === field.value)) {
                 const selectedItem = {
                   id: field.value,
-                  [typeEntity === 'partnerships' ? 'name' : 'legal_name']: defaultValues?.business_or_person_name || '',
+                  [typeEntity === LeadEntityTypeEnum.PARTNERSHIPS ? 'name' : 'legal_name']:
+                    defaultValues?.business_or_person_name || '',
                   document: defaultValues?.ruc || '',
                 };
                 combinedItems = [selectedItem, ...baseItems];
@@ -302,7 +311,9 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
                     <SelectOptions
                       items={combinedItems}
                       valueKey="id"
-                      labelKey={typeEntity === 'partnerships' ? 'name' : 'legal_name'}
+                      labelKey={
+                        typeEntity === LeadEntityTypeEnum.PARTNERSHIPS ? 'name' : 'legal_name'
+                      }
                       subtitleKey="document"
                       value={field.value ?? null}
                       onChange={(v) => {
@@ -312,7 +323,7 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
                           const selectedItem = combinedItems.find((item: any) => item.id === v);
                           if (selectedItem) {
                             const name =
-                              typeEntity === 'partnerships'
+                              typeEntity === LeadEntityTypeEnum.PARTNERSHIPS
                                 ? selectedItem.name
                                 : selectedItem.legal_name;
                             form.setValue('business_or_person_name', name);
@@ -324,23 +335,23 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
                         }
                       }}
                       placeholder={
-                        typeEntity === 'partnerships'
+                        typeEntity === LeadEntityTypeEnum.PARTNERSHIPS
                           ? 'Selecciona un consorcio'
                           : 'Selecciona una empresa'
                       }
                       searchable
                       loading={
                         debouncedTerm
-                          ? typeEntity === 'partnerships'
+                          ? typeEntity === LeadEntityTypeEnum.PARTNERSHIPS
                             ? isFetchingPartnerships
                             : isFetchingCompanies
-                          : typeEntity === 'partnerships'
+                          : typeEntity === LeadEntityTypeEnum.PARTNERSHIPS
                             ? isLoadingInitialPartnerships
                             : isLoadingInitialCompanies
                       }
                       createOption={{
                         label:
-                          typeEntity === 'partnerships'
+                          typeEntity === LeadEntityTypeEnum.PARTNERSHIPS
                             ? 'Crear nuevo consorcio'
                             : 'Crear nueva empresa',
                         onCreate: () => setCreateDialogOpen(true),
@@ -407,7 +418,10 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
                   <FormLabel>Plataforma</FormLabel>
                   <SelectOptions
                     placeholder="Selecciona la plataforma"
-                    options={Object.entries(PlatformLabels).map(([value, label]) => ({ value, label }))}
+                    options={Object.entries(PlatformLabels).map(([value, label]) => ({
+                      value,
+                      label,
+                    }))}
                     value={field.value}
                     onChange={field.onChange}
                   />
@@ -501,7 +515,11 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
               <FormItem>
                 <FormLabel>Notas</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Notas adicionales..." {...field} value={field.value || ''} />
+                  <Textarea
+                    placeholder="Notas adicionales..."
+                    {...field}
+                    value={field.value || ''}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -515,10 +533,7 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
                 <X className="h-4 w-4" /> Cancelar
               </Button>
             )}
-            <Button 
-              type="submit" 
-              disabled={formState.isSubmitting}
-            >
+            <Button type="submit" disabled={formState.isSubmitting}>
               <SaveAll className="h-4 w-4" />
               {formState.isSubmitting ? 'Guardando...' : defaultValues ? 'Actualizar' : 'Crear'}
             </Button>
@@ -528,9 +543,13 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
 
       {/* Modal para crear Empresa o Consorcio */}
       <EntityDialog
-        title={typeEntity === 'partnerships' ? 'Crear Nuevo Consorcio' : 'Crear Nueva Empresa'}
+        title={
+          typeEntity === LeadEntityTypeEnum.PARTNERSHIPS
+            ? 'Crear Nuevo Consorcio'
+            : 'Crear Nueva Empresa'
+        }
         content={(onClose) =>
-          typeEntity === 'partnerships' ? (
+          typeEntity === LeadEntityTypeEnum.PARTNERSHIPS ? (
             <PartnershipForm
               defaultValues={{ document: debouncedTerm || '' } as any}
               onSubmit={async (data) => {

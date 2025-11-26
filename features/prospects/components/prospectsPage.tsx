@@ -4,56 +4,52 @@ import HeaderDetail from '@/components/shared/HeaderDetail';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { FilterProspect, GetProspectsParams } from './FilterProspect';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { FilterProspect } from './FilterProspect';
 import { useGetProspects } from '../hooks/useProspect';
 import ProspectTable from './ProspectTable';
 
 export function ProspectPageClient() {
   const searchParams = useSearchParams();
-  const [filters, setFilters] = useState<GetProspectsParams>({});
-  const { data, isLoading, refetch } = useGetProspects(filters);
+  const router = useRouter();
 
-  useEffect(() => {
-    const workers = searchParams.get('workers')?.split(',') || [];
-    const statuscode = searchParams.get('statuscode')?.split(',').map(Number) || [];
-    const typeproduct = searchParams.get('typeproduct')?.split(',') || [];
-    const search = searchParams.get('search') || '';
-    const start_date = searchParams.get('start_date') || undefined;
-    const end_date = searchParams.get('end_date') || undefined;
+  // Derive filters from search params
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = parseInt(searchParams.get('limit') || '10');
+  const workers = searchParams.get('workers')?.split(',') || [];
+  const statuscode = searchParams.get('statuscode')?.split(',').map(Number) || [];
+  const typeproduct = searchParams.get('typeproduct')?.split(',') || [];
+  const search = searchParams.get('search') || '';
+  const start_date = searchParams.get('start_date') || undefined;
+  const end_date = searchParams.get('end_date') || undefined;
 
-    const newFilters = {
-      workers,
-      statuscode,
-      typeproduct,
-      search,
-      start_date,
-      end_date,
-    };
-
-    // Solo setear si cambió
-    setFilters((prev) => {
-      if (JSON.stringify(prev) !== JSON.stringify(newFilters)) {
-        return newFilters;
-      }
-      return prev;
-    });
-  }, [searchParams]);
-  const prospects = data?.data || [];
-  const pagination = {
-    pageIndex: (data?.pagination?.pageIndex ?? 1) > 0 ? (data?.pagination?.pageIndex ?? 1) - 1 : 0,
-    pageSize: data?.pagination?.pageSize ?? 10,
-    total: data?.pagination?.total ?? 0,
-    totalPages: data?.pagination?.totalPages ?? 0,
+  const filters = {
+    page_index: page,
+    page_size: limit,
+    workers,
+    statuscode,
+    typeproduct,
+    search,
+    start_date,
+    end_date,
   };
 
-  const onPageChange = (pageIndex: number, pageSize: number) => {
-    setFilters((prev) => ({
-      ...prev,
-      pageIndex,
-      pageSize,
-    }));
+  const { data, isLoading, refetch } = useGetProspects(filters);
+  const prospects = data?.data || [];
+  const pagination = data?.pagination
+    ? { ...data.pagination }
+    : {
+        pageIndex: 0,
+        pageSize: 10,
+        total: 0,
+        totalPages: 0,
+      };
+
+  const handlePageChange = (newPageIndex: number, newPageSize: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', (newPageIndex + 1).toString());
+    params.set('limit', newPageSize.toString());
+    router.push(`?${params.toString()}`);
   };
 
   const onSearch = () => {
@@ -74,7 +70,7 @@ export function ProspectPageClient() {
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
-            <FilterProspect onFiltersChange={setFilters} />
+            <FilterProspect />
           </div>
         }
       />
@@ -82,8 +78,9 @@ export function ProspectPageClient() {
         <ProspectTable
           prospects={prospects}
           isLoading={isLoading}
+          urlSearchKey="search"
           pagination={pagination}
-          onPageChange={onPageChange}
+          onPageChange={handlePageChange}
           onSearch={onSearch}
           onView={onView}
         />
