@@ -17,7 +17,7 @@ import { useWorkers } from '@/hooks/useWorkers';
 import { Departaments } from '@/lib/constants/departmentConstants';
 import { generateUUID } from '@/lib/utils/uuidTRandom';
 import { HistoryLog } from '@/lib/utils/historyLog';
-import { LeadProductTypeEnum } from '@/features/leads/types/leadEnums';
+import { LeadEntityTypeEnum, LeadProductTypeEnum } from '@/features/leads/types/leadEnums';
 import { Lead } from '@/features/leads/types/leads';
 
 interface FideicomisosFormProps {
@@ -72,7 +72,7 @@ export function FideicomisosForm({
           management_date: today,
           main_product_id: mainProductId,
           referral_channel: 'Marketing',
-          type_entity: defaultValues.type_entity || 'business',
+          type_entity: defaultValues.type_entity || LeadEntityTypeEnum.BUSINESS,
           business_or_partnership_id: defaultValues.business_or_partnership_id || null,
           status_code: 112,
           effective_start_date: today,

@@ -20,7 +20,7 @@ import { ConstractSubject } from '@/lib/constants/contractSubjectConstants';
 import { generateUUID } from '@/lib/utils/uuidTRandom';
 import { HistoryLog } from '@/lib/utils/historyLog';
 import { Lead } from '@/features/leads/types/leads';
-import { LeadProductTypeEnum } from '@/features/leads/types/leadEnums';
+import { LeadEntityTypeEnum, LeadProductTypeEnum } from '@/features/leads/types/leadEnums';
 interface CartaFianzaFormProps {
   defaultValues: Lead | null;
   type?: 'new' | 'add';
@@ -69,7 +69,7 @@ export function CartaFianzaForm({ defaultValues, type, onSubmit, onCancel }: Car
           main_product_id: mainProductId,
           awarded_date: today,
           management_date: today,
-          type_entity: defaultValues?.type_entity || 'Business',
+          type_entity: defaultValues?.type_entity || LeadEntityTypeEnum.BUSINESS,
           status: '',
           status_code: 112,
           referral_channel: 'Marketing',
