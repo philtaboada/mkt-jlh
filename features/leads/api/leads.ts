@@ -166,7 +166,7 @@ export async function getLeadsStats() {
 }
 
 // Crear nuevo lead
-export async function createLead(newLead: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) {
+export async function createLead(newLead: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'assigned_user'>) {
   const supabase = await createClient();
 
   try {

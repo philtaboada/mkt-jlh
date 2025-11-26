@@ -3,6 +3,11 @@ import crypto from 'crypto';
 import { createLead } from '@/features/leads/api/leads';
 import { FacebookLeadData, mapFacebookLeadToLead } from '@/features/leads/types/leadFacebook';
 
+// Environment variables required:
+// META_VERIFY_TOKEN: Token para verificar el webhook en la configuración de la App
+// META_APP_SECRET: App Secret para validar la firma de las peticiones (seguridad)
+// META_PAGE_ACCESS_TOKEN: Token de acceso a la página (con permiso leads_retrieval)
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const mode = url.searchParams.get('hub.mode');
@@ -20,18 +25,22 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    console.log('📩 Webhook recibido:', JSON.stringify(body, null, 2));
-
-    // Validar firma (opcional pero recomendado)
+    // 1. Obtener el cuerpo raw para la verificación de firma
+    const rawBody = await req.text();
+    
+    // 2. Validar firma antes de procesar nada
     const signature = req.headers.get('x-hub-signature-256');
     if (signature && process.env.META_APP_SECRET) {
-      const isValid = verifySignature(signature, JSON.stringify(body), process.env.META_APP_SECRET);
+      const isValid = verifySignature(signature, rawBody, process.env.META_APP_SECRET);
       if (!isValid) {
         console.log('❌ Firma inválida');
         return new Response('Invalid signature', { status: 403 });
       }
     }
+
+    // 3. Parsear el cuerpo ahora que es seguro
+    const body = JSON.parse(rawBody);
+    console.log('📩 Webhook recibido:', JSON.stringify(body, null, 2));
 
     // Procesar cada entrada
     if (body.object === 'page') {
@@ -42,7 +51,12 @@ export async function POST(req: NextRequest) {
             console.log('🆕 Nuevo lead ID:', leadgenId);
 
             // Obtener los datos del lead
-            await fetchLeadData(leadgenId);
+            try {
+              await fetchLeadData(leadgenId);
+            } catch (leadError) {
+              console.error(`❌ Error procesando lead ${leadgenId}:`, leadError);
+              // No lanzamos error aquí para no detener el procesamiento de otros leads en el mismo lote
+            }
           }
         }
       }
@@ -65,9 +79,9 @@ async function fetchLeadData(leadgenId: string) {
     console.log('📋 Datos del lead:', JSON.stringify(leadData, null, 2));
 
     // Mapear los datos del lead a FacebookLeadData
-    const fieldData = leadData.field_data || [];
+    const fieldData = (leadData.field_data || []) as Array<{ name: string; values: string[] }>;
     const getFieldValue = (name: string) =>
-      fieldData.find((f: any) => f.name === name)?.values?.[0] || '';
+      fieldData.find((f) => f.name === name)?.values?.[0] || '';
 
     const fbLeadData: FacebookLeadData = {
       id: leadData.id,
@@ -112,7 +126,7 @@ async function fetchLeadData(leadgenId: string) {
     const lead = mapFacebookLeadToLead(fbLeadData);
 
     // Guardar el lead en la base de datos
-    await createLead(lead as any);
+    await createLead(lead);
     return leadData;
   } catch (error) {
     console.error('❌ Error obteniendo datos del lead:', error);
