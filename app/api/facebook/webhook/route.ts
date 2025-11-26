@@ -73,7 +73,8 @@ export async function POST(req: NextRequest) {
 // Función para obtener datos del lead
 async function fetchLeadData(leadgenId: string) {
   try {
-    const url = `https://graph.facebook.com/v21.0/${leadgenId}?access_token=${process.env.META_PAGE_ACCESS_TOKEN}`;
+    // Actualizado a v24.0 según tu captura de pantalla
+    const url = `https://graph.facebook.com/v24.0/${leadgenId}?access_token=${process.env.META_PAGE_ACCESS_TOKEN}`;
     const response = await fetch(url);
     const leadData = await response.json();
 
