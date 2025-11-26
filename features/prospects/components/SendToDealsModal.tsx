@@ -8,7 +8,11 @@ import { IsosForm } from './IsosForm';
 import { FideicomisosForm } from './FideicomisosForm';
 import { SegurosForm } from './SegurosForm';
 import { EntityDialog } from '@/components/shared/dialogs/EntityDialog';
-import { LeadProductType, LeadProductTypeEnum } from '@/features/leads/types/leadEnums';
+import {
+  LeadEntityTypeEnum,
+  LeadProductType,
+  LeadProductTypeEnum,
+} from '@/features/leads/types/leadEnums';
 import { LeadProductTypeOptions } from '@/features/leads/types/leadLabels';
 
 interface SendToDealsModalProps {
@@ -49,7 +53,7 @@ export function SendToDealsModal({ isOpen, onClose, lead, type, onSubmit }: Send
       LeadProductTypeEnum.FIDEICOMISOS,
       LeadProductTypeEnum.SEGUROS,
     ];
-    if (lead?.type_entity !== 'partnerships') {
+    if (lead?.type_entity !== LeadEntityTypeEnum.PARTNERSHIPS) {
       availableProductTypes.push(LeadProductTypeEnum.ISOS);
     }
 

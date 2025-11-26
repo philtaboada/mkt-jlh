@@ -20,7 +20,7 @@ import { IsoTypeRecord } from '@/lib/constants/isosConstants';
 import { Lead } from '@/features/leads/types/leads';
 import { HistoryLog } from '@/lib/utils/historyLog';
 import { generateUUID } from '@/lib/utils/uuidTRandom';
-import { LeadProductTypeEnum } from '@/features/leads/types/leadEnums';
+import { LeadEntityTypeEnum, LeadProductTypeEnum } from '@/features/leads/types/leadEnums';
 
 interface IsosFormProps {
   defaultValues?: Lead | null;
@@ -69,7 +69,7 @@ export function IsosForm({ defaultValues, type, onSubmit, onCancel }: IsosFormPr
           emition_at: today,
           business_or_partnership_id: defaultValues.business_or_partnership_id,
           referral_channel: 'Marketing',
-          type_entity: 'business',
+          type_entity: LeadEntityTypeEnum.BUSINESS,
           management_date: today,
           worker_id: defaultValues.assigned_user?.id || null,
           main_product_id: mainProductId,

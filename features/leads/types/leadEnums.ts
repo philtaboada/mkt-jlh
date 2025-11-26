@@ -29,7 +29,7 @@ export const LeadProductTypeEnum = {
 
 export const LeadEntityTypeEnum = {
   BUSINESS: 'business',
-  PARTNERSHIPS: 'partnerships',
+  PARTNERSHIPS: 'partnership',
 } as const;
 
 export type LeadStatus = (typeof LeadStatusEnum)[keyof typeof LeadStatusEnum];

@@ -93,6 +93,7 @@ export function FilterProspect({ onFiltersChange }: FilterProspectProps) {
         newParams.delete(key);
       }
     });
+    newParams.set('page', '1'); // Reset to page 1 on filter change
     router.push(`${pathname}?${newParams.toString()}`);
   };
 
