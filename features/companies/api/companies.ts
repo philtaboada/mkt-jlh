@@ -139,3 +139,21 @@ export async function checkDocumentExists(
     throw error;
   }
 }
+
+export async function getCompanyByDocument(
+  document: string
+): Promise<{ document: string; legal_name: string; worker_id: string | null } | null> {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from('businesses')
+      .select('document, legal_name, worker_id')
+      .eq('document', document)
+      .limit(1);
+
+    if (error) throw error;
+    return data && data.length > 0 ? data[0] : null;
+  } catch (error) {
+    throw error;
+  }
+}
