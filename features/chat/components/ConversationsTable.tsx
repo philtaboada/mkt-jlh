@@ -93,7 +93,11 @@ export default function ConversationsTable({
               <DropdownMenuItem onClick={() => onView?.(conversation)}>
                 Ver conversación
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onAssign?.(conversation.id, 'me')}>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (conversation.id) onAssign?.(conversation.id, 'me');
+                }}
+              >
                 Asignar a mí
               </DropdownMenuItem>
             </DropdownMenuContent>
