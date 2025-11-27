@@ -213,7 +213,7 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
           </div>
 
           {/* Cargo */}
-          <FormField
+          {/* <FormField
             control={form.control}
             name="job_title"
             render={({ field }) => (
@@ -225,7 +225,7 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
                 <FormMessage />
               </FormItem>
             )}
-          />
+          /> */}
 
           {/* Tipo de producto y entidad */}
           <div className="grid grid-cols-2 gap-4">
@@ -464,7 +464,11 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
                 <FormItem>
                   <FormLabel>Último Contacto</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} value={field.value || ''} />
+                    <Input
+                      type="date"
+                      {...field}
+                      value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -478,7 +482,11 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
                 <FormItem>
                   <FormLabel>Próximo Seguimiento</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} value={field.value || ''} />
+                    <Input
+                      type="date"
+                      {...field}
+                      value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

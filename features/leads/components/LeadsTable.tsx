@@ -128,7 +128,6 @@ export default function LeadsTable({
         );
       },
     } as ColumnDef<Lead>,
-    createSortableColumn('job_title', 'Cargo') as ColumnDef<Lead>,
     {
       accessorKey: 'assigned_user',
       header: 'Asignado',
@@ -167,7 +166,7 @@ export default function LeadsTable({
     createBadgeColumn('platform', 'Plataforma', platformColors, (value) =>
       getPlatformLabel(value)
     ) as ColumnDef<Lead>,
-    createProgressColumn('score', 'Score') as ColumnDef<Lead>,
+    createDateColumn('last_contact_date', 'Ult. Contactado') as ColumnDef<Lead>,
     createCurrencyColumn('estimated_value', 'Valor Est.') as ColumnDef<Lead>,
     {
       id: 'actions',
