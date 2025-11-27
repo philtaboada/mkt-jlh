@@ -1,10 +1,14 @@
-import ChatInterface from '@/features/chat/components/ChatInterface';
+'use client';
 
-export const metadata = {
-  title: 'Chat - JLH',
-  description: 'Gestiona tus conversaciones en el panel de chat.',
-};
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function ChatPage() {
-  return <ChatInterface />;
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/chat/inbox');
+  }, [router]);
+
+  return null;
 }
