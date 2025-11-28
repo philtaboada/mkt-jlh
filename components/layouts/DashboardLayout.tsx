@@ -42,9 +42,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <MobileSidebar open={sidebarOpen} onOpenChange={setSidebarOpen} />
 
       {/* Main Content */}
-      <div className={cn('transition-all duration-300', collapsed ? 'lg:pl-16' : 'lg:pl-72')}>
+      <div
+        className={cn(
+          'transition-all duration-300 overflow-hidden',
+          collapsed ? 'lg:pl-16' : 'lg:pl-72'
+        )}
+      >
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="min-h-[calc(100vh-4rem)]">{children}</main>
+        <main className="min-h-[calc(100vh-3rem)] h-full overflow-hidden">{children}</main>
       </div>
     </div>
   );
