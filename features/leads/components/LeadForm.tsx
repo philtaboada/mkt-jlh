@@ -239,7 +239,7 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
                   <FormLabel>Personal</FormLabel>
                   <FormControl>
                     <SelectOptions
-                      disabled={!!defaultValues?.assigned_to}
+                      disabled={!!defaultValues?.assigned_to && defaultValues?.status === 'deals'}
                       items={workers || []}
                       valueKey="id"
                       labelKey="name"
