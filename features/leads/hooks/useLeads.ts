@@ -14,6 +14,12 @@ import {
 } from '@/features/leads/api/leads';
 import { LeadsFilters, Lead } from '@/features/leads/types/leads';
 import { LeadStatus } from '../types/leadEnums';
+import { getCompanyByDocument } from '@/features/companies/api/companies';
+import { getPartnershipByDocument } from '@/features/partnerships/api/partnerships';
+import { fetchRucData } from '@/lib/api/ruc';
+import { LeadEntityTypeEnum, LeadEntityType } from '@/features/leads/types/leadEnums';
+import { getDocumentSearchWithData } from '@/lib/api/documentSearch';
+import { toast } from 'sonner';
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -159,5 +165,48 @@ export const useBulkImportFacebookLeads = () => {
       queryClient.invalidateQueries({ queryKey: ['leads_mkt'] });
       queryClient.invalidateQueries({ queryKey: ['leads_mkt', 'stats'] });
     },
+  });
+};
+
+
+
+export const useUpdateLeadEntityData = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ruc,
+      type_entity,
+    }: {
+      id: string;
+      ruc: string;
+      type_entity: LeadEntityType;
+    }) => {
+      let extraData: any = {};
+      const docData = await getDocumentSearchWithData(ruc, type_entity);
+      if (docData) {
+        extraData.business_or_person_name = docData.legal_name ?? null;
+        extraData.business_or_partnership_id = docData.id ?? null;
+        extraData.worker_id = docData.worker_id ?? null;
+        extraData.type_entity = type_entity;
+      }
+      return updateLead(id, {
+        business_or_person_name: extraData.business_or_person_name ?? null,
+        business_or_partnership_id: extraData.business_or_partnership_id ?? null,
+        assigned_to: extraData.worker_id ?? null,
+        ruc,
+        type_entity,
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['leads_mkt'] });
+      queryClient.invalidateQueries({ queryKey: ['leads_mkt', data.id] });
+      toast.success('Empresa o consorcio actualizado correctamente');
+    },
+    onError: (error: any) => {
+      toast.error(
+        error?.message || 'Ocurrió un error al actualizar los datos de la empresa o consorcio'
+      );
+    }
   });
 };

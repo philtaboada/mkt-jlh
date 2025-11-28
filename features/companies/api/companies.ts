@@ -142,12 +142,12 @@ export async function checkDocumentExists(
 
 export async function getCompanyByDocument(
   document: string
-): Promise<{ document: string; legal_name: string; worker_id: string | null } | null> {
+): Promise<{ document: string; legal_name: string; worker_id: string | null; id: string } | null> {
   const supabase = await createClient();
   try {
     const { data, error } = await supabase
       .from('businesses')
-      .select('document, legal_name, worker_id')
+      .select('id, document, legal_name, worker_id')
       .eq('document', document)
       .limit(1);
 

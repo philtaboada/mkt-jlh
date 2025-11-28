@@ -124,19 +124,20 @@ export async function checkPartnershipDocumentExists(document: string): Promise<
 
 export async function getPartnershipByDocument(
   document: string
-): Promise<{ document: string; legal_name: string; worker_id: null } | null> {
+): Promise<{ document: string; legal_name: string; worker_id: null; id: string } | null> {
   const supabase = await createClient();
   try {
     const { data, error } = await supabase
       .from('partnerships')
-      .select('document, name')
+      .select('id,  document, name')
       .eq('document', document)
       .limit(1);
 
     if (error) throw error;
     if (!data || data.length === 0) return null;
-    const row = data[0] as { document: string; name: string };
+    const row = data[0] as { document: string; name: string; id: string };
     return {
+      id: row.id,
       document: row.document,
       legal_name: row.name,
       worker_id: null,

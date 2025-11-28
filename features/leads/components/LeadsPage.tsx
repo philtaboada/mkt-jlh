@@ -21,6 +21,7 @@ import {
   useUpdateLeadStatus,
   useLeads,
   useBulkImportFacebookLeads,
+  useUpdateLeadEntityData,
 } from '@/features/leads/hooks/useLeads';
 import { LeadForm } from '@/features/leads/components/LeadForm';
 import {
@@ -35,6 +36,7 @@ import { LeadProductTypeEnum, LeadSource, LeadStatus } from '../types/leadEnums'
 import LeadsFilters from './LeadsFilters';
 import LeadsTable from './LeadsTable';
 import { LeadsStatsCards } from './LeadsStatsCards';
+import { Lead } from '../types/leads';
 
 export function LeadsPageClient() {
   const router = useRouter();
@@ -66,6 +68,8 @@ export function LeadsPageClient() {
   const createGuaranteeLetterProspectMutation = useCreateProspectGuaranteeLetter();
   const createInsuranceProspectMutation = useCreateProspectInsurance();
   const bulkImportMutation = useBulkImportFacebookLeads();
+  const updateLeadEntityMutation = useUpdateLeadEntityData();
+
   const onSendToDeals = async (type: string, payload: any) => {
     try {
       if (type === LeadProductTypeEnum.ISOS) {
@@ -143,6 +147,18 @@ export function LeadsPageClient() {
 
   const handleStatusChange = async (id: string, status: string) => {
     await updateStatusMutation.mutateAsync({ id, status: status as any });
+  };
+
+  const handleAsignCompany = async (lead: Lead) => {
+    if(!lead.ruc || !lead.type_entity) {
+      toast.error('El lead debe tener RUC y tipo de entidad para asignar empresa o consorcio');
+      return;
+    }
+    await updateLeadEntityMutation.mutateAsync({
+      id: lead.id,
+      ruc: lead.ruc,
+      type_entity: lead.type_entity,
+    });
   };
 
   const pagination = leadsData?.pagination
@@ -271,6 +287,7 @@ export function LeadsPageClient() {
         onEdit={onEdit}
         onStatusChange={handleStatusChange}
         onSendToDeals={onSendToDeals}
+        onAsignCompany={handleAsignCompany}
       />
       <ImportModal
         isOpen={importModalOpen}
