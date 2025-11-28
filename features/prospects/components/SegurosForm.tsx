@@ -48,7 +48,7 @@ interface SegurosFormData {
   document_type: string;
   main_product_id?: string;
   business_or_partnership_id: string;
-  status_code: 112;
+  status_code: 101;
   insurances: {
     insurance_type: string;
     process_type: string;
@@ -114,7 +114,7 @@ export function SegurosForm({ defaultValues, type, onSubmit, onCancel }: Seguros
           referral_channel: 'Marketing',
           insurance_types: [],
           insurances: [],
-          status_code: 112,
+          status_code: 101,
         }
       : {
           project_name: '',
@@ -135,6 +135,7 @@ export function SegurosForm({ defaultValues, type, onSubmit, onCancel }: Seguros
           reference_value: 0,
           insurance_types: [],
           insurances: [],
+          status_code: 101,
         },
   });
 

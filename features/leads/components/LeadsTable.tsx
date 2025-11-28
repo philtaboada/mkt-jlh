@@ -47,6 +47,7 @@ interface LeadsTableProps {
   onSendToDeals?: (type: LeadProductType, payload: any) => Promise<void>;
   urlSearchKey?: string;
   onSearch?: () => void;
+  onAsignCompany?: (lead: Lead) => void;
 }
 
 export default function LeadsTable({
@@ -60,6 +61,7 @@ export default function LeadsTable({
   pagination,
   onPageChange,
   onSearch,
+  onAsignCompany,
 }: LeadsTableProps) {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDealsModalOpen, setIsDealsModalOpen] = useState(false);
@@ -118,9 +120,9 @@ export default function LeadsTable({
         const typeLabel = LeadEntityTypeLabels[lead.type_entity];
         const ruc = lead.ruc;
         return name ? (
-          <div>
-            <div className="font-medium">{name}</div>
-            <div className="text-sm text-muted-foreground">{typeLabel}</div>
+          <div className='max-w-[250px]'>
+            <div className="font-medium line-clamp-1">{name}</div>
+            <div className="text-sm text-muted-foreground" title={typeLabel}>{typeLabel}</div>
             {ruc && <div className="text-xs text-muted-foreground">RUC: {ruc}</div>}
           </div>
         ) : (
@@ -128,7 +130,6 @@ export default function LeadsTable({
         );
       },
     } as ColumnDef<Lead>,
-    createSortableColumn('job_title', 'Cargo') as ColumnDef<Lead>,
     {
       accessorKey: 'assigned_user',
       header: 'Asignado',
@@ -167,7 +168,7 @@ export default function LeadsTable({
     createBadgeColumn('platform', 'Plataforma', platformColors, (value) =>
       getPlatformLabel(value)
     ) as ColumnDef<Lead>,
-    createProgressColumn('score', 'Score') as ColumnDef<Lead>,
+    createDateColumn('last_contact_date', 'Ult. Contactado') as ColumnDef<Lead>,
     createCurrencyColumn('estimated_value', 'Valor Est.') as ColumnDef<Lead>,
     {
       id: 'actions',
@@ -207,6 +208,14 @@ export default function LeadsTable({
                 },
                 separator: true,
               },
+          ...(!lead.business_or_person_name && lead.ruc
+            ? [
+                {
+                  label: 'Asignar Empresa',
+                  onClick: () => onAsignCompany?.(lead),
+                },
+              ]
+            : []),
           {
             label: 'Eliminar lead',
             onClick: () => onDelete?.(lead.id),
@@ -223,7 +232,7 @@ export default function LeadsTable({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {actions.map((action, index) => (
+              {actions?.map((action, index) => (
                 <React.Fragment key={index}>
                   {action.separator && <DropdownMenuSeparator />}
                   <DropdownMenuItem

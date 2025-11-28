@@ -80,11 +80,11 @@ export async function POST(req: Request) {
         await create(conversation.id, {
           body: text,
           type: msg.type,
-          senderId: waId,
-          mediaUrl: mediaInfo?.url ?? null,
-          mediaMime: mediaInfo?.mime ?? null,
-          mediaSize: mediaInfo?.size ?? null,
-          mediaName: msg[msg.type]?.filename ?? null,
+          sender_id: waId,
+          media_url: mediaInfo?.url ?? undefined,
+          media_mime: mediaInfo?.mime ?? undefined,
+          media_size: mediaInfo?.size ?? undefined,
+          media_name: msg[msg.type]?.filename ?? undefined,
           metadata: msg,
         });
 

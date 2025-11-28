@@ -1,25 +1,36 @@
 'use server';
 import { createClient } from '@/lib/supabase/server';
+import { Message } from '../types/message';
 
-export async function create(conversationId: string, data: any) {
+export async function create(conversationId: string, data: Partial<Message>): Promise<Message> {
   const supabase = await createClient();
-  const { body, type, senderId, metadata, mediaUrl, mediaMime, mediaSize, mediaName } = data;
+  const { body, type, sender_id, metadata, media_url, media_mime, media_size, media_name } = data;
 
-  return await supabase.from('mkt_messages').insert({
-    conversation_id: conversationId,
-    sender_type: 'user',
-    sender_id: senderId,
-    type,
-    body,
-    media_url: mediaUrl,
-    media_mime: mediaMime,
-    media_size: mediaSize,
-    media_name: mediaName,
-    metadata,
-  });
+  const { data: newMessage, error } = await supabase
+    .from('mkt_messages')
+    .insert({
+      conversation_id: conversationId,
+      sender_type: 'user',
+      sender_id,
+      type,
+      body,
+      media_url,
+      media_mime,
+      media_size,
+      media_name,
+      metadata,
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return newMessage;
 }
 
-export async function getMessagesByConversation(conversationId: string) {
+export async function getMessagesByConversation(conversationId: string): Promise<Message[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('mkt_messages')

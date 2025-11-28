@@ -1,7 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { checkPartnershipDocumentExists } from '@/features/partnerships/api/partnerships';
-import { checkDocumentExists } from '@/features/companies/api/companies';
+import {
+  checkPartnershipDocumentExists,
+  getPartnershipByDocument,
+} from '@/features/partnerships/api/partnerships';
+import { checkDocumentExists, getCompanyByDocument } from '@/features/companies/api/companies';
 import { fetchDniData, fetchRucData } from '@/lib/api/ruc';
+import { LeadEntityType, LeadEntityTypeEnum } from '@/features/leads/types/leadEnums';
+import { getDocumentSearchWithData } from '@/lib/api/documentSearch';
 
 interface DocumentSearchResult {
   data: {
@@ -16,6 +21,8 @@ interface DocumentSearchResult {
   } | null;
   existsInDb: boolean;
 }
+
+
 
 export function useDocumentSearch(
   document: string,
@@ -62,5 +69,14 @@ export function useDocumentSearch(
     },
     enabled: enabled && !!document && !!documentType,
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
+
+export function useDocumentSearchWithData(document: string, entity: LeadEntityType) {
+  return useQuery({
+    queryKey: ['document-search-with-data', document],
+    queryFn: () => getDocumentSearchWithData(document, entity),
+    enabled: !!document,
+    staleTime: 1000 * 60 * 5,
   });
 }
