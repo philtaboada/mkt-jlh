@@ -187,13 +187,15 @@ export const useUpdateLeadEntityData = () => {
       if (docData) {
         extraData.business_or_person_name = docData.legal_name ?? null;
         extraData.business_or_partnership_id = docData.id ?? null;
-        extraData.worker_id = docData.worker_id ?? null;
         extraData.type_entity = type_entity;
+        if (docData.worker_id !== null && docData.worker_id !== undefined) {
+          extraData.assigned_to = docData.worker_id;
+        }
       }
       return updateLead(id, {
         business_or_person_name: extraData.business_or_person_name ?? null,
         business_or_partnership_id: extraData.business_or_partnership_id ?? null,
-        assigned_to: extraData.worker_id ?? null,
+        ...(extraData.assigned_to !== undefined ? { assigned_to: extraData.assigned_to } : {}),
         ruc,
         type_entity,
       });

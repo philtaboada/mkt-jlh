@@ -208,7 +208,7 @@ export default function LeadsTable({
                 },
                 separator: true,
               },
-          ...(!lead.business_or_person_name
+          ...(!lead.business_or_person_name && lead.ruc
             ? [
                 {
                   label: 'Asignar Empresa',

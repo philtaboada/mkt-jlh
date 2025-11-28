@@ -36,6 +36,7 @@ import { LeadEntityTypeOptions, LeadSourceOptions, LeadStatusOptions } from '../
 import { PlatformLabels } from '../types/platformLabels';
 import { PartnershipForm } from '@/features/partnerships/components/PartnershipForm';
 import { LeadEntityTypeEnum } from '../types/leadEnums';
+import { de } from 'date-fns/locale';
 
 interface LeadFormProps {
   defaultValues?: LeadFormInput;
@@ -65,7 +66,7 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
       email: '',
       phone: '',
       whatsapp: '',
-      job_title: '',
+      job_title: null,
       type_entity: LeadEntityTypeEnum.BUSINESS,
       business_or_partnership_id: null,
       business_or_person_name: null,
@@ -213,7 +214,7 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
           </div>
 
           {/* Cargo */}
-          {/* <FormField
+         {/*  <FormField
             control={form.control}
             name="job_title"
             render={({ field }) => (
@@ -225,7 +226,7 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
                 <FormMessage />
               </FormItem>
             )}
-          /> */}
+          />  */}
 
           {/* Tipo de producto y entidad */}
           <div className="grid grid-cols-2 gap-4">
@@ -238,6 +239,7 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
                   <FormLabel>Personal</FormLabel>
                   <FormControl>
                     <SelectOptions
+                      disabled={!!defaultValues?.assigned_to}
                       items={workers || []}
                       valueKey="id"
                       labelKey="name"
@@ -375,6 +377,7 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
                 <FormItem>
                   <FormLabel>Estado *</FormLabel>
                   <SelectOptions
+                    disabled={defaultValues?.status === 'deals'}
                     placeholder="Selecciona el estado"
                     options={LeadStatusOptions}
                     value={field.value}

@@ -11,7 +11,7 @@ const leadFormSchema = z
     email: z.email('Email inválido'),
     phone: z.string().optional(),
     whatsapp: z.string().optional(),
-    job_title: z.string().optional(),
+    job_title: z.string().optional().nullable(),
     type_entity: z.enum([LeadEntityTypeEnum.BUSINESS, LeadEntityTypeEnum.PARTNERSHIPS]),
     business_or_partnership_id: z.string().optional().nullable(),
     business_or_person_name: z.string().optional().nullable(),
