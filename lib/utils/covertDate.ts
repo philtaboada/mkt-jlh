@@ -1,13 +1,18 @@
-// Formatea una fecha como '12/11/2025'
 export function formatDate(date: string | Date): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  if (typeof date === "string") {
+    const match = date.match(/^([0-9]{4})-([0-9]{2})-([0-9]{2})/);
+    if (match) {
+      return `${match[3]}/${match[2]}/${match[1]}`;
+    }
+    date = new Date(date);
+  }
+  const d = date as Date;
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const year = d.getFullYear();
   return `${day}/${month}/${year}`;
 }
 
-// Formatea una fecha y hora como '12/11/2025, 14:30'
 export function formatDateTime(date: string | Date): string {
   const d = typeof date === "string" ? new Date(date) : date;
   const day = String(d.getDate()).padStart(2, "0");
