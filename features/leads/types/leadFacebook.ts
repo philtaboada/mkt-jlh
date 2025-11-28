@@ -85,6 +85,8 @@ Preguntas del formulario:
 • ¿Por cuál medio prefiere que nos comuniquemos?: ${fbData['¿por_cuál_medio_prefiere_que_nos_comuniquemos_con_usted?']}
 
 Información adicional:
+• Nombre y Apellidos: ${fullName}
+• WhatsApp: ${phone}
 • Provincia: ${province}
 • Plataforma: ${getPlatformLabel(fbData.platform)}
 • Campaña: ${fbData.campaign_name || 'N/A'}
@@ -98,7 +100,8 @@ Preguntas del formulario:
 • ¿Qué medio prefiere para ponernos en contacto?: ${fbData['¿qué_medio_prefiere_para_ponernos_en_contacto_con_usted?_']}
 
 Información adicional:
-• Ciudad: ${province}
+• Nombre y Apellidos: ${fullName}
+• WhatsApp: ${phone}
 • Plataforma: ${getPlatformLabel(fbData.platform)}
 • Campaña: ${fbData.campaign_name || 'N/A'}
 • Formulario: ${fbData.form_name || 'N/A'}
