@@ -14,10 +14,7 @@ import {
 } from '@/features/leads/api/leads';
 import { LeadsFilters, Lead } from '@/features/leads/types/leads';
 import { LeadStatus } from '../types/leadEnums';
-import { getCompanyByDocument } from '@/features/companies/api/companies';
-import { getPartnershipByDocument } from '@/features/partnerships/api/partnerships';
-import { fetchRucData } from '@/lib/api/ruc';
-import { LeadEntityTypeEnum, LeadEntityType } from '@/features/leads/types/leadEnums';
+import { LeadEntityType } from '@/features/leads/types/leadEnums';
 import { getDocumentSearchWithData } from '@/lib/api/documentSearch';
 import { toast } from 'sonner';
 
@@ -155,7 +152,7 @@ export const useBulkUpdateLeads = () => {
 };
 
 // Importar leads masivamente
-export const useBulkImportFacebookLeads = () => {
+/* export const useBulkImportFacebookLeads = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -166,9 +163,51 @@ export const useBulkImportFacebookLeads = () => {
       queryClient.invalidateQueries({ queryKey: ['leads_mkt', 'stats'] });
     },
   });
+}; */
+// ...existing code...
+
+// Importar leads masivamente
+export const useBulkImportFacebookLeads = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (
+      leads: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'assigned_user'>[]
+    ) => {
+      // Procesar cada lead para enriquecer con datos de ruc y entity_type si están presentes y ruc tiene 11 caracteres
+      const enrichedLeads = await Promise.all(
+        leads.map(async (lead) => {
+          if (lead.ruc && lead.type_entity && lead.ruc.length === 11) {
+            try {
+              const docData = await getDocumentSearchWithData(lead.ruc, lead.type_entity);
+              if (docData) {
+                return {
+                  ...lead,
+                  business_or_person_name: docData.legal_name ?? null,
+                  business_or_partnership_id: docData.id ?? null,
+                  ...(docData.worker_id !== null && docData.worker_id !== undefined
+                    ? { assigned_to: docData.worker_id }
+                    : {}),
+                };
+              }
+            } catch (error) {
+              // Ignorar errores y continuar sin enriquecer
+              console.warn('Error fetching document data for lead:', error);
+            }
+          }
+          return lead;
+        })
+      );
+      return bulkInsertLeads(enrichedLeads);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads_mkt'] });
+      queryClient.invalidateQueries({ queryKey: ['leads_mkt', 'stats'] });
+    },
+  });
 };
 
-
+// ...existing code...
 
 export const useUpdateLeadEntityData = () => {
   const queryClient = useQueryClient();
@@ -209,6 +248,6 @@ export const useUpdateLeadEntityData = () => {
       toast.error(
         error?.message || 'Ocurrió un error al actualizar los datos de la empresa o consorcio'
       );
-    }
+    },
   });
 };
