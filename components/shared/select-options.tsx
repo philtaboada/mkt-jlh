@@ -29,6 +29,7 @@ interface SelectOptionsProps {
   onSearch?: (term: string) => void;
   noneOption?: Option;
   loading?: boolean;
+  disabled?: boolean;
   createOption?: {
     label: string;
     onCreate: () => void;
@@ -51,6 +52,7 @@ export function SelectOptions({
   onSearch,
   loading = false,
   createOption,
+  disabled = false,
 }: SelectOptionsProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
@@ -123,6 +125,9 @@ export function SelectOptions({
             variant="outline"
             role="combobox"
             className="w-full flex items-center  justify-between"
+            disabled={disabled}
+            tabIndex={disabled ? -1 : 0}
+            onClick={disabled ? (e) => e.preventDefault() : undefined}
           >
             <span
               className={cn(
@@ -150,12 +155,14 @@ export function SelectOptions({
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={`Buscar ${placeholder.toLowerCase()}...`}
                   className="placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={disabled}
                 />
                 {search && (
                   <button
                     type="button"
                     onClick={() => setSearch('')}
                     className="shrink-0 opacity-50 hover:opacity-100 transition-opacity"
+                    disabled={disabled}
                   >
                     <X className="size-4" />
                   </button>
@@ -167,7 +174,8 @@ export function SelectOptions({
               {!multiple && (
                 <CommandItem
                   value={noneOption.value}
-                  onSelect={() => handleSelect(noneOption.value)}
+                  onSelect={() => !disabled && handleSelect(noneOption.value)}
+                  className={disabled ? 'pointer-events-none opacity-50' : ''}
                 >
                   {noneOption.label}
                 </CommandItem>
@@ -175,15 +183,17 @@ export function SelectOptions({
               {filtered.map((o) => (
                 <CommandItem
                   key={o.value}
-                  onSelect={() => handleSelect(o.value)}
-                  className="cursor-pointer"
+                  onSelect={() => !disabled && handleSelect(o.value)}
+                  className={cn('cursor-pointer', disabled && 'pointer-events-none opacity-50')}
+                  disabled={disabled}
                 >
                   {multiple && (
                     <Checkbox
                       checked={isSelected(o.value)}
-                      onCheckedChange={() => handleSelect(o.value)}
+                      onCheckedChange={() => !disabled && handleSelect(o.value)}
                       className="mr-2 h-4 w-4"
                       tabIndex={-1}
+                      disabled={disabled}
                     />
                   )}
                   <div>
@@ -199,10 +209,13 @@ export function SelectOptions({
                   <button
                     type="button"
                     onClick={() => {
-                      createOption.onCreate();
-                      setOpen(false);
+                      if (!disabled) {
+                        createOption.onCreate();
+                        setOpen(false);
+                      }
                     }}
-                    className="flex items-center w-full"
+                    className={cn('flex items-center w-full', disabled && 'pointer-events-none opacity-50')}
+                    disabled={disabled}
                   >
                     <span className="text-blue-600 font-medium">+ {createOption.label}</span>
                   </button>
