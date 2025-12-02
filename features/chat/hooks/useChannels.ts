@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   getChannels,
+  getActiveChannels,
   getChannelById,
   getChannelsByType,
   createChannel,
@@ -15,6 +16,13 @@ export const useChannels = () => {
   return useQuery({
     queryKey: ['channels'],
     queryFn: getChannels,
+  });
+};
+
+export const useActiveChannels = () => {
+  return useQuery({
+    queryKey: ['channels', 'active'],
+    queryFn: getActiveChannels,
   });
 };
 

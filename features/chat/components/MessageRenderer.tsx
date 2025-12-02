@@ -46,7 +46,7 @@ export function MessageRenderer({
   return (
     <div className={cn('flex gap-3', isAgent ? 'flex-row-reverse' : 'flex-row')}>
       {!isAgent && (
-        <Avatar className="h-8 w-8 flex-shrink-0">
+        <Avatar className="h-8 w-8 shrink-0">
           <AvatarImage src={senderAvatar || '/placeholder.svg'} />
           <AvatarFallback>{senderName.charAt(0)}</AvatarFallback>
         </Avatar>
@@ -106,7 +106,7 @@ export function MessageRenderer({
         {/* File Message */}
         {message.type === 'file' && message.media_url && (
           <div className="px-4 py-3 flex items-center gap-3">
-            <File className="w-5 h-5 flex-shrink-0" />
+            <File className="w-5 h-5 shrink-0" />
             <div className="flex-1 min-w-0">
               <a
                 href={message.media_url}

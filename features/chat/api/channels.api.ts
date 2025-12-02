@@ -25,6 +25,23 @@ export async function getChannels(): Promise<Channel[]> {
   return data || [];
 }
 
+// Get only active channels
+export async function getActiveChannels(): Promise<Channel[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('mkt_channels')
+    .select('*')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching active channels:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
 // Get channel by ID
 export async function getChannelById(id: string): Promise<Channel | null> {
   const supabase = await createClient();
@@ -171,4 +188,54 @@ export async function regenerateWidgetToken(id: string): Promise<string> {
   }
 
   return newToken;
+}
+
+// ============================================================================
+// Widget-specific functions
+// ============================================================================
+
+// Find channel by widget token
+export async function getChannelByWidgetToken(token: string): Promise<Channel | null> {
+  const supabase = await createClient();
+
+  const { data: channels, error } = await supabase
+    .from('mkt_channels')
+    .select('*')
+    .eq('type', 'website');
+
+  if (error) {
+    console.error('Error fetching channel:', error);
+    return null;
+  }
+
+  const channel = channels?.find((c) => {
+    const config = c.config as { widget_token?: string };
+    return config?.widget_token === token;
+  });
+
+  return channel || null;
+}
+
+// Get widget config by token
+export async function getWidgetConfig(token: string): Promise<WebsiteWidgetConfig | null> {
+  const channel = await getChannelByWidgetToken(token);
+
+  if (!channel) return null;
+
+  const config = channel.config as WebsiteWidgetConfig;
+
+  return {
+    widget_token: config.widget_token,
+    welcome_title: config.welcome_title || 'Chatea con nosotros',
+    welcome_message: config.welcome_message || '¡Hola! 👋 ¿En qué podemos ayudarte?',
+    widget_color: config.widget_color || '#3B82F6',
+    position: config.position || 'right',
+    reply_time: config.reply_time || 'few_minutes',
+    online_status: config.online_status || 'auto',
+    pre_chat_form_enabled: config.pre_chat_form_enabled ?? true,
+    pre_chat_fields: config.pre_chat_fields,
+    website_url: config.website_url,
+    ai_enabled: config.ai_enabled,
+    ai_config: config.ai_config,
+  };
 }

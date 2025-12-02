@@ -59,6 +59,40 @@ export async function getContactById(id: string): Promise<Contact | null> {
   return data;
 }
 
+export async function getContactByEmail(email: string): Promise<Contact | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('mkt_contacts')
+    .select('*')
+    .eq('email', email)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw error;
+  }
+
+  return data;
+}
+
+export async function findOrCreateByEmail(
+  email: string,
+  name?: string,
+  phone?: string,
+  source = 'website_widget'
+): Promise<Contact> {
+  const existing = await getContactByEmail(email);
+  if (existing) return existing;
+
+  return createContact({
+    email,
+    name: name || 'Visitante',
+    phone,
+    source,
+    status: 'lead',
+  });
+}
+
 export async function createContact(contact: Partial<Contact>): Promise<Contact> {
   const supabase = await createClient();
   const { data, error } = await supabase

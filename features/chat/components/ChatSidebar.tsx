@@ -7,7 +7,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   Inbox,
   AtSign,
-  MessageSquare,
   Bot,
   Settings,
   BarChart3,
@@ -30,9 +29,8 @@ interface NavItem {
 }
 
 const primaryNav: NavItem[] = [
-  { href: '/chat/inbox', icon: Inbox, label: 'Inbox', badgeKey: 'inbox' },
+  { href: '/chat/inbox', icon: Inbox, label: 'Conversaciones', badgeKey: 'inbox' },
   { href: '/chat/mentions', icon: AtSign, label: 'Menciones', badgeKey: 'mentions' },
-  { href: '/chat/conversations', icon: MessageSquare, label: 'Todas las conversaciones' },
 ];
 
 const secondaryNav: NavItem[] = [

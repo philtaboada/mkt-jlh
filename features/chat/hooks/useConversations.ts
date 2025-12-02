@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 import {
   getConversationById,
@@ -7,25 +8,80 @@ import {
   updateLastMessage,
   getConversationCounts,
 } from '../api/conversation.api';
+import { createClient } from '@/lib/supabase/client';
 
 export const useConversations = (pageIndex = 0, pageSize = 10) => {
+  const queryClient = useQueryClient();
+
+  // Suscripción a Realtime para conversaciones nuevas/actualizadas
+  useEffect(() => {
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel('conversations')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'mkt_conversations',
+        },
+        () => {
+          // Invalidar queries para refetch
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          queryClient.invalidateQueries({ queryKey: ['conversation-counts'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ['conversations', pageIndex, pageSize],
     queryFn: () => getConversations(pageIndex, pageSize),
-    // Polling cada 5 segundos para ver nuevas conversaciones
-    refetchInterval: 5000,
-    refetchIntervalInBackground: false,
+    // Sin polling - usamos Realtime
+    staleTime: 30000,
   });
 };
 
 export const useConversation = (id: string) => {
+  const queryClient = useQueryClient();
+
+  // Suscripción específica para esta conversación
+  useEffect(() => {
+    if (!id) return;
+
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel(`conversation:${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'mkt_conversations',
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          queryClient.setQueryData(['conversation', id], payload.new);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, queryClient]);
+
   return useQuery({
     queryKey: ['conversation', id],
     queryFn: () => getConversationById(id),
     enabled: !!id,
-    // Polling cada 5 segundos para actualizar estado de la conversación
-    refetchInterval: 5000,
-    refetchIntervalInBackground: false,
+    staleTime: 30000,
   });
 };
 
@@ -58,11 +114,35 @@ export const useUpdateLastMessage = () => {
 
 // Hook para obtener los conteos del sidebar
 export const useConversationCounts = () => {
+  const queryClient = useQueryClient();
+
+  // Reutilizar la suscripción del canal de conversaciones
+  useEffect(() => {
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel('conversation-counts')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'mkt_conversations',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['conversation-counts'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ['conversation-counts'],
     queryFn: () => getConversationCounts(),
-    // Refetch cada 30 segundos para mantener los conteos actualizados
-    refetchInterval: 30000,
-    staleTime: 10000,
+    staleTime: 30000,
   });
 };

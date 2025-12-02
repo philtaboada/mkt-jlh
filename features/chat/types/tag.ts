@@ -1,6 +1,6 @@
 export type Tag = {
   id?: string;
-  name: string;
-  color?: string;
-  created_at?: Date;
+  name?: string | null;
+  color?: string | null;
+  created_at?: string | null;
 };

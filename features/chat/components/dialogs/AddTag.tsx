@@ -64,7 +64,7 @@ export function AddTagDialog({ contactId, currentTags, onTagAdded }: AddTagDialo
                   onClick={() => handleAddTag(tag.id!)}
                   disabled={addTagMutation.isPending}
                   className="w-full text-white"
-                  style={{ backgroundColor: tag.color }}
+                  style={{ backgroundColor: tag.color ?? undefined }}
                 >
                   {tag.name}
                 </Button>
