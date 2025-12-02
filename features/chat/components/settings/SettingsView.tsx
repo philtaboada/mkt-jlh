@@ -22,13 +22,6 @@ const settingsMenu = [
     color: 'bg-primary/10 text-primary',
   },
   {
-    title: 'Agentes',
-    description: 'Gestiona los agentes que atienden las conversaciones',
-    href: '/chat/settings/agents',
-    icon: Users,
-    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  },
-  {
     title: 'Equipos',
     description: 'Organiza tus agentes en equipos de trabajo',
     href: '/chat/settings/teams',
