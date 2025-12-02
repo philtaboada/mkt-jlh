@@ -1,0 +1,1284 @@
+(function() {
+  'use strict';
+
+  // MktChat Widget SDK
+  class MktChatSDK {
+    constructor(token, options = {}) {
+      this.token = token;
+      this.options = options; // Opciones locales (pueden sobrescribir servidor)
+      this.settings = {}; // Configuración del servidor
+      this.isOpen = false;
+      this.messages = [];
+      this.container = null;
+      this.iframe = null;
+      this.launcher = null;
+      this.unreadCount = 0;
+      this.configLoaded = false;
+      this.conversationId = null;
+      this.lastMessageId = null;
+      this.pollingInterval = null;
+    }
+
+    async run() {
+      // Primero cargamos la configuración del servidor
+      await this.loadConfig();
+      
+      // Luego creamos el widget con la configuración
+      this.injectStyles();
+      this.createLauncher();
+      this.createChatWindow();
+      this.setupEventListeners();
+      
+      // Restaurar conversación existente (verificando que aún exista)
+      await this.restoreConversation();
+      
+      // Iniciar polling de mensajes
+      this.startPolling();
+    }
+
+    // Restaurar conversación del usuario desde localStorage o servidor
+    async restoreConversation() {
+      // Primero intentar con conversation_id guardado
+      const savedConversationId = localStorage.getItem(`mkt_conversation_${this.token}`);
+      
+      if (savedConversationId) {
+        // Verificar si la conversación aún existe y cargar mensajes
+        const valid = await this.validateAndLoadConversation(savedConversationId);
+        if (valid) {
+          this.conversationId = savedConversationId;
+          return;
+        } else {
+          // Conversación no válida, limpiar localStorage
+          localStorage.removeItem(`mkt_conversation_${this.token}`);
+        }
+      }
+
+      // Si no hay conversación guardada, buscar por visitor_id
+      const visitorId = this.getVisitorId();
+      const existingConversation = await this.findConversationByVisitor(visitorId);
+      
+      if (existingConversation) {
+        this.conversationId = existingConversation;
+        localStorage.setItem(`mkt_conversation_${this.token}`, this.conversationId);
+        await this.loadMessages();
+      } else if (this.settings.welcome_message) {
+        // No hay conversación, mostrar mensaje de bienvenida
+        this.addMessage({
+          type: 'bot',
+          text: this.settings.welcome_message,
+          timestamp: new Date()
+        });
+      }
+    }
+
+    // Verificar si una conversación existe y cargar sus mensajes
+    async validateAndLoadConversation(conversationId) {
+      try {
+        const response = await fetch(
+          `${this.getBaseUrl()}/api/chat/widget/messages?token=${this.token}&conversation_id=${conversationId}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Si no hay error y hay mensajes (o es un array vacío), la conversación existe
+          if (data.messages !== undefined) {
+            // Cargar mensajes existentes
+            const messagesContainer = this.container.querySelector('#mkt-messages');
+            messagesContainer.innerHTML = '';
+            
+            if (data.messages && data.messages.length > 0) {
+              data.messages.forEach(msg => {
+                // 'user' = cliente, 'agent' o 'bot' = respuestas nuestras
+                const isResponse = msg.sender_type === 'agent' || msg.sender_type === 'bot';
+                this.addMessage({
+                  id: msg.id,
+                  type: isResponse ? 'bot' : 'user',
+                  text: msg.body,
+                  timestamp: this.parseServerDate(msg.created_at),
+                  senderType: msg.sender_type // guardar el tipo original
+                }, false);
+                this.lastMessageId = msg.id;
+              });
+              // Scroll to bottom after loading all messages (instant)
+              this.scrollToBottom(false);
+            }
+            return true;
+          }
+        }
+        return false;
+      } catch (error) {
+        console.error('MktChat: Error validating conversation', error);
+        return false;
+      }
+    }
+
+    // Buscar conversación existente por visitor_id
+    async findConversationByVisitor(visitorId) {
+      try {
+        const response = await fetch(
+          `${this.getBaseUrl()}/api/chat/widget/conversation?token=${this.token}&visitor_id=${visitorId}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          return data.conversation_id || null;
+        }
+        return null;
+      } catch (error) {
+        console.error('MktChat: Error finding conversation', error);
+        return null;
+      }
+    }
+
+    async loadConfig() {
+      try {
+        const response = await fetch(`${this.getBaseUrl()}/api/chat/widget/config?token=${this.token}`);
+        if (response.ok) {
+          const serverConfig = await response.json();
+          console.log('MktChat: Config loaded', serverConfig);
+          this.settings = { ...serverConfig, ...this.options };
+          this.configLoaded = true;
+        } else {
+          console.warn('MktChat: Could not load config, using defaults');
+          this.settings = this.getDefaultSettings();
+        }
+      } catch (error) {
+        console.warn('MktChat: Could not load config', error);
+        this.settings = this.getDefaultSettings();
+      }
+    }
+
+    getDefaultSettings() {
+      return {
+        welcome_title: 'Chatea con nosotros',
+        welcome_message: '¡Hola! 👋 ¿En qué podemos ayudarte?',
+        widget_color: '#3B82F6',
+        position: 'right',
+        reply_time: 'few_minutes',
+        online_status: 'auto',
+        pre_chat_form_enabled: true,
+        locale: 'es',
+        ...this.options
+      };
+    }
+
+    getReplyTimeText() {
+      const times = {
+        'few_minutes': 'Responde en minutos',
+        'few_hours': 'Responde en horas',
+        'one_day': 'Responde en un día'
+      };
+      return times[this.settings.reply_time] || times['few_minutes'];
+    }
+
+    getOnlineStatusText() {
+      if (this.settings.online_status === 'offline') {
+        return 'Fuera de línea';
+      }
+      return 'En línea';
+    }
+
+    isOnline() {
+      return this.settings.online_status !== 'offline';
+    }
+
+    getBaseUrl() {
+      const scripts = document.getElementsByTagName('script');
+      for (let i = 0; i < scripts.length; i++) {
+        if (scripts[i].src && scripts[i].src.includes('sdk.js')) {
+          return scripts[i].src.replace('/packs/js/sdk.js', '');
+        }
+      }
+      return window.location.origin;
+    }
+
+    injectStyles() {
+      const position = this.settings.position || 'right';
+      const primaryColor = this.settings.widget_color || '#3B82F6';
+      
+      const styles = `
+        :root {
+          --mkt-primary: ${primaryColor};
+          --mkt-primary-hover: ${this.darkenColor(primaryColor, 10)};
+          --mkt-primary-light: ${this.lightenColor(primaryColor, 45)};
+          --mkt-primary-glow: ${primaryColor}40;
+          --mkt-bg: #ffffff;
+          --mkt-bg-secondary: #f8fafc;
+          --mkt-bg-tertiary: #f1f5f9;
+          --mkt-text: #0f172a;
+          --mkt-text-secondary: #64748b;
+          --mkt-text-muted: #94a3b8;
+          --mkt-border: #e2e8f0;
+          --mkt-border-light: #f1f5f9;
+          --mkt-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+          --mkt-shadow-sm: 0 4px 6px -1px rgba(0,0,0,0.1);
+          --mkt-shadow-glow: 0 0 40px var(--mkt-primary-glow);
+          --mkt-radius: 20px;
+          --mkt-radius-sm: 12px;
+        }
+
+        /* Launcher Button */
+        .mkt-chat-launcher {
+          position: fixed;
+          ${position === 'left' ? 'left: 24px;' : 'right: 24px;'}
+          bottom: 24px;
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, var(--mkt-primary) 0%, var(--mkt-primary-hover) 100%);
+          border: none;
+          cursor: pointer;
+          box-shadow: var(--mkt-shadow), var(--mkt-shadow-glow);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 2147483646;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .mkt-chat-launcher:hover {
+          transform: scale(1.08) translateY(-2px);
+          box-shadow: var(--mkt-shadow), 0 0 60px var(--mkt-primary-glow);
+        }
+
+        .mkt-chat-launcher:active {
+          transform: scale(0.95);
+        }
+
+        .mkt-chat-launcher svg {
+          width: 28px;
+          height: 28px;
+          stroke: white;
+          fill: none;
+          transition: transform 0.3s ease;
+        }
+
+        .mkt-chat-launcher:hover svg {
+          transform: rotate(-8deg);
+        }
+
+        .mkt-chat-launcher-badge {
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+          color: white;
+          font-size: 11px;
+          font-weight: 700;
+          min-width: 22px;
+          height: 22px;
+          border-radius: 11px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+          animation: mkt-badge-pulse 2s infinite;
+        }
+
+        @keyframes mkt-badge-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+
+        /* Chat Container */
+        .mkt-chat-container {
+          position: fixed;
+          ${position === 'left' ? 'left: 24px;' : 'right: 24px;'}
+          bottom: 100px;
+          width: 400px;
+          height: 640px;
+          max-height: calc(100vh - 130px);
+          background: var(--mkt-bg);
+          border-radius: var(--mkt-radius);
+          box-shadow: var(--mkt-shadow);
+          z-index: 2147483647;
+          display: none;
+          flex-direction: column;
+          overflow: hidden;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          border: 1px solid var(--mkt-border-light);
+        }
+
+        .mkt-chat-container.open {
+          display: flex;
+          animation: mkt-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes mkt-slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(24px) scale(0.96);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        /* Header */
+        .mkt-chat-header {
+          background: linear-gradient(135deg, var(--mkt-primary) 0%, var(--mkt-primary-hover) 100%);
+          color: white;
+          padding: 20px 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .mkt-chat-header::before {
+          content: '';
+          position: absolute;
+          top: -50%;
+          right: -20%;
+          width: 200px;
+          height: 200px;
+          background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+          border-radius: 50%;
+        }
+
+        .mkt-chat-header::after {
+          content: '';
+          position: absolute;
+          bottom: -30%;
+          left: -10%;
+          width: 150px;
+          height: 150px;
+          background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+          border-radius: 50%;
+        }
+
+        .mkt-chat-header-info {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          position: relative;
+          z-index: 1;
+        }
+
+        .mkt-chat-header-avatar {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          background: rgba(255,255,255,0.2);
+          backdrop-filter: blur(10px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .mkt-chat-header-avatar svg {
+          width: 26px;
+          height: 26px;
+          stroke: white;
+          fill: none;
+        }
+
+        .mkt-chat-header-title {
+          font-weight: 700;
+          font-size: 17px;
+          letter-spacing: -0.3px;
+        }
+
+        .mkt-chat-header-status {
+          font-size: 13px;
+          opacity: 0.9;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 2px;
+        }
+
+        .mkt-chat-header-status::before {
+          content: '';
+          width: 8px;
+          height: 8px;
+          background: ${this.isOnline() ? '#4ade80' : '#9ca3af'};
+          border-radius: 50%;
+          box-shadow: ${this.isOnline() ? '0 0 8px #4ade80' : 'none'};
+          animation: ${this.isOnline() ? 'mkt-pulse-online 2s infinite' : 'none'};
+        }
+
+        @keyframes mkt-pulse-online {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+
+        .mkt-chat-close {
+          background: rgba(255,255,255,0.1);
+          border: none;
+          cursor: pointer;
+          padding: 10px;
+          border-radius: var(--mkt-radius-sm);
+          transition: all 0.2s ease;
+          position: relative;
+          z-index: 1;
+          backdrop-filter: blur(10px);
+        }
+
+        .mkt-chat-close:hover {
+          background: rgba(255,255,255,0.2);
+          transform: rotate(90deg);
+        }
+
+        .mkt-chat-close svg {
+          width: 18px;
+          height: 18px;
+          stroke: white;
+          fill: none;
+          display: block;
+        }
+
+        /* Messages Area */
+        .mkt-chat-messages {
+          flex: 1;
+          overflow-y: auto;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          background: linear-gradient(180deg, var(--mkt-bg-secondary) 0%, var(--mkt-bg) 100%);
+          scroll-behavior: smooth;
+        }
+
+        .mkt-chat-messages::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .mkt-chat-messages::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .mkt-chat-messages::-webkit-scrollbar-thumb {
+          background: var(--mkt-border);
+          border-radius: 3px;
+        }
+
+        .mkt-chat-messages::-webkit-scrollbar-thumb:hover {
+          background: var(--mkt-text-muted);
+        }
+
+        /* Message Bubbles */
+        .mkt-chat-message {
+          max-width: 82%;
+          padding: 14px 18px;
+          font-size: 14px;
+          line-height: 1.6;
+          word-wrap: break-word;
+          animation: mkt-message-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          position: relative;
+        }
+
+        @keyframes mkt-message-in {
+          from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        .mkt-chat-message.user {
+          background: linear-gradient(135deg, var(--mkt-primary) 0%, var(--mkt-primary-hover) 100%);
+          color: white;
+          align-self: flex-end;
+          border-radius: 20px 20px 6px 20px;
+          box-shadow: 0 4px 12px var(--mkt-primary-glow);
+        }
+
+        .mkt-chat-message.bot {
+          background: var(--mkt-bg);
+          color: var(--mkt-text);
+          align-self: flex-start;
+          border-radius: 20px 20px 20px 6px;
+          box-shadow: var(--mkt-shadow-sm);
+          border: 1px solid var(--mkt-border-light);
+        }
+
+        .mkt-chat-message-time {
+          font-size: 10px;
+          opacity: 0.6;
+          margin-top: 6px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .mkt-chat-message.user .mkt-chat-message-time {
+          justify-content: flex-end;
+        }
+
+        /* Typing Indicator */
+        .mkt-chat-typing {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          padding: 16px 20px;
+          background: var(--mkt-bg);
+          border-radius: 20px 20px 20px 6px;
+          align-self: flex-start;
+          box-shadow: var(--mkt-shadow-sm);
+          border: 1px solid var(--mkt-border-light);
+        }
+
+        .mkt-chat-typing span {
+          width: 8px;
+          height: 8px;
+          background: var(--mkt-primary);
+          border-radius: 50%;
+          animation: mkt-typing 1.4s infinite ease-in-out;
+        }
+
+        .mkt-chat-typing span:nth-child(1) { animation-delay: 0s; }
+        .mkt-chat-typing span:nth-child(2) { animation-delay: 0.15s; }
+        .mkt-chat-typing span:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes mkt-typing {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+          30% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        /* Input Area */
+        .mkt-chat-input-container {
+          padding: 16px 20px 20px;
+          background: var(--mkt-bg);
+          border-top: 1px solid var(--mkt-border-light);
+          display: flex;
+          gap: 12px;
+          align-items: flex-end;
+        }
+
+        .mkt-chat-input-wrapper {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          background: var(--mkt-bg-secondary);
+          border: 2px solid var(--mkt-border);
+          border-radius: 28px;
+          padding: 4px 6px 4px 18px;
+          transition: all 0.2s ease;
+        }
+
+        .mkt-chat-input-wrapper:focus-within {
+          border-color: var(--mkt-primary);
+          background: var(--mkt-bg);
+          box-shadow: 0 0 0 4px var(--mkt-primary-light);
+        }
+
+        .mkt-chat-input {
+          flex: 1;
+          border: none;
+          background: transparent;
+          padding: 12px 0;
+          font-size: 14px;
+          outline: none;
+          font-family: inherit;
+          color: var(--mkt-text);
+        }
+
+        .mkt-chat-input::placeholder {
+          color: var(--mkt-text-muted);
+        }
+
+        .mkt-chat-send {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, var(--mkt-primary) 0%, var(--mkt-primary-hover) 100%);
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          flex-shrink: 0;
+        }
+
+        .mkt-chat-send:hover:not(:disabled) {
+          transform: scale(1.08);
+          box-shadow: 0 4px 16px var(--mkt-primary-glow);
+        }
+
+        .mkt-chat-send:active:not(:disabled) {
+          transform: scale(0.95);
+        }
+
+        .mkt-chat-send:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+          background: var(--mkt-border);
+        }
+
+        .mkt-chat-send svg {
+          width: 18px;
+          height: 18px;
+          stroke: white;
+          fill: none;
+          transition: transform 0.2s ease;
+        }
+
+        .mkt-chat-send:hover:not(:disabled) svg {
+          transform: translateX(2px);
+        }
+
+        /* Emoji Button */
+        .mkt-chat-emoji {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+          flex-shrink: 0;
+        }
+
+        .mkt-chat-emoji:hover {
+          background: var(--mkt-bg-tertiary);
+        }
+
+        .mkt-chat-emoji svg {
+          width: 20px;
+          height: 20px;
+          stroke: var(--mkt-text-muted);
+          fill: none;
+        }
+
+        /* Pre-chat Form */
+        .mkt-chat-prechat {
+          padding: 28px;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          background: linear-gradient(180deg, var(--mkt-bg-secondary) 0%, var(--mkt-bg) 100%);
+        }
+
+        .mkt-chat-prechat h3 {
+          font-size: 20px;
+          font-weight: 700;
+          color: var(--mkt-text);
+          margin: 0;
+          letter-spacing: -0.4px;
+        }
+
+        .mkt-chat-prechat p {
+          font-size: 14px;
+          color: var(--mkt-text-secondary);
+          margin: 0;
+          line-height: 1.6;
+        }
+
+        .mkt-chat-prechat-field {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .mkt-chat-prechat-field label {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--mkt-text);
+          letter-spacing: -0.2px;
+        }
+
+        .mkt-chat-prechat-field input {
+          border: 2px solid var(--mkt-border);
+          border-radius: var(--mkt-radius-sm);
+          padding: 12px 16px;
+          font-size: 14px;
+          outline: none;
+          transition: all 0.2s ease;
+          font-family: inherit;
+          background: var(--mkt-bg);
+        }
+
+        .mkt-chat-prechat-field input:focus {
+          border-color: var(--mkt-primary);
+          box-shadow: 0 0 0 4px var(--mkt-primary-light);
+        }
+
+        .mkt-chat-prechat-submit {
+          background: linear-gradient(135deg, var(--mkt-primary) 0%, var(--mkt-primary-hover) 100%);
+          color: white;
+          border: none;
+          border-radius: var(--mkt-radius-sm);
+          padding: 14px 20px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-family: inherit;
+          letter-spacing: -0.2px;
+        }
+
+        .mkt-chat-prechat-submit:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 20px var(--mkt-primary-glow);
+        }
+
+        .mkt-chat-prechat-submit:active {
+          transform: translateY(0);
+        }
+
+        /* Powered By */
+        .mkt-chat-powered {
+          text-align: center;
+          padding: 12px 16px;
+          font-size: 11px;
+          color: var(--mkt-text-muted);
+          background: var(--mkt-bg-secondary);
+          border-top: 1px solid var(--mkt-border-light);
+        }
+
+        .mkt-chat-powered a {
+          color: var(--mkt-primary);
+          text-decoration: none;
+          font-weight: 600;
+          transition: opacity 0.2s;
+        }
+
+        .mkt-chat-powered a:hover {
+          opacity: 0.8;
+        }
+
+        /* Welcome Message Styling */
+        .mkt-chat-welcome {
+          text-align: center;
+          padding: 40px 24px;
+        }
+
+        .mkt-chat-welcome-icon {
+          width: 64px;
+          height: 64px;
+          margin: 0 auto 16px;
+          background: var(--mkt-primary-light);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .mkt-chat-welcome-icon svg {
+          width: 32px;
+          height: 32px;
+          fill: var(--mkt-primary);
+        }
+
+        .mkt-chat-welcome h4 {
+          font-size: 18px;
+          font-weight: 700;
+          color: var(--mkt-text);
+          margin: 0 0 8px;
+        }
+
+        .mkt-chat-welcome p {
+          font-size: 14px;
+          color: var(--mkt-text-secondary);
+          margin: 0;
+          line-height: 1.6;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 480px) {
+          .mkt-chat-container {
+            width: calc(100vw - 16px);
+            height: calc(100vh - 90px);
+            ${position === 'left' ? 'left: 8px;' : 'right: 8px;'}
+            bottom: 80px;
+            border-radius: 16px;
+          }
+
+          .mkt-chat-launcher {
+            ${position === 'left' ? 'left: 16px;' : 'right: 16px;'}
+            bottom: 16px;
+            width: 56px;
+            height: 56px;
+          }
+
+          .mkt-chat-header {
+            padding: 16px 20px;
+          }
+
+          .mkt-chat-messages {
+            padding: 16px;
+          }
+
+          .mkt-chat-input-container {
+            padding: 12px 16px 16px;
+          }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+          .mkt-chat-container {
+            --mkt-bg: #1e293b;
+            --mkt-bg-secondary: #0f172a;
+            --mkt-bg-tertiary: #334155;
+            --mkt-text: #f1f5f9;
+            --mkt-text-secondary: #94a3b8;
+            --mkt-text-muted: #64748b;
+            --mkt-border: #334155;
+            --mkt-border-light: #1e293b;
+          }
+
+          .mkt-chat-message.bot {
+            background: var(--mkt-bg-tertiary);
+            border-color: var(--mkt-border);
+          }
+        }
+      `;
+
+      const styleEl = document.createElement('style');
+      styleEl.id = 'mkt-chat-styles';
+      styleEl.textContent = styles;
+      document.head.appendChild(styleEl);
+    }
+
+    // Función para oscurecer un color hex
+    darkenColor(hex, percent) {
+      const num = parseInt(hex.replace('#', ''), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = Math.max((num >> 16) - amt, 0);
+      const G = Math.max((num >> 8 & 0x00FF) - amt, 0);
+      const B = Math.max((num & 0x0000FF) - amt, 0);
+      return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+    }
+
+    // Función para aclarar un color hex
+    lightenColor(hex, percent) {
+      const num = parseInt(hex.replace('#', ''), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = Math.min((num >> 16) + amt, 255);
+      const G = Math.min((num >> 8 & 0x00FF) + amt, 255);
+      const B = Math.min((num & 0x0000FF) + amt, 255);
+      return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+    }
+
+    createLauncher() {
+      this.launcher = document.createElement('button');
+      this.launcher.className = 'mkt-chat-launcher';
+      this.launcher.setAttribute('aria-label', this.settings.welcome_title || 'Abrir chat');
+      this.launcher.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+        </svg>
+      `;
+
+      if (!this.settings.hideMessageBubble) {
+        document.body.appendChild(this.launcher);
+      }
+    }
+
+    createChatWindow() {
+      const statusText = this.getOnlineStatusText();
+      const replyTimeText = this.getReplyTimeText();
+      
+      this.container = document.createElement('div');
+      this.container.className = 'mkt-chat-container';
+      this.container.innerHTML = `
+        <div class="mkt-chat-header">
+          <div class="mkt-chat-header-info">
+            <div class="mkt-chat-header-avatar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="mkt-chat-header-title">${this.escapeHtml(this.settings.welcome_title || 'Chatea con nosotros')}</div>
+              <div class="mkt-chat-header-status">${statusText} · ${replyTimeText}</div>
+            </div>
+          </div>
+          <button class="mkt-chat-close" aria-label="Cerrar chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="mkt-chat-messages" id="mkt-messages"></div>
+        <div class="mkt-chat-input-container">
+          <div class="mkt-chat-input-wrapper">
+            <input type="text" class="mkt-chat-input" placeholder="Escribe tu mensaje..." aria-label="Mensaje">
+            <button class="mkt-chat-emoji" aria-label="Emojis" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                <line x1="15" y1="9" x2="15.01" y2="9"></line>
+              </svg>
+            </button>
+          </div>
+          <button class="mkt-chat-send" aria-label="Enviar mensaje">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+        <div class="mkt-chat-powered">
+          Powered by <a href="#" target="_blank">JLH Chat</a>
+        </div>
+      `;
+
+      document.body.appendChild(this.container);
+    }
+
+    setupEventListeners() {
+      // Launcher click
+      this.launcher.addEventListener('click', () => this.toggle());
+
+      // Close button
+      const closeBtn = this.container.querySelector('.mkt-chat-close');
+      closeBtn.addEventListener('click', () => this.close());
+
+      // Send message
+      const input = this.container.querySelector('.mkt-chat-input');
+      const sendBtn = this.container.querySelector('.mkt-chat-send');
+      const emojiBtn = this.container.querySelector('.mkt-chat-emoji');
+
+      sendBtn.addEventListener('click', () => this.sendMessage(input.value));
+      
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          this.sendMessage(input.value);
+        }
+      });
+
+      // Emoji button (placeholder functionality)
+      if (emojiBtn) {
+        emojiBtn.addEventListener('click', () => {
+          // Por ahora solo insertamos un emoji común
+          const emojis = ['😊', '👍', '❤️', '🙏', '👋', '🎉', '✨', '🔥'];
+          const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+          input.value += randomEmoji;
+          input.focus();
+        });
+      }
+
+      // Close on escape
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && this.isOpen) {
+          this.close();
+        }
+      });
+    }
+
+    toggle() {
+      if (this.isOpen) {
+        this.close();
+      } else {
+        this.open();
+      }
+    }
+
+    open() {
+      this.isOpen = true;
+      this.container.classList.add('open');
+      this.launcher.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      `;
+      this.unreadCount = 0;
+      this.updateBadge();
+      
+      // Scroll to bottom and focus input
+      setTimeout(() => {
+        this.scrollToBottom();
+        const input = this.container.querySelector('.mkt-chat-input');
+        input.focus();
+      }, 100);
+    }
+
+    close() {
+      this.isOpen = false;
+      this.container.classList.remove('open');
+      this.launcher.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+        </svg>
+      `;
+    }
+
+    async sendMessage(text) {
+      text = text.trim();
+      if (!text) return;
+
+      const input = this.container.querySelector('.mkt-chat-input');
+      input.value = '';
+
+      // Add user message
+      this.addMessage({
+        type: 'user',
+        text: text,
+        timestamp: new Date()
+      });
+
+      // Show typing indicator
+      this.showTyping();
+
+      // Send to API
+      try {
+        const response = await fetch(`${this.getBaseUrl()}/api/chat/widget/message`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            token: this.token,
+            message: text,
+            visitor_id: this.getVisitorId(),
+            conversation_id: this.conversationId
+          })
+        });
+
+        const data = await response.json();
+        
+        this.hideTyping();
+        
+        // Guardar conversation_id para futuros mensajes
+        if (data.conversation_id && !this.conversationId) {
+          this.conversationId = data.conversation_id;
+          localStorage.setItem(`mkt_conversation_${this.token}`, this.conversationId);
+        }
+        
+        if (data.reply) {
+          this.addMessage({
+            type: 'bot',
+            text: data.reply,
+            timestamp: new Date()
+          });
+        }
+      } catch (error) {
+        console.error('MktChat: Error sending message', error);
+        this.hideTyping();
+        this.addMessage({
+          type: 'bot',
+          text: 'Lo siento, hubo un error al procesar tu mensaje. Por favor intenta de nuevo.',
+          timestamp: new Date()
+        });
+      }
+    }
+
+    // Cargar mensajes existentes de la conversación
+    async loadMessages() {
+      if (!this.conversationId) return;
+
+      try {
+        const response = await fetch(
+          `${this.getBaseUrl()}/api/chat/widget/messages?token=${this.token}&conversation_id=${this.conversationId}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          const messagesContainer = this.container.querySelector('#mkt-messages');
+          messagesContainer.innerHTML = ''; // Limpiar mensajes
+          
+          if (data.messages && data.messages.length > 0) {
+            data.messages.forEach(msg => {
+              // 'user' = cliente, 'agent' o 'bot' = respuestas nuestras
+              const isResponse = msg.sender_type === 'agent' || msg.sender_type === 'bot';
+              this.addMessage({
+                id: msg.id,
+                type: isResponse ? 'bot' : 'user',
+                text: msg.body,
+                timestamp: this.parseServerDate(msg.created_at),
+                senderType: msg.sender_type
+              }, false); // false = no actualizar badge
+              this.lastMessageId = msg.id;
+            });
+            // Scroll to bottom after loading all messages (instant, no animation)
+            this.scrollToBottom(false);
+          } else if (this.settings.welcome_message) {
+            this.addMessage({
+              type: 'bot',
+              text: this.settings.welcome_message,
+              timestamp: new Date()
+            });
+          }
+        }
+      } catch (error) {
+        console.error('MktChat: Error loading messages', error);
+      }
+    }
+
+    // Polling para obtener nuevos mensajes
+    startPolling() {
+      // Polling cada 3 segundos
+      this.pollingInterval = setInterval(() => {
+        this.checkNewMessages();
+      }, 3000);
+    }
+
+    stopPolling() {
+      if (this.pollingInterval) {
+        clearInterval(this.pollingInterval);
+        this.pollingInterval = null;
+      }
+    }
+
+    async checkNewMessages() {
+      if (!this.conversationId) return;
+
+      try {
+        let url = `${this.getBaseUrl()}/api/chat/widget/messages?token=${this.token}&conversation_id=${this.conversationId}`;
+        if (this.lastMessageId) {
+          url += `&last_message_id=${this.lastMessageId}`;
+        }
+
+        const response = await fetch(url);
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.messages && data.messages.length > 0) {
+            data.messages.forEach(msg => {
+              // Solo agregar mensajes de agente o bot (los del usuario ya los agregamos al enviar)
+              if (msg.sender_type === 'agent' || msg.sender_type === 'bot') {
+                this.addMessage({
+                  id: msg.id,
+                  type: 'bot',
+                  text: msg.body,
+                  timestamp: this.parseServerDate(msg.created_at),
+                  senderType: msg.sender_type
+                });
+              }
+              this.lastMessageId = msg.id;
+            });
+          }
+        }
+      } catch (error) {
+        console.error('MktChat: Error checking new messages', error);
+      }
+    }
+
+    addMessage(message, updateBadge = true) {
+      const messagesContainer = this.container.querySelector('#mkt-messages');
+      
+      const messageEl = document.createElement('div');
+      messageEl.className = `mkt-chat-message ${message.type}`;
+      if (message.id) {
+        messageEl.dataset.messageId = message.id;
+      }
+      messageEl.innerHTML = `
+        ${this.escapeHtml(message.text)}
+        <div class="mkt-chat-message-time">${this.formatTime(message.timestamp)}</div>
+      `;
+      
+      messagesContainer.appendChild(messageEl);
+      
+      // Scroll to bottom with a small delay to ensure DOM is updated
+      requestAnimationFrame(() => {
+        this.scrollToBottom();
+      });
+
+      // Update unread count if chat is closed and it's a bot message
+      if (updateBadge && !this.isOpen && message.type === 'bot') {
+        this.unreadCount++;
+        this.updateBadge();
+      }
+    }
+
+    showTyping() {
+      const messagesContainer = this.container.querySelector('#mkt-messages');
+      const typingEl = document.createElement('div');
+      typingEl.className = 'mkt-chat-typing';
+      typingEl.id = 'mkt-typing';
+      typingEl.innerHTML = '<span></span><span></span><span></span>';
+      messagesContainer.appendChild(typingEl);
+      this.scrollToBottom();
+    }
+
+    hideTyping() {
+      const typingEl = this.container.querySelector('#mkt-typing');
+      if (typingEl) {
+        typingEl.remove();
+      }
+    }
+
+    scrollToBottom(smooth = true) {
+      const messagesContainer = this.container.querySelector('#mkt-messages');
+      if (messagesContainer) {
+        if (smooth) {
+          messagesContainer.scrollTo({
+            top: messagesContainer.scrollHeight,
+            behavior: 'smooth'
+          });
+        } else {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      }
+    }
+
+    updateBadge() {
+      let badge = this.launcher.querySelector('.mkt-chat-launcher-badge');
+      
+      if (this.unreadCount > 0) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'mkt-chat-launcher-badge';
+          this.launcher.appendChild(badge);
+        }
+        badge.textContent = this.unreadCount > 9 ? '9+' : this.unreadCount;
+      } else if (badge) {
+        badge.remove();
+      }
+    }
+
+    getVisitorId() {
+      let visitorId = localStorage.getItem('mkt_visitor_id');
+      if (!visitorId) {
+        visitorId = 'v_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        localStorage.setItem('mkt_visitor_id', visitorId);
+      }
+      return visitorId;
+    }
+
+    escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    formatTime(date) {
+      // Asegurarse de que date sea un objeto Date válido
+      if (!(date instanceof Date) || isNaN(date)) {
+        return '--:--';
+      }
+      
+      // toLocaleTimeString ya convierte automáticamente a la zona horaria local del usuario
+      return date.toLocaleTimeString(this.settings.locale || 'es', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false // Usar formato 24 horas
+      });
+    }
+
+    // Parsear fecha del servidor asegurando que se interprete como UTC
+    parseServerDate(dateString) {
+      if (!dateString) return new Date();
+      
+      // Si la fecha no tiene 'Z' al final ni offset de timezone, asumimos que es UTC
+      let isoString = dateString;
+      if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.match(/[-+]\d{2}:\d{2}$/)) {
+        isoString = dateString + 'Z';
+      }
+      
+      return new Date(isoString);
+    }
+  }
+
+  // Expose to window
+  window.MktChatSDK = MktChatSDK;
+})();
