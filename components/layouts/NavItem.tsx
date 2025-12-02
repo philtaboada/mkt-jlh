@@ -38,8 +38,6 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
     if (checkChildren(item.children!)) setIsOpen(true);
   }, [pathname, hasChildren, item.children]);
 
-  const paddingLeft = 14 + level * 16;
-
   if (collapsed) {
     return (
       <TooltipProvider delayDuration={100}>
@@ -95,10 +93,9 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
           isActive && 'bg-primary text-primary-foreground shadow-md',
           'bg-background'
         )}
-        style={{ paddingLeft, paddingRight: 12, paddingTop: 8, paddingBottom: 8 }}
         asChild
       >
-        <Link href={item.href} className="flex items-center gap-3 w-full">
+        <Link href={item.href} className="flex items-center gap-1 w-full">
           <div
             className={cn(
               'flex p-1.5 rounded-md transition-colors',
@@ -109,7 +106,9 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
             <Icon className={cn('h-5 w-5', 'text-foreground')} />
           </div>
           <div className="flex flex-col text-left flex-1 min-w-0">
-            <span className={cn('font-medium text-[14px] leading-tight', 'text-foreground')}>
+            <span
+              className={cn('font-medium text-[14px] leading-tight uppercase', 'text-foreground')}
+            >
               {item.name}
             </span>
             {item.description && (
@@ -138,12 +137,11 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
         <Button
           variant="ghost"
           className={cn(
-            'w-full justify-start h-auto rounded-lg transition-all duration-200',
+            'w-full justify-start gap-1 h-auto rounded-lg transition-all duration-200',
             'group relative overflow-hidden',
             isActive && 'bg-primary text-primary-foreground shadow-md',
             'bg-background'
           )}
-          style={{ paddingLeft, paddingRight: 12, paddingTop: 8, paddingBottom: 8 }}
         >
           <div
             className={cn(
@@ -154,8 +152,10 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
           >
             <Icon className={cn('h-5 w-5', 'text-foreground')} />
           </div>
-          <div className="flex flex-col text-left flex-1 min-w-0 mx-3">
-            <span className={cn('font-medium text-[14px] leading-tight', 'text-foreground')}>
+          <div className="flex flex-col text-left flex-1 min-w-0">
+            <span
+              className={cn('font-medium text-[14px] leading-tight uppercase', 'text-foreground')}
+            >
               {item.name}
             </span>
             {item.description && (
@@ -187,8 +187,8 @@ export function NavItem({ item, collapsed, level = 0 }: NavItemProps) {
           )}
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-1 pt-1.5 pb-1">
-        <div className="ml-4 pl-3 border-l-2 border-primary/20 ring-1 ring-primary/10 space-y-1 bg-background rounded-md">
+      <CollapsibleContent className="space-y-0.5 pt-1 pb-0.5">
+        <div className="ml-4 pl-3 border-l-2 border-primary/20 ring-1 ring-primary/10 space-y-0.5 bg-background rounded-md">
           {item.children?.map((child, i) => (
             <NavItem key={i} item={child} collapsed={collapsed} level={level + 1} />
           ))}

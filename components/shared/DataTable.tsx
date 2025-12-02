@@ -353,91 +353,97 @@ export function DataTable<TData>({
             onPageChange={onPageChange ?? (() => {})}
           />
         ) : (
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={() => table.previousPage()}
-                  aria-disabled={!table.getCanPreviousPage()}
-                  className={cn(
-                    'mr-2',
-                    !table.getCanPreviousPage() && 'pointer-events-none opacity-50'
-                  )}
-                />
-              </PaginationItem>
+          // Solo mostrar paginación local si hay datos y getPaginationRowModel está habilitado
+          data.length > 0 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => table.previousPage()}
+                    aria-disabled={!table.getCanPreviousPage()}
+                    className={cn(
+                      'mr-2',
+                      !table.getCanPreviousPage() && 'pointer-events-none opacity-50'
+                    )}
+                  />
+                </PaginationItem>
 
-              {/* Render page numbers with a small window around current page */}
-              {(() => {
-                const total = table.getPageCount();
-                const current = table.getState().pagination.pageIndex + 1;
-                const delta = 2;
-                const left = Math.max(1, current - delta);
-                const right = Math.min(total, current + delta);
-                const pages: number[] = [];
-                for (let i = left; i <= right; i++) pages.push(i);
+                {/* Render page numbers with a small window around current page */}
+                {(() => {
+                  const total = table.getPageCount();
+                  if (total === 0) return null;
 
-                const items: React.ReactNode[] = [];
+                  const paginationState = table.getState().pagination;
+                  const current = (paginationState?.pageIndex ?? 0) + 1;
+                  const delta = 2;
+                  const left = Math.max(1, current - delta);
+                  const right = Math.min(total, current + delta);
+                  const pages: number[] = [];
+                  for (let i = left; i <= right; i++) pages.push(i);
 
-                if (left > 1) {
-                  items.push(
-                    <PaginationItem key={1}>
-                      <PaginationLink onClick={() => table.setPageIndex(0)}>1</PaginationLink>
-                    </PaginationItem>
-                  );
-                  if (left > 2) {
+                  const items: React.ReactNode[] = [];
+
+                  if (left > 1) {
                     items.push(
-                      <PaginationItem key="start-ellipsis">
-                        <PaginationEllipsis />
+                      <PaginationItem key={1}>
+                        <PaginationLink onClick={() => table.setPageIndex(0)}>1</PaginationLink>
+                      </PaginationItem>
+                    );
+                    if (left > 2) {
+                      items.push(
+                        <PaginationItem key="start-ellipsis">
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      );
+                    }
+                  }
+
+                  pages.forEach((p) => {
+                    items.push(
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          isActive={p === current}
+                          onClick={() => table.setPageIndex(p - 1)}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  });
+
+                  if (right < total) {
+                    if (right < total - 1) {
+                      items.push(
+                        <PaginationItem key="end-ellipsis">
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      );
+                    }
+                    items.push(
+                      <PaginationItem key={total}>
+                        <PaginationLink onClick={() => table.setPageIndex(total - 1)}>
+                          {total}
+                        </PaginationLink>
                       </PaginationItem>
                     );
                   }
-                }
 
-                pages.forEach((p) => {
-                  items.push(
-                    <PaginationItem key={p}>
-                      <PaginationLink
-                        isActive={p === current}
-                        onClick={() => table.setPageIndex(p - 1)}
-                      >
-                        {p}
-                      </PaginationLink>
-                    </PaginationItem>
-                  );
-                });
+                  return items;
+                })()}
 
-                if (right < total) {
-                  if (right < total - 1) {
-                    items.push(
-                      <PaginationItem key="end-ellipsis">
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    );
-                  }
-                  items.push(
-                    <PaginationItem key={total}>
-                      <PaginationLink onClick={() => table.setPageIndex(total - 1)}>
-                        {total}
-                      </PaginationLink>
-                    </PaginationItem>
-                  );
-                }
-
-                return items;
-              })()}
-
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() => table.nextPage()}
-                  aria-disabled={!table.getCanNextPage()}
-                  className={cn(
-                    'ml-2',
-                    !table.getCanNextPage() && 'pointer-events-none opacity-50'
-                  )}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => table.nextPage()}
+                    aria-disabled={!table.getCanNextPage()}
+                    className={cn(
+                      'ml-2',
+                      !table.getCanNextPage() && 'pointer-events-none opacity-50'
+                    )}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )
         )}
       </div>
     </div>
