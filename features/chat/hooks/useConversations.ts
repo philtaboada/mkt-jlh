@@ -5,12 +5,16 @@ import {
   getConversations,
   findOrCreate,
   updateLastMessage,
+  getConversationCounts,
 } from '../api/conversation.api';
 
 export const useConversations = (pageIndex = 0, pageSize = 10) => {
   return useQuery({
     queryKey: ['conversations', pageIndex, pageSize],
     queryFn: () => getConversations(pageIndex, pageSize),
+    // Polling cada 5 segundos para ver nuevas conversaciones
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   });
 };
 
@@ -19,6 +23,9 @@ export const useConversation = (id: string) => {
     queryKey: ['conversation', id],
     queryFn: () => getConversationById(id),
     enabled: !!id,
+    // Polling cada 5 segundos para actualizar estado de la conversación
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   });
 };
 
@@ -46,5 +53,16 @@ export const useUpdateLastMessage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
+  });
+};
+
+// Hook para obtener los conteos del sidebar
+export const useConversationCounts = () => {
+  return useQuery({
+    queryKey: ['conversation-counts'],
+    queryFn: () => getConversationCounts(),
+    // Refetch cada 30 segundos para mantener los conteos actualizados
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
 };

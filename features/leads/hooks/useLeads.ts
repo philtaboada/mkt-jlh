@@ -32,7 +32,8 @@ export const useLeads = (filters: LeadsFilters = {}) => {
   return useQuery({
     queryKey: ['leads_mkt', filters],
     queryFn: () => getLeads(filters),
-    staleTime: 30000, // 30 segundos
+    staleTime: 30000, // 30 segundos,
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -177,9 +178,17 @@ export const useBulkImportFacebookLeads = () => {
       // Procesar cada lead para enriquecer con datos de ruc y entity_type si están presentes y ruc tiene 11 caracteres
       const enrichedLeads = await Promise.all(
         leads.map(async (lead) => {
-          if (lead.ruc && lead.type_entity && lead.ruc.length === 11) {
+          if (
+            lead.ruc &&
+            lead.type_entity &&
+            /^\d{11}$/.test(lead.ruc) &&
+            (lead.ruc.startsWith('1') || lead.ruc.startsWith('2'))
+          ) {
             try {
-              const docData = await getDocumentSearchWithData(lead.ruc, lead.type_entity);
+              let docData;
+              try {
+                docData = await getDocumentSearchWithData(lead.ruc, lead.type_entity);
+              } catch (error) {}
               if (docData) {
                 return {
                   ...lead,
@@ -207,8 +216,7 @@ export const useBulkImportFacebookLeads = () => {
   });
 };
 
-// ...existing code...
-
+// Actualizar datos de entidad del lead basado en RUC
 export const useUpdateLeadEntityData = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -221,8 +229,18 @@ export const useUpdateLeadEntityData = () => {
       ruc: string;
       type_entity: LeadEntityType;
     }) => {
+      // Validar RUC: debe ser 11 dígitos y empezar con 1 o 2
+      if (!/^\d{11}$/.test(ruc) || (!ruc.startsWith('1') && !ruc.startsWith('2'))) {
+        toast.error('RUC inválido. Debe tener 11 dígitos y comenzar con 1 o 2.');
+        return Promise.reject(new Error('RUC inválido'));
+      }
       let extraData: any = {};
-      const docData = await getDocumentSearchWithData(ruc, type_entity);
+      let docData;
+      try {
+        docData = await getDocumentSearchWithData(ruc, type_entity);
+      } catch (error) {
+        toast.error('Ocurrió un error al obtener los datos del RUC');
+      }
       if (docData) {
         extraData.business_or_person_name = docData.legal_name ?? null;
         extraData.business_or_partnership_id = docData.id ?? null;
@@ -240,7 +258,7 @@ export const useUpdateLeadEntityData = () => {
       });
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['leads_mkt'] });
+      queryClient.refetchQueries({ queryKey: ['leads_mkt'] }); // Forzar refetch de todas las consultas de leads
       queryClient.invalidateQueries({ queryKey: ['leads_mkt', data.id] });
       toast.success('Empresa o consorcio actualizado correctamente');
     },

@@ -7,14 +7,9 @@ import type { Contact, Conversation } from '../types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Phone, Video, MoreVertical, MessageSquareQuote, User, Clock } from 'lucide-react';
+import { MoreVertical, User, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ContactDetails } from './ContactDetail';
-
-interface ChatHeaderProps {
-  contact: Contact;
-  conversation: Conversation;
-}
 
 interface ChatHeaderProps {
   contact: Contact;
@@ -26,6 +21,7 @@ const channelIcons: Record<string, React.ReactNode> = {
   facebook: '👥',
   instagram: '📷',
   web: '🌐',
+  website: '🌐',
 };
 
 const channelLabels: Record<string, string> = {
@@ -33,6 +29,7 @@ const channelLabels: Record<string, string> = {
   facebook: 'Facebook',
   instagram: 'Instagram',
   web: 'Web',
+  website: 'Website',
 };
 
 const channelColors: Record<string, string> = {
@@ -40,6 +37,7 @@ const channelColors: Record<string, string> = {
   facebook: 'bg-blue-600',
   instagram: 'bg-pink-500',
   web: 'bg-purple-500',
+  website: 'bg-purple-500',
 };
 
 export function ChatHeader({ contact, conversation }: ChatHeaderProps) {
@@ -138,35 +136,8 @@ export function ChatHeader({ contact, conversation }: ChatHeaderProps) {
             </div>
           </button>
 
-          {/* Action Buttons */}
+          {/* Action Buttons - Solo los necesarios */}
           <div className="flex items-center gap-1 ml-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 h-9 w-9"
-              title="Citar mensaje"
-            >
-              <MessageSquareQuote className="w-4 h-4" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 h-9 w-9"
-              title="Llamar"
-            >
-              <Phone className="w-4 h-4" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 h-9 w-9"
-              title="Videollamada"
-            >
-              <Video className="w-4 h-4" />
-            </Button>
-
             <Button
               variant="ghost"
               size="icon"
@@ -193,7 +164,6 @@ export function ChatHeader({ contact, conversation }: ChatHeaderProps) {
             <ContactDetails
               contact={contact}
               onContactUpdated={() => {
-                // Aquí podrías refrescar los datos si es necesario
                 console.log('Contact updated');
               }}
               onClose={handleClosePanel}

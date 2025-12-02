@@ -7,6 +7,10 @@ export const useMessages = (conversationId: string) => {
     queryKey: ['messages', conversationId],
     queryFn: () => getMessagesByConversation(conversationId),
     enabled: !!conversationId,
+    // Polling cada 3 segundos para obtener mensajes nuevos en tiempo real
+    refetchInterval: 3000,
+    // Solo hacer polling si la ventana está enfocada
+    refetchIntervalInBackground: false,
   });
 };
 

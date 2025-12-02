@@ -27,13 +27,13 @@ interface ContactDetailsProps {
 }
 
 const statusColors: Record<string, { bg: string; text: string }> = {
-  lead: { bg: 'bg-gray-100 dark:bg-gray-900', text: 'text-gray-700 dark:text-gray-300' },
-  open: { bg: 'bg-yellow-100 dark:bg-yellow-900', text: 'text-yellow-700 dark:text-yellow-300' },
+  lead: { bg: 'bg-muted', text: 'text-muted-foreground' },
+  open: { bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400' },
   customer: {
-    bg: 'bg-green-100 dark:bg-green-900',
-    text: 'text-green-700 dark:text-green-300',
+    bg: 'bg-emerald-500/10',
+    text: 'text-emerald-600 dark:text-emerald-400',
   },
-  closed: { bg: 'bg-red-100 dark:bg-red-900', text: 'text-red-700 dark:text-red-300' },
+  closed: { bg: 'bg-destructive/10', text: 'text-destructive' },
 };
 
 const sourceIcons: Record<string, string> = {
@@ -220,7 +220,9 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
                 </label>
                 <div className="flex items-center gap-2 mt-2">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm">{contact.created_at.toLocaleDateString('es-ES')}</span>
+                  <span className="text-sm">
+                    {new Date(contact.created_at).toLocaleDateString('es-ES')}
+                  </span>
                 </div>
               </div>
             )}
@@ -233,7 +235,7 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
                 <div className="flex items-center gap-2 mt-2">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm">
-                    {contact.last_interaction.toLocaleDateString('es-ES')}
+                    {new Date(contact.last_interaction).toLocaleDateString('es-ES')}
                   </span>
                 </div>
               </div>

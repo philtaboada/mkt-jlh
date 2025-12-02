@@ -66,11 +66,12 @@ export async function getConversations(
           id,
           name,
           wa_id,
-          last_interaction
+          last_interaction,
+          avatar_url
         )
       `
     )
-    .order('last_message_at', { ascending: false })
+    .order('last_message_at', { ascending: false, nullsFirst: false })
     .range(from, to);
 
   if (error) {
@@ -102,7 +103,8 @@ export async function getConversationById(id: string): Promise<Conversation> {
           id,
           name,
           wa_id,
-          last_interaction
+          last_interaction,
+          avatar_url
         )
       `
     )
@@ -119,4 +121,72 @@ export async function getConversationById(id: string): Promise<Conversation> {
 export async function updateLastMessage(id: string) {
   const supabase = await createClient();
   await supabase.from('mkt_conversations').update({ last_message_at: new Date() }).eq('id', id);
+}
+
+// ============================================================================
+// Conversation Counts for Sidebar
+// ============================================================================
+
+export interface ConversationCounts {
+  inbox: number;
+  mentions: number;
+  starred: number;
+  snoozed: number;
+  archived: number;
+  unread: number;
+}
+
+export async function getConversationCounts(): Promise<ConversationCounts> {
+  const supabase = await createClient();
+
+  // Get counts in parallel
+  const [
+    { count: inboxCount },
+    { count: starredCount },
+    { count: snoozedCount },
+    { count: archivedCount },
+    { count: unreadCount },
+  ] = await Promise.all([
+    // Inbox: open conversations
+    supabase
+      .from('mkt_conversations')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'open'),
+
+    // Starred conversations
+    supabase
+      .from('mkt_conversations')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_starred', true),
+
+    // Snoozed conversations
+    supabase
+      .from('mkt_conversations')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'snoozed'),
+
+    // Archived conversations
+    supabase
+      .from('mkt_conversations')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'archived'),
+
+    // Unread conversations (has unread messages)
+    supabase
+      .from('mkt_conversations')
+      .select('*', { count: 'exact', head: true })
+      .gt('unread_count', 0),
+  ]);
+
+  // TODO: Implementar menciones cuando tengamos la tabla de menciones
+  const mentionsCount = 0;
+
+  return {
+    inbox: inboxCount || 0,
+    mentions: mentionsCount,
+    starred: starredCount || 0,
+    snoozed: snoozedCount || 0,
+    archived: archivedCount || 0,
+    unread: unreadCount || 0,
+  };
 }
