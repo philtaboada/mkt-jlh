@@ -42,7 +42,6 @@ const secondaryNav: NavItem[] = [
 ];
 
 const toolsNav: NavItem[] = [
-  { href: '/chat/chatbot', icon: Bot, label: 'Chatbot' },
   { href: '/chat/automations', icon: Zap, label: 'Automatizaciones' },
   { href: '/analytics', icon: BarChart3, label: 'Reportes' },
 ];

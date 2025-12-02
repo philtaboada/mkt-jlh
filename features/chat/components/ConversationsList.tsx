@@ -426,12 +426,12 @@ function ConversationItem({
               <Badge
                 variant="outline"
                 className={cn(
-                  'h-4 px-1.5 text-[9px] font-normal border-0',
+                  'h-4 px-1.5 text-[9px]  border-0 font-semibold',
                   typeConfig.bgColor,
                   'text-white'
                 )}
               >
-                {typeConfig.icon} {channelInfo?.name || channelType}
+                {channelInfo?.name || channelType}
               </Badge>
             </div>
 

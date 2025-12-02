@@ -39,7 +39,7 @@ export function AITab({ widgetConfig, updateConfig, updateAIConfig }: AITabProps
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-purple-600" />
               </div>
               <div>
