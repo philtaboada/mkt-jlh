@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bot, User, Send } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Bot, User, Send, Sparkles, Settings, Zap, MessageSquare } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Message {
   id: string;
@@ -62,153 +64,214 @@ export default function ChatbotPage() {
   };
 
   return (
-    <div className="flex h-full bg-gray-50">
+    <div className="flex h-full bg-background">
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col bg-card">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 p-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-              <Bot className="w-6 h-6 text-white" />
+        <div className="border-b border-border px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                <Bot className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold text-foreground">Chatbot Asistente</h1>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                  <span className="text-sm text-muted-foreground">En línea</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">Chatbot Asistente</h1>
-              <p className="text-sm text-gray-500">Asistente virtual inteligente</p>
-            </div>
+            <Button variant="outline" size="sm">
+              <Settings className="w-4 h-4 mr-2" />
+              Configurar
+            </Button>
           </div>
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 p-4">
-          <div className="space-y-4">
+        <ScrollArea className="flex-1 p-6">
+          <div className="max-w-3xl mx-auto space-y-6">
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex items-start space-x-3 ${
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                }`}
+                className={cn(
+                  'flex items-start gap-3',
+                  message.role === 'user' && 'flex-row-reverse'
+                )}
               >
-                {message.role === 'assistant' && (
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback className="bg-blue-500 text-white">
+                <Avatar className="w-8 h-8 shrink-0">
+                  <AvatarFallback
+                    className={cn(
+                      message.role === 'assistant'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
+                    )}
+                  >
+                    {message.role === 'assistant' ? (
                       <Bot className="w-4 h-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-
-                <Card
-                  className={`max-w-md ${
-                    message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-white'
-                  }`}
-                >
-                  <CardContent className="p-3">
-                    <p className="text-sm">{message.content}</p>
-                    <p
-                      className={`text-xs mt-1 ${
-                        message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
-                      }`}
-                    >
-                      {message.timestamp.toLocaleTimeString()}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                {message.role === 'user' && (
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback className="bg-gray-500 text-white">
+                    ) : (
                       <User className="w-4 h-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
+                    )}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div
+                  className={cn(
+                    'max-w-lg rounded-2xl px-4 py-3',
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                      : 'bg-muted text-foreground rounded-tl-sm'
+                  )}
+                >
+                  <p className="text-sm leading-relaxed">{message.content}</p>
+                  <p
+                    className={cn(
+                      'text-[10px] mt-2',
+                      message.role === 'user' ? 'opacity-70' : 'text-muted-foreground'
+                    )}
+                  >
+                    {message.timestamp.toLocaleTimeString('es-ES', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                </div>
               </div>
             ))}
 
             {isLoading && (
-              <div className="flex items-start space-x-3">
-                <Avatar className="w-8 h-8">
-                  <AvatarFallback className="bg-blue-500 text-white">
+              <div className="flex items-start gap-3">
+                <Avatar className="w-8 h-8 shrink-0">
+                  <AvatarFallback className="bg-primary text-primary-foreground">
                     <Bot className="w-4 h-4" />
                   </AvatarFallback>
                 </Avatar>
-                <Card className="max-w-md bg-white">
-                  <CardContent className="p-3">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: '0.1s' }}
-                      ></div>
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: '0.2s' }}
-                      ></div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
+                    <div
+                      className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                      style={{ animationDelay: '0.1s' }}
+                    />
+                    <div
+                      className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                      style={{ animationDelay: '0.2s' }}
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </ScrollArea>
 
         {/* Input */}
-        <div className="bg-white border-t border-gray-200 p-4">
-          <div className="flex space-x-2">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Escribe tu mensaje..."
-              className="flex-1"
-              disabled={isLoading}
-            />
-            <Button onClick={handleSendMessage} disabled={!input.trim() || isLoading} size="icon">
-              <Send className="w-4 h-4" />
-            </Button>
+        <div className="border-t border-border p-4">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-center gap-2 bg-muted rounded-xl p-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 text-muted-foreground hover:text-primary"
+              >
+                <Sparkles className="w-5 h-5" />
+              </Button>
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Escribe tu mensaje..."
+                className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                disabled={isLoading}
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={!input.trim() || isLoading}
+                size="icon"
+                className="shrink-0"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Sidebar Info */}
-      <div className="w-80 bg-white border-l border-gray-200 p-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Información del Chatbot</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="font-medium text-sm text-gray-900">Estado</h3>
-              <div className="flex items-center mt-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                <span className="text-sm text-gray-600">En línea</span>
+      <div className="w-80 bg-card border-l border-border p-4 overflow-auto">
+        <div className="space-y-4">
+          <Card className="border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-500" />
+                Estado del Bot
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Estado</span>
+                <Badge className="bg-emerald-500/10 text-emerald-600">Activo</Badge>
               </div>
-            </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Modelo</span>
+                <span className="text-sm font-medium">GPT-4</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Tiempo respuesta</span>
+                <span className="text-sm font-medium">~1.2s</span>
+              </div>
+            </CardContent>
+          </Card>
 
-            <div>
-              <h3 className="font-medium text-sm text-gray-900">Capacidades</h3>
-              <ul className="text-sm text-gray-600 mt-1 space-y-1">
-                <li>• Respuestas inteligentes</li>
-                <li>• Análisis de datos</li>
-                <li>• Generación de contenido</li>
-                <li>• Asistencia técnica</li>
+          <Card className="border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-primary" />
+                Capacidades
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm text-muted-foreground space-y-2">
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full" />
+                  Respuestas inteligentes
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full" />
+                  Análisis de datos
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full" />
+                  Generación de contenido
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full" />
+                  Asistencia técnica
+                </li>
               </ul>
-            </div>
+            </CardContent>
+          </Card>
 
-            <div>
-              <h3 className="font-medium text-sm text-gray-900">Comandos disponibles</h3>
-              <div className="text-xs text-gray-500 mt-1 space-y-1">
-                <div>
-                  <code className="bg-gray-100 px-1 rounded">/help</code> - Mostrar ayuda
-                </div>
-                <div>
-                  <code className="bg-gray-100 px-1 rounded">/clear</code> - Limpiar conversación
-                </div>
-                <div>
-                  <code className="bg-gray-100 px-1 rounded">/status</code> - Estado del sistema
-                </div>
+          <Card className="border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Comandos rápidos</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <code className="bg-muted px-2 py-0.5 rounded text-xs">/help</code>
+                <span className="text-muted-foreground text-xs">Ayuda</span>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="flex items-center justify-between text-sm">
+                <code className="bg-muted px-2 py-0.5 rounded text-xs">/clear</code>
+                <span className="text-muted-foreground text-xs">Limpiar</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <code className="bg-muted px-2 py-0.5 rounded text-xs">/status</code>
+                <span className="text-muted-foreground text-xs">Estado</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

@@ -4,27 +4,52 @@ import { useState } from 'react';
 import { useConversation } from '@/features/chat/hooks/useConversations';
 import { ChatPanel } from '@/features/chat/components/ChatPanel';
 import { ConversationsList } from '@/features/chat/components/ConversationsList';
+import { ContactDetails } from '@/features/chat/components/ContactDetail';
+import { Button } from '@/components/ui/button';
+import { MessageCircle, Inbox, PanelRightClose, PanelRight } from 'lucide-react';
 import type { Contact } from '@/features/chat/types/contact';
 import type { Conversation } from '@/features/chat/types/conversation';
+import { cn } from '@/lib/utils';
 
 export default function InboxPage() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showContactPanel, setShowContactPanel] = useState(false);
 
   const { data: selectedConversation } = useConversation(selectedConversationId || '');
 
   // Create contact object from conversation data
-  const contact: Contact | undefined =
-    selectedConversation &&
-    selectedConversation.mkt_contacts &&
-    selectedConversation.mkt_contacts.id &&
-    selectedConversation.mkt_contacts.name
-      ? {
-          id: selectedConversation.mkt_contacts.id,
-          name: selectedConversation.mkt_contacts.name,
-          avatar_url: selectedConversation.mkt_contacts.avatar_url || undefined,
+  // Para visitantes web anónimos, crear un contacto virtual desde metadata
+  const contact: Contact | undefined = selectedConversation
+    ? (() => {
+        // Normalize possible name shapes to a string with sensible fallbacks
+        const mktName = selectedConversation.mkt_contacts?.name;
+        const metadataName = selectedConversation.metadata?.visitor_info?.name;
+
+        const normalizedMktName =
+          typeof mktName === 'string' && mktName.trim() !== '' ? mktName : undefined;
+        const normalizedMetadataName =
+          typeof metadataName === 'string' && metadataName.trim() !== '' ? metadataName : undefined;
+
+        if (selectedConversation.mkt_contacts?.id) {
+          return {
+            id: selectedConversation.mkt_contacts.id,
+            name: normalizedMktName ?? 'Sin nombre',
+            avatar_url: selectedConversation.mkt_contacts.avatar_url || undefined,
+            wa_id: selectedConversation.mkt_contacts.wa_id,
+            source: selectedConversation.channel,
+          } as Contact;
         }
-      : undefined;
+
+        // Visitante anónimo del widget web
+        return {
+          id: selectedConversation.metadata?.visitor_id || selectedConversation.id,
+          name: normalizedMetadataName ?? `Visitante Web`,
+          avatar_url: undefined,
+          source: selectedConversation.channel || 'website',
+        } as Contact;
+      })()
+    : undefined;
 
   const conversation: Conversation | undefined = selectedConversation
     ? {
@@ -40,7 +65,7 @@ export default function InboxPage() {
     : undefined;
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)]  bg-gray-50 overflow-hidden">
+    <div className="flex h-full bg-background overflow-hidden">
       {/* Conversations Sidebar */}
       <ConversationsList
         onSelectConversation={setSelectedConversationId}
@@ -50,21 +75,59 @@ export default function InboxPage() {
       />
 
       {/* Main Chat Area */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 flex overflow-hidden">
         {selectedConversation && contact && conversation ? (
-          <ChatPanel contact={contact} conversation={conversation} />
-        ) : (
-          <div className="flex-1 flex items-center justify-center overflow-hidden">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
-                💬
+          <>
+            {/* Chat Panel */}
+            <div className="flex-1 flex flex-col overflow-hidden bg-card">
+              {/* Toggle Contact Panel Button */}
+              <div className="absolute top-4 right-4 z-10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowContactPanel(!showContactPanel)}
+                  className="h-8 w-8 bg-card shadow-sm"
+                >
+                  {showContactPanel ? (
+                    <PanelRightClose className="h-4 w-4" />
+                  ) : (
+                    <PanelRight className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Selecciona una conversación
-              </h3>
-              <p className="text-gray-500">
-                Elige una conversación del panel lateral para ver los mensajes
+              <ChatPanel contact={contact} conversation={conversation} />
+            </div>
+
+            {/* Contact Details Panel - Collapsible */}
+            <div
+              className={cn(
+                'border-l border-border bg-card transition-all duration-300 overflow-hidden',
+                showContactPanel ? 'w-80' : 'w-0'
+              )}
+            >
+              {showContactPanel && (
+                <ContactDetails
+                  contact={contact}
+                  onContactUpdated={() => {}}
+                  onClose={() => setShowContactPanel(false)}
+                />
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-card">
+            <div className="text-center max-w-md px-8">
+              <div className="w-20 h-20 bg-primary/10 rounded-2xl mx-auto mb-6 flex items-center justify-center">
+                <Inbox className="w-10 h-10 text-primary" />
+              </div>
+              <h3 className="text-xl font-semibold text-foreground mb-2">Bandeja de entrada</h3>
+              <p className="text-muted-foreground mb-6">
+                Selecciona una conversación del panel lateral para comenzar a responder mensajes
               </p>
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <MessageCircle className="w-4 h-4" />
+                <span>Todas las conversaciones en un solo lugar</span>
+              </div>
             </div>
           </div>
         )}
