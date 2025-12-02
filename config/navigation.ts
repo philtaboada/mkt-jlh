@@ -9,12 +9,6 @@ import {
   Settings,
   Target,
   Handshake,
-  Inbox,
-  Archive,
-  Tag,
-  AtSign,
-  Key,
-  Link,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -73,63 +67,6 @@ export const navItems: NavItem[] = [
     href: '/chat',
     icon: MessageSquare,
     description: 'Centro de mensajes',
-    children: [
-      {
-        name: 'Bandeja de entrada',
-        href: '/chat/inbox',
-        icon: Inbox,
-        description: 'Mensajes principales',
-      },
-      {
-        name: 'Todas las conversaciones',
-        href: '/chat/conversations',
-        icon: MessageSquare,
-        description: 'Todas las conversaciones',
-      },
-      {
-        name: 'Menciones',
-        href: '/chat/mentions',
-        icon: AtSign,
-        description: 'Donde te mencionan',
-      },
-      /*  {
-        name: 'Archivadas',
-        href: '/chat/archived',
-        icon: Archive,
-        description: 'Conversaciones archivadas',
-      }, */
-      /* {
-        name: 'Etiquetas',
-        href: '/chat/tags',
-        icon: Tag,
-        description: 'Gestión de etiquetas',
-      },
-      {
-        name: 'Reportes',
-        href: '/chat/reports',
-        icon: BarChart3,
-        description: 'Reportes y métricas',
-      }, */
-      {
-        name: 'Configuración',
-        icon: Settings,
-        description: 'Configuración del chat',
-        children: [
-          {
-            name: 'Integraciones',
-            href: '/chat/settings/integrations',
-            icon: Link,
-            description: 'Conexiones externas',
-          },
-          {
-            name: 'API Keys',
-            href: '/chat/settings/api-keys',
-            icon: Key,
-            description: 'Claves de API',
-          },
-        ],
-      },
-    ],
   },
   {
     name: 'Analytics',
