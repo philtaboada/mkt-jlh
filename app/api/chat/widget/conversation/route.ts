@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getChannelByWidgetToken } from '@/features/chat/api/channels.api';
+import { findWidgetConversation } from '@/features/chat/api/conversation.api';
 
 // Headers CORS para el widget
 const corsHeaders = {
@@ -31,47 +32,25 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = await createClient();
-
     // Validar token y obtener channel
-    const { data: channels } = await supabase
-      .from('mkt_channels')
-      .select('id, config')
-      .eq('type', 'website');
-
-    const channel = channels?.find((c) => {
-      const config = c.config as { widget_token?: string };
-      return config?.widget_token === token;
-    });
+    const channel = await getChannelByWidgetToken(token);
 
     if (!channel) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 404, headers: corsHeaders });
     }
 
-    // Buscar conversación abierta por visitor_id en metadata
-    const { data: conversations, error } = await supabase
-      .from('mkt_conversations')
-      .select('id, created_at, last_message_at')
-      .eq('channel_id', channel.id)
-      .eq('status', 'open')
-      .filter('metadata->>visitor_id', 'eq', visitorId)
-      .order('created_at', { ascending: false })
-      .limit(1);
+    // Buscar conversación abierta por visitor_id
+    const conversation = await findWidgetConversation({
+      channelId: channel.id,
+      visitorId,
+    });
 
-    if (error) {
-      console.error('Error finding conversation:', error);
-      return NextResponse.json(
-        { error: 'Error finding conversation' },
-        { status: 500, headers: corsHeaders }
-      );
-    }
-
-    if (conversations && conversations.length > 0) {
+    if (conversation) {
       return NextResponse.json(
         {
-          conversation_id: conversations[0].id,
-          created_at: conversations[0].created_at,
-          last_message_at: conversations[0].last_message_at,
+          conversation_id: conversation.id,
+          created_at: conversation.created_at,
+          last_message_at: conversation.last_message_at,
         },
         { headers: corsHeaders }
       );
