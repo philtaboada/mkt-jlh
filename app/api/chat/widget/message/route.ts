@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getChannelByWidgetToken } from '@/features/chat/api/channels.api';
 import { findOrCreateWidgetConversation } from '@/features/chat/api/conversation.api';
-import { createWidgetMessage, createAutoReplyMessage } from '@/features/chat/api/message.api';
+import { createWidgetMessage } from '@/features/chat/api/message.api';
+import { processIncomingMessage, isAIEnabledForChannel } from '@/lib/services/ai';
 import type { WebsiteWidgetConfig } from '@/features/chat/types/settings';
 
 // Headers CORS para el widget
@@ -64,21 +65,30 @@ export async function POST(request: NextRequest) {
       senderType: 'user',
     });
 
-    // Verificar si AI está habilitado para respuesta automática
+    // Procesar respuesta de IA si está habilitada
+    // La respuesta se guarda en BD y Realtime la propagará automáticamente
     const channelConfig = channel.config as WebsiteWidgetConfig;
-    let reply: string | null = null;
+    let handoffToHuman = false;
 
-    if (channelConfig.ai_enabled && channelConfig.ai_config?.auto_reply) {
-      // TODO: Implementar con Vercel AI SDK
-      reply = '¡Gracias por tu mensaje! Un agente te responderá pronto.';
-      await createAutoReplyMessage(conversationId, reply);
+    if (isAIEnabledForChannel(channelConfig)) {
+      const result = await processIncomingMessage({
+        conversationId,
+        userMessage: message,
+        channelConfig,
+        contactName: visitor_info?.name,
+        channel: 'website',
+        autoSaveReply: true, // Guarda en BD, Realtime lo propagará
+      });
+
+      handoffToHuman = result.handoffToHuman || false;
     }
 
+    // No devolvemos reply aquí - Realtime se encarga de mostrar el mensaje
     return NextResponse.json(
       {
         success: true,
         conversation_id: conversationId,
-        reply,
+        handoff_to_human: handoffToHuman,
       },
       { headers: corsHeaders }
     );
