@@ -10,6 +10,9 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.53",
+    "@ai-sdk/google": "^2.0.44",
+    "@ai-sdk/openai": "^2.0.76",
     "@google-cloud/storage": "^7.17.3",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -32,6 +35,7 @@
     "@supabase/ssr": "^0.7.0",
     "@tanstack/react-query": "^5.90.5",
     "@tanstack/react-table": "^8.21.3",
+    "ai": "^5.0.106",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
