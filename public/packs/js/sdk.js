@@ -16,7 +16,7 @@
       this.configLoaded = false;
       this.conversationId = null;
       this.lastMessageId = null;
-      this.pollingInterval = null;
+      this.eventSource = null; // SSE connection
     }
 
     async run() {
@@ -32,8 +32,8 @@
       // Restaurar conversación existente (verificando que aún exista)
       await this.restoreConversation();
       
-      // Iniciar polling de mensajes
-      this.startPolling();
+      // No iniciar polling aquí - se iniciará al abrir el chat o enviar mensaje
+      // Esto evita llamadas innecesarias cuando el widget está cerrado
     }
 
     // Restaurar conversación del usuario desde localStorage o servidor
@@ -46,6 +46,8 @@
         const valid = await this.validateAndLoadConversation(savedConversationId);
         if (valid) {
           this.conversationId = savedConversationId;
+          // Conectar al stream SSE para recibir mensajes en tiempo real
+          this.connectToStream();
           return;
         } else {
           // Conversación no válida, limpiar localStorage
@@ -61,6 +63,8 @@
         this.conversationId = existingConversation;
         localStorage.setItem(`mkt_conversation_${this.token}`, this.conversationId);
         await this.loadMessages();
+        // Conectar al stream SSE para recibir mensajes en tiempo real
+        this.connectToStream();
       } else if (this.settings.welcome_message) {
         // No hay conversación, mostrar mensaje de bienvenida
         this.addMessage({
@@ -1051,15 +1055,21 @@
         if (data.conversation_id && !this.conversationId) {
           this.conversationId = data.conversation_id;
           localStorage.setItem(`mkt_conversation_${this.token}`, this.conversationId);
+          // Conectar al stream SSE para recibir mensajes en tiempo real
+          this.connectToStream();
+          
+          // Si hay reply y acabamos de conectar SSE, mostrarlo directamente
+          // (el SSE aún no está listo para recibirlo)
+          if (data.reply) {
+            this.addMessage({
+              type: 'bot',
+              text: data.reply,
+              timestamp: new Date()
+            });
+          }
         }
-        
-        if (data.reply) {
-          this.addMessage({
-            type: 'bot',
-            text: data.reply,
-            timestamp: new Date()
-          });
-        }
+        // Si ya teníamos SSE conectado, el reply llegará por el stream
+        // No lo mostramos aquí para evitar duplicados
       } catch (error) {
         console.error('MktChat: Error sending message', error);
         this.hideTyping();
@@ -1113,53 +1123,56 @@
       }
     }
 
-    // Polling para obtener nuevos mensajes
-    startPolling() {
-      // Polling cada 3 segundos
-      this.pollingInterval = setInterval(() => {
-        this.checkNewMessages();
-      }, 3000);
-    }
-
-    stopPolling() {
-      if (this.pollingInterval) {
-        clearInterval(this.pollingInterval);
-        this.pollingInterval = null;
-      }
-    }
-
-    async checkNewMessages() {
+    // Conectar al stream SSE para recibir mensajes en tiempo real
+    connectToStream() {
       if (!this.conversationId) return;
-
-      try {
-        let url = `${this.getBaseUrl()}/api/chat/widget/messages?token=${this.token}&conversation_id=${this.conversationId}`;
-        if (this.lastMessageId) {
-          url += `&last_message_id=${this.lastMessageId}`;
-        }
-
-        const response = await fetch(url);
-        
-        if (response.ok) {
-          const data = await response.json();
+      
+      // Cerrar conexión anterior si existe
+      this.disconnectFromStream();
+      
+      const url = `${this.getBaseUrl()}/api/chat/widget/stream?token=${this.token}&conversation_id=${this.conversationId}`;
+      
+      this.eventSource = new EventSource(url);
+      
+      this.eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
           
-          if (data.messages && data.messages.length > 0) {
-            data.messages.forEach(msg => {
-              // Solo agregar mensajes de agente o bot (los del usuario ya los agregamos al enviar)
-              if (msg.sender_type === 'agent' || msg.sender_type === 'bot') {
-                this.addMessage({
-                  id: msg.id,
-                  type: 'bot',
-                  text: msg.body,
-                  timestamp: this.parseServerDate(msg.created_at),
-                  senderType: msg.sender_type
-                });
-              }
-              this.lastMessageId = msg.id;
-            });
+          if (data.type === 'message') {
+            // Verificar que el mensaje no existe ya en el DOM
+            const existingMsg = this.container.querySelector(`[data-message-id="${data.message.id}"]`);
+            if (!existingMsg) {
+              this.addMessage({
+                id: data.message.id,
+                type: 'bot',
+                text: data.message.body,
+                timestamp: this.parseServerDate(data.message.created_at),
+                senderType: data.message.sender_type
+              });
+            }
+          } else if (data.type === 'connected') {
+            console.log('MktChat: Connected to realtime stream');
           }
+        } catch (error) {
+          console.error('MktChat: Error parsing SSE message', error);
         }
-      } catch (error) {
-        console.error('MktChat: Error checking new messages', error);
+      };
+      
+      this.eventSource.onerror = (error) => {
+        console.error('MktChat: SSE connection error', error);
+        // Reconectar después de 5 segundos
+        setTimeout(() => {
+          if (this.conversationId) {
+            this.connectToStream();
+          }
+        }, 5000);
+      };
+    }
+    
+    disconnectFromStream() {
+      if (this.eventSource) {
+        this.eventSource.close();
+        this.eventSource = null;
       }
     }
 
