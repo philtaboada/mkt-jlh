@@ -14,6 +14,9 @@ export type Conversation = {
   status?: 'open' | 'closed';
   assigned_to?: string | null;
   last_message_at?: Date | null;
+  last_message_body?: string | null;
+  unread_count?: number;
+  is_starred?: boolean;
   created_at?: Date;
   updated_at?: Date;
   metadata?: {

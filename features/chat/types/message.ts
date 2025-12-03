@@ -19,4 +19,5 @@ export type Message = {
   metadata?: Record<string, any>;
   status?: string;
   created_at?: Date;
+  read_at?: Date | null;
 };

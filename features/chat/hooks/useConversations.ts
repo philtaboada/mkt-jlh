@@ -50,9 +50,12 @@ export const useConversations = (pageIndex = 0, pageSize = 10) => {
 export const useConversation = (id: string) => {
   const queryClient = useQueryClient();
 
+  // Validar que sea un UUID válido
+  const isValidUUID = Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+
   // Suscripción específica para esta conversación
   useEffect(() => {
-    if (!id) return;
+    if (!isValidUUID) return;
 
     const supabase = createClient();
 
@@ -75,12 +78,12 @@ export const useConversation = (id: string) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id, queryClient]);
+  }, [id, isValidUUID, queryClient]);
 
   return useQuery({
     queryKey: ['conversation', id],
     queryFn: () => getConversationById(id),
-    enabled: !!id,
+    enabled: isValidUUID,
     staleTime: 30000,
   });
 };

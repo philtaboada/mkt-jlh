@@ -227,7 +227,7 @@ export async function createWidgetConversation(
       channel: 'website',
       contact_id: contactId,
       status: 'open',
-      priority: 'medium',
+     // priority: 'medium',
       metadata: {
         visitor_id: params.visitorId,
         visitor_info: params.visitorInfo,

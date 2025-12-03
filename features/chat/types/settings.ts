@@ -48,6 +48,8 @@ export interface WebsiteWidgetConfig {
 export interface AIConfig {
   provider: 'openai' | 'anthropic' | 'google';
   model: string;
+  api_key_encrypted?: string; // API key encriptada
+  response_mode: 'ai_only' | 'agent_only' | 'hybrid'; // Modo de respuesta
   system_prompt: string;
   temperature: number;
   max_tokens: number;

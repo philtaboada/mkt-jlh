@@ -25,8 +25,9 @@ export const aiModels = {
     { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus (Avanzado)' },
   ],
   google: [
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Rápido)' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Recomendado)' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Última Versión)' },
+    { value: 'gemini-1.5-flash-latest', label: 'Gemini 1.5 Flash (Última Versión)' },
   ],
 } as const;
 
@@ -44,6 +45,8 @@ Directrices:
 export const defaultAIConfig = {
   provider: 'openai' as const,
   model: 'gpt-4o-mini',
+  api_key_encrypted: '',
+  response_mode: 'hybrid' as const, // Por defecto: IA + Agente
   system_prompt: defaultSystemPrompt,
   temperature: 0.7,
   max_tokens: 500,
@@ -54,6 +57,28 @@ export const defaultAIConfig = {
   knowledge_base_urls: [] as string[],
   fallback_message: 'Lo siento, no pude procesar tu mensaje. Un agente te atenderá pronto.',
 };
+
+// Response mode options
+export const responseModeOptions = [
+  { 
+    value: 'ai_only', 
+    label: 'Solo IA', 
+    description: 'La IA responde automáticamente sin intervención humana',
+    icon: '🤖'
+  },
+  { 
+    value: 'agent_only', 
+    label: 'Solo Agente', 
+    description: 'Solo los agentes humanos pueden responder',
+    icon: '👤'
+  },
+  { 
+    value: 'hybrid', 
+    label: 'IA + Agente', 
+    description: 'La IA responde primero, el agente puede intervenir',
+    icon: '🤝'
+  },
+] as const;
 
 // Type exports
 export type AIProvider = keyof typeof aiModels;

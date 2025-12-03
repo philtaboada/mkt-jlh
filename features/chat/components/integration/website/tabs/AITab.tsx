@@ -1,6 +1,7 @@
 'use client';
 
-import { Sparkles, Brain, MessageSquare, Zap } from 'lucide-react';
+import { useState } from 'react';
+import { Sparkles, Brain, MessageSquare, Zap, Key, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -16,7 +18,26 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { WebsiteWidgetConfig, AIConfig } from '@/features/chat/types/settings';
-import { aiModels, defaultSystemPrompt, defaultAIConfig } from '@/features/chat/constants';
+import { aiModels, defaultSystemPrompt, defaultAIConfig, responseModeOptions } from '@/features/chat/constants';
+import { validateApiKeyFormat } from '@/lib/utils/encryption';
+
+/**
+ * Encripta una API key llamando a la API del servidor
+ */
+async function encryptApiKeyViaApi(apiKey: string): Promise<string> {
+  const response = await fetch('/api/encrypt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to encrypt API key');
+  }
+
+  const data = await response.json();
+  return data.encrypted;
+}
 
 interface AITabProps {
   widgetConfig: WebsiteWidgetConfig;
@@ -56,6 +77,7 @@ export function AITab({ widgetConfig, updateConfig, updateAIConfig }: AITabProps
 
       {widgetConfig?.ai_enabled && (
         <>
+          <AIResponseModeCard widgetConfig={widgetConfig} updateAIConfig={updateAIConfig} />
           <AIProviderCard widgetConfig={widgetConfig} updateAIConfig={updateAIConfig} />
           <AISystemPromptCard widgetConfig={widgetConfig} updateAIConfig={updateAIConfig} />
           <AIAutoReplyCard widgetConfig={widgetConfig} updateAIConfig={updateAIConfig} />
@@ -75,7 +97,103 @@ interface AICardProps {
   updateAIConfig: (updates: Partial<AIConfig>) => void;
 }
 
+function AIResponseModeCard({ widgetConfig, updateAIConfig }: AICardProps) {
+  const currentMode = widgetConfig?.ai_config?.response_mode || 'hybrid';
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          🎯 Modo de Respuesta
+        </CardTitle>
+        <CardDescription>
+          Define quién responderá a los mensajes de los clientes
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3">
+          {responseModeOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => updateAIConfig({ response_mode: option.value })}
+              className={`p-4 rounded-lg border-2 text-left transition-all ${
+                currentMode === option.value
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-muted-foreground/50'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{option.icon}</span>
+                <div className="flex-1">
+                  <div className="font-medium">{option.label}</div>
+                  <div className="text-sm text-muted-foreground">{option.description}</div>
+                </div>
+                {currentMode === option.value && (
+                  <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                    <span className="text-white text-xs">✓</span>
+                  </div>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function AIProviderCard({ widgetConfig, updateAIConfig }: AICardProps) {
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [isValidKey, setIsValidKey] = useState<boolean | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const currentProvider = widgetConfig?.ai_config?.provider || 'openai';
+  const hasApiKey = Boolean(widgetConfig?.ai_config?.api_key_encrypted);
+
+  const handleApiKeyChange = (value: string) => {
+    setApiKeyInput(value);
+    if (value.trim()) {
+      setIsValidKey(validateApiKeyFormat(value, currentProvider));
+    } else {
+      setIsValidKey(null);
+    }
+  };
+
+  const handleSaveApiKey = async () => {
+    if (!apiKeyInput.trim() || !isValidKey) return;
+
+    setIsSaving(true);
+    try {
+      const encrypted = await encryptApiKeyViaApi(apiKeyInput);
+      updateAIConfig({ api_key_encrypted: encrypted });
+      setApiKeyInput('');
+      setIsValidKey(null);
+    } catch (error) {
+      console.error('Error saving API key:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRemoveApiKey = () => {
+    updateAIConfig({ api_key_encrypted: '' });
+  };
+
+  const getApiKeyPlaceholder = () => {
+    switch (currentProvider) {
+      case 'openai':
+        return 'sk-...';
+      case 'anthropic':
+        return 'sk-ant-...';
+      case 'google':
+        return 'AIza...';
+      default:
+        return 'Ingresa tu API key';
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -83,17 +201,19 @@ function AIProviderCard({ widgetConfig, updateAIConfig }: AICardProps) {
           <Brain className="w-5 h-5" />
           Proveedor y Modelo
         </CardTitle>
-        <CardDescription>Selecciona el proveedor de IA y el modelo a utilizar</CardDescription>
+        <CardDescription>Selecciona el proveedor de IA y configura tu API key</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label>Proveedor</Label>
             <Select
-              value={widgetConfig?.ai_config?.provider || 'openai'}
+              value={currentProvider}
               onValueChange={(value: 'openai' | 'anthropic' | 'google') => {
                 const firstModel = aiModels[value][0].value;
-                updateAIConfig({ provider: value, model: firstModel });
+                updateAIConfig({ provider: value, model: firstModel, api_key_encrypted: '' });
+                setApiKeyInput('');
+                setIsValidKey(null);
               }}
             >
               <SelectTrigger>
@@ -116,7 +236,7 @@ function AIProviderCard({ widgetConfig, updateAIConfig }: AICardProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {aiModels[widgetConfig?.ai_config?.provider || 'openai'].map((model) => (
+                {aiModels[currentProvider].map((model) => (
                   <SelectItem key={model.value} value={model.value}>
                     {model.label}
                   </SelectItem>
@@ -124,6 +244,70 @@ function AIProviderCard({ widgetConfig, updateAIConfig }: AICardProps) {
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        <Separator />
+
+        {/* API Key Section */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Key className="w-4 h-4" />
+            <Label>API Key de {currentProvider === 'openai' ? 'OpenAI' : currentProvider === 'anthropic' ? 'Anthropic' : 'Google'}</Label>
+          </div>
+
+          {hasApiKey ? (
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                  ✓ API Key configurada
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  La key está encriptada de forma segura
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleRemoveApiKey}>
+                Cambiar
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showApiKey ? 'text' : 'password'}
+                    placeholder={getApiKeyPlaceholder()}
+                    value={apiKeyInput}
+                    onChange={(e) => handleApiKeyChange(e.target.value)}
+                    className={isValidKey === false ? 'border-red-500' : isValidKey === true ? 'border-green-500' : ''}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <Button 
+                  onClick={handleSaveApiKey} 
+                  disabled={!isValidKey || isSaving}
+                >
+                  {isSaving ? 'Guardando...' : 'Guardar'}
+                </Button>
+              </div>
+              {isValidKey === false && (
+                <p className="text-xs text-red-500">
+                  El formato de la API key no parece válido para {currentProvider}
+                </p>
+              )}
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Tu API key se encriptará antes de guardarse. Nunca se almacena en texto plano.
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
         </div>
 
         <Separator />

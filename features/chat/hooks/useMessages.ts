@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
-import { getMessagesByConversation, create as createMessage } from '../api/message.api';
+import { getMessagesByConversation, create as createMessage, markMessagesAsRead } from '../api/message.api';
 import { createClient } from '@/lib/supabase/client';
 
 export const useMessages = (conversationId: string) => {
@@ -79,6 +79,36 @@ export const useCreateMessage = () => {
     },
     onError: (error) => {
       toast.error('Error al enviar mensaje: ' + error.message);
+    },
+  });
+};
+
+/**
+ * Hook para marcar todos los mensajes de una conversación como leídos
+ * Similar a como funciona Chatwoot cuando abres una conversación
+ */
+export const useMarkMessagesAsRead = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (conversationId: string) => markMessagesAsRead(conversationId),
+    onSuccess: (_, conversationId) => {
+      // Actualizar el cache de conversaciones para reflejar unread_count = 0
+      queryClient.setQueryData(['conversations'], (oldData: any) => {
+        if (!oldData?.data) return oldData;
+        return {
+          ...oldData,
+          data: oldData.data.map((conv: any) =>
+            conv.id === conversationId ? { ...conv, unread_count: 0 } : conv
+          ),
+        };
+      });
+      // También invalidar para asegurar sincronización
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['conversation-counts'] });
+    },
+    onError: (error) => {
+      console.error('Error marking messages as read:', error);
     },
   });
 };

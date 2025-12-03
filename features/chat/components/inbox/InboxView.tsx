@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useConversation } from '@/features/chat/hooks/useConversations';
+import { useMarkMessagesAsRead } from '@/features/chat/hooks/useMessages';
 import { ChatPanel } from '@/features/chat/components/ChatPanel';
 import { ConversationsList } from '@/features/chat/components/ConversationsList';
 import { ContactDetails } from '@/features/chat/components/ContactDetail';
@@ -17,6 +18,23 @@ export function InboxView() {
   const [showContactPanel, setShowContactPanel] = useState(false);
 
   const { data: selectedConversation } = useConversation(selectedConversationId || '');
+  const markAsReadMutation = useMarkMessagesAsRead();
+
+  // Marcar mensajes como leídos cuando se selecciona una conversación
+  const handleSelectConversation = useCallback((conversationId: string) => {
+    setSelectedConversationId(conversationId);
+  }, []);
+
+  // Efecto para marcar como leído después de seleccionar la conversación
+  useEffect(() => {
+    if (selectedConversationId && selectedConversation?.unread_count && selectedConversation.unread_count > 0) {
+      // Pequeño delay para asegurar que el usuario realmente está viendo la conversación
+      const timer = setTimeout(() => {
+        markAsReadMutation.mutate(selectedConversationId);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedConversationId, selectedConversation?.unread_count]);
 
   // Create contact object from conversation data
   const contact: Contact | undefined = selectedConversation
@@ -65,7 +83,7 @@ export function InboxView() {
     <div className="flex h-full bg-background overflow-hidden">
       {/* Conversations Sidebar */}
       <ConversationsList
-        onSelectConversation={setSelectedConversationId}
+        onSelectConversation={handleSelectConversation}
         selectedConversationId={selectedConversationId}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}

@@ -415,7 +415,7 @@ function ConversationItem({
               hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'
             )}
           >
-            {conversation.last_message || 'Sin mensajes'}
+            {conversation.last_message_body || 'Sin mensajes'}
           </p>
 
           {/* Status, channel tag and unread badge */}

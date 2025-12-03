@@ -168,3 +168,60 @@ export async function createAutoReplyMessage(
 
   return message;
 }
+
+// ============================================================================
+// Read/Unread Functions
+// ============================================================================
+
+/**
+ * Marca todos los mensajes de una conversación como leídos
+ * y resetea el contador de no leídos
+ */
+export async function markMessagesAsRead(conversationId: string): Promise<void> {
+  const supabase = await createClient();
+
+  // Marcar todos los mensajes no leídos de esta conversación como leídos
+  const { error: messagesError } = await supabase
+    .from('mkt_messages')
+    .update({ read_at: new Date().toISOString() })
+    .eq('conversation_id', conversationId)
+    .is('read_at', null)
+    .eq('sender_type', 'user'); // Solo marcar como leídos los mensajes del usuario
+
+  if (messagesError) {
+    console.error('Error marking messages as read:', messagesError);
+    throw messagesError;
+  }
+
+  // Resetear el contador de no leídos en la conversación
+  const { error: conversationError } = await supabase
+    .from('mkt_conversations')
+    .update({ unread_count: 0 })
+    .eq('id', conversationId);
+
+  if (conversationError) {
+    console.error('Error resetting unread count:', conversationError);
+    throw conversationError;
+  }
+}
+
+/**
+ * Obtiene el conteo de mensajes no leídos de una conversación
+ */
+export async function getUnreadCount(conversationId: string): Promise<number> {
+  const supabase = await createClient();
+
+  const { count, error } = await supabase
+    .from('mkt_messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('conversation_id', conversationId)
+    .is('read_at', null)
+    .eq('sender_type', 'user');
+
+  if (error) {
+    console.error('Error getting unread count:', error);
+    throw error;
+  }
+
+  return count || 0;
+}
