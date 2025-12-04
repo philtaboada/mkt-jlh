@@ -25,9 +25,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  console.log('🔔 [DEBUG] POST request recibida en /api/facebook/webhook');
   try {
     // 1. Obtener el cuerpo raw para la verificación de firma
     const rawBody = await req.text();
+    console.log('📦 [DEBUG] Raw Body Length:', rawBody.length);
     
     // 2. Validar firma antes de procesar nada
     const signature = req.headers.get('x-hub-signature-256');
