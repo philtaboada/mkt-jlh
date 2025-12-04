@@ -71,7 +71,7 @@ export function CartaFianzaForm({ defaultValues, type, onSubmit, onCancel }: Car
           management_date: today,
           type_entity: defaultValues?.type_entity || LeadEntityTypeEnum.BUSINESS,
           status: '',
-          status_code: 112,
+          status_code: 101,
           referral_channel: 'Marketing',
           priority: 1,
         }
@@ -82,7 +82,7 @@ export function CartaFianzaForm({ defaultValues, type, onSubmit, onCancel }: Car
     const product = {
       id: productId,
       type: 'Carta Fianza',
-      status_code: 112,
+      status_code: 101,
       stimated_income: values.stimated_income,
       stimated_premium: values.stimated_premium,
     };

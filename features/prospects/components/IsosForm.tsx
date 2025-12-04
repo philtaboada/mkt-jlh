@@ -38,7 +38,7 @@ export function IsosForm({ defaultValues, type, onSubmit, onCancel }: IsosFormPr
   const product = {
     id: productId,
     type: 'Isos',
-    status_code: 112,
+    status_code: 101,
   };
   const products = [product];
   const description =
@@ -76,7 +76,7 @@ export function IsosForm({ defaultValues, type, onSubmit, onCancel }: IsosFormPr
           amount: defaultValues.estimated_value || 0,
           certifier_id: null,
           types: [],
-          status_code: 112,
+          status_code: 101,
         }
       : {},
   });

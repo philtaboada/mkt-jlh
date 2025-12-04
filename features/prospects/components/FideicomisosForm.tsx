@@ -42,7 +42,7 @@ export function FideicomisosForm({
   const product = {
     id: productId,
     type: 'Fideicomisos',
-    status_code: 112,
+    status_code: 101,
   };
   const products = [product];
   const description =
@@ -74,7 +74,7 @@ export function FideicomisosForm({
           referral_channel: 'Marketing',
           type_entity: defaultValues.type_entity || LeadEntityTypeEnum.BUSINESS,
           business_or_partnership_id: defaultValues.business_or_partnership_id || null,
-          status_code: 112,
+          status_code: 101,
           effective_start_date: today,
         }
       : {},

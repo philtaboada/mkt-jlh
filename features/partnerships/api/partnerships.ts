@@ -2,9 +2,8 @@
 import { createClient } from '@/lib/supabase/server';
 import type { PartnershipInput } from '@/features/partnerships/schemas/partnershipSchema';
 import { randomUUID } from 'crypto';
-  import { Partnerships } from '@/types/database';
+import { Partnerships } from '@/types/database';
 import { DataResponse, Filters } from '@/lib/types/common';
-  
 
 export async function getPartnerships(params: Filters = {}): Promise<DataResponse<Partnerships>> {
   const supabase = await createClient();
@@ -118,6 +117,31 @@ export async function checkPartnershipDocumentExists(document: string): Promise<
 
     if (error) throw error;
     return data && data.length > 0;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getPartnershipByDocument(
+  document: string
+): Promise<{ document: string; legal_name: string; worker_id: null; id: string } | null> {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from('partnerships')
+      .select('id,  document, name')
+      .eq('document', document)
+      .limit(1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
+    const row = data[0] as { document: string; name: string; id: string };
+    return {
+      id: row.id,
+      document: row.document,
+      legal_name: row.name,
+      worker_id: null,
+    };
   } catch (error) {
     throw error;
   }
