@@ -213,21 +213,6 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
             />
           </div>
 
-          {/* Cargo */}
-         {/*  <FormField
-            control={form.control}
-            name="job_title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cargo</FormLabel>
-                <FormControl>
-                  <Input placeholder="CEO, Gerente, etc." {...field} value={field.value || ''} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />  */}
-
           {/* Tipo de producto y entidad */}
           <div className="grid grid-cols-2 gap-4">
             {/* Asignar a */}
@@ -278,6 +263,20 @@ export function LeadForm({ defaultValues, onSubmit, onCancel }: LeadFormProps) {
               )}
             />
           </div>
+          {/* RUC */}
+          <FormField
+            control={form.control}
+            name="ruc"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Documento(RUC) </FormLabel>
+                <FormControl>
+                  <Input placeholder="20...." {...field} value={field.value || ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           {/* Empresa o Consorcio */}
           <FormField

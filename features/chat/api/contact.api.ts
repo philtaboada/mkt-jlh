@@ -32,18 +32,119 @@ export async function findOrCreateByWhatsApp(waId: string, name: string): Promis
 
   return newContact;
 }
+
 export async function getContacts(): Promise<Contact[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('mkt_contacts')
     .select('*')
-    .order('last_interaction', { ascending: false });
+    .order('last_interaction', { ascending: false, nullsFirst: false });
 
   if (error) {
     throw error;
   }
 
   return data;
+}
+
+export async function getContactById(id: string): Promise<Contact | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from('mkt_contacts').select('*').eq('id', id).single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getContactByEmail(email: string): Promise<Contact | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('mkt_contacts')
+    .select('*')
+    .eq('email', email)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw error;
+  }
+
+  return data;
+}
+
+export async function findOrCreateByEmail(
+  email: string,
+  name?: string,
+  phone?: string,
+  source = 'website_widget'
+): Promise<Contact> {
+  const existing = await getContactByEmail(email);
+  if (existing) return existing;
+
+  return createContact({
+    email,
+    name: name || 'Visitante',
+    phone,
+    source,
+    status: 'lead',
+  });
+}
+
+export async function createContact(contact: Partial<Contact>): Promise<Contact> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('mkt_contacts')
+    .insert({
+      name: contact.name,
+      email: contact.email,
+      phone: contact.phone,
+      wa_id: contact.wa_id,
+      fb_id: contact.fb_id,
+      ig_id: contact.ig_id,
+      avatar_url: contact.avatar_url,
+      status: contact.status || 'lead',
+      source: contact.source,
+      custom_fields: contact.custom_fields || {},
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateContact(id: string, updates: Partial<Contact>): Promise<Contact> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('mkt_contacts')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteContact(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from('mkt_contacts').delete().eq('id', id);
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function updateLastInteraction(id: string): Promise<void> {

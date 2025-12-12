@@ -71,17 +71,35 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
                 <p>No hay mensajes aún</p>
               </div>
             ) : (
-              messages.map((msg) => (
-                <MessageRenderer
-                  key={msg.id}
-                  message={msg}
-                  senderName={msg.sender_type === 'agent' ? 'Agente' : contact.name || 'Usuario'}
-                  senderAvatar={
-                    msg.sender_type === 'agent' ? '/agent-avatar.jpg' : contact.avatar_url
+              messages.map((msg) => {
+                // Determinar nombre y avatar según tipo de sender
+                const getSenderInfo = () => {
+                  switch (msg.sender_type) {
+                    case 'agent':
+                      return { name: 'Agente', avatar: '/agent-avatar.jpg' };
+                    case 'bot':
+                      return { name: 'Asistente IA', avatar: '/bot-avatar.jpg' };
+                    case 'system':
+                      return { name: 'Sistema', avatar: undefined };
+                    default: // 'user'
+                      return { name: contact.name || 'Cliente', avatar: contact.avatar_url };
                   }
-                  isAgent={msg.sender_type === 'agent'}
-                />
-              ))
+                };
+                const senderInfo = getSenderInfo();
+                // agent y bot se muestran a la derecha (como "nuestros" mensajes)
+                const isOurMessage = msg.sender_type === 'agent' || msg.sender_type === 'bot';
+
+                return (
+                  <MessageRenderer
+                    key={msg.id}
+                    message={msg}
+                    senderName={senderInfo.name}
+                    senderAvatar={senderInfo.avatar}
+                    isAgent={isOurMessage}
+                    senderType={msg.sender_type}
+                  />
+                );
+              })
             )}
             <div ref={scrollRef} />
           </div>

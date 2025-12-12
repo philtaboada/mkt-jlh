@@ -2,6 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   getContacts,
+  getContactById,
+  createContact,
+  updateContact,
+  deleteContact,
   findOrCreateByWhatsApp,
   updateLastInteraction,
   getContactTags,
@@ -12,11 +16,67 @@ import {
   updateContactNote,
   deleteContactNote,
 } from '../api/contact.api';
+import { Contact } from '../types/contact';
 
 export const useContacts = () => {
   return useQuery({
     queryKey: ['contacts'],
     queryFn: getContacts,
+  });
+};
+
+export const useContact = (id: string) => {
+  return useQuery({
+    queryKey: ['contact', id],
+    queryFn: () => getContactById(id),
+    enabled: !!id,
+  });
+};
+
+export const useCreateContact = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (contact: Partial<Contact>) => createContact(contact),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      toast.success('Contacto creado exitosamente');
+    },
+    onError: (error) => {
+      toast.error('Error al crear contacto: ' + error.message);
+    },
+  });
+};
+
+export const useUpdateContact = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Contact> }) =>
+      updateContact(id, updates),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['contact', id] });
+      toast.success('Contacto actualizado exitosamente');
+    },
+    onError: (error) => {
+      toast.error('Error al actualizar contacto: ' + error.message);
+    },
+  });
+};
+
+export const useDeleteContact = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deleteContact(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      toast.success('Contacto eliminado exitosamente');
+    },
+    onError: (error) => {
+      toast.error('Error al eliminar contacto: ' + error.message);
+    },
   });
 };
 

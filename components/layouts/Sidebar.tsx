@@ -39,7 +39,7 @@ export function Sidebar({ className, collapsed, onCollapsedChange }: SidebarProp
         </div>
 
         {/* Navegación */}
-        <ScrollArea className="h-[calc(100vh-8rem)] px-3">
+        <ScrollArea className="h-[calc(100vh-8rem)] px-2">
           <div className="space-y-1">
             {navItems.map((item, idx) => (
               <NavItem key={idx} item={item} collapsed={collapsed} />

@@ -19,8 +19,6 @@ export async function getLeads(filters: LeadsFilters = {}): Promise<DataResponse
       search,
       minScore,
       maxScore,
-      sortBy = 'created_at',
-      sortOrder = 'desc',
     } = filters;
     const from = (page - 1) * limit;
     const to = from + limit - 1;
@@ -59,7 +57,7 @@ export async function getLeads(filters: LeadsFilters = {}): Promise<DataResponse
       query = query.lte('score', maxScore);
     }
 
-    query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+    query = query.order('created_at', { ascending: false }); // Ordenar siempre por fecha de creación descendente
 
     query = query.range(from, to);
 
@@ -166,7 +164,9 @@ export async function getLeadsStats() {
 }
 
 // Crear nuevo lead
-export async function createLead(newLead: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'assigned_user'>) {
+export async function createLead(
+  newLead: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'assigned_user'>
+) {
   const supabase = await createClient();
 
   try {
@@ -524,6 +524,27 @@ export async function verifyProducts(leadId: string) {
       .from('main_products')
       .select('products')
       .eq('mkt_lead_id', leadId);
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getDashboardCommercialData(filters: {
+  startDate: string;
+  endDate: string;
+  workers: string[];
+}) {
+  const supabase = await createClient();
+
+  try {
+    const { startDate, endDate, workers } = filters;
+
+    const { data, error } = await supabase.rpc('mkt_dashboard_comercial', {
+      params: { start_date: startDate, end_date: endDate, worker: workers },
+    });
 
     if (error) throw error;
     return data;

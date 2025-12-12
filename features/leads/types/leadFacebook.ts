@@ -86,6 +86,7 @@ Preguntas del formulario:
 
 Información adicional:
 • Nombre y Apellidos: ${fullName}
+• RUC : ${ruc}
 • WhatsApp: ${phone}
 • Provincia: ${province}
 • Plataforma: ${getPlatformLabel(fbData.platform)}
@@ -101,6 +102,7 @@ Preguntas del formulario:
 
 Información adicional:
 • Nombre y Apellidos: ${fullName}
+• RUC : ${ruc}
 • WhatsApp: ${phone}
 • Plataforma: ${getPlatformLabel(fbData.platform)}
 • Campaña: ${fbData.campaign_name || 'N/A'}

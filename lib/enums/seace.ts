@@ -74,3 +74,38 @@ export enum SeaceDataTypes {
   SUBIR_DOCUMENTOS = 282,
   ANULADO = 290,
 }
+
+export const data = {
+  start_date: '2025-12-01',
+  end_date: '2025-12-31',
+  comercials: [
+    {
+      name: 'Juan Perez', //NOMBRE DEL COMERCIAL
+      worker_id: '1e027181-e19c-4275-9057-939ef025a688', //ID DEL COMERCIAL
+      total_leads: [
+        {
+          product: 'Carta Fianza', //TIPO DE PRODUCTO
+          quantity: 50, //CANTIDAD DE LEADS TOTALES
+        },
+      ],
+      assigned_leads: 25, //CANTIDAD DE LEADS ASIGNADOSNUEVO ESTADO 101
+      contacted_leads: 20, //CANTIDAD DE LEADS CONTACTADOS CON ESTADO DIFERENTE A 101
+      repet_calls: 5, //CANTIDAD DE LEADS PARA REPETIR LLAMADA ESTADO 111
+      deals_closed: 5, //CANTIDAD DE DEALS PARA HACER SEGUIMIENTO ESTADO DE 112 AL 116
+      leads_closed: 10, //CANTIDAD DE LEADS CERRADOS ESTADO 200 PRODUCTO VENDIDO
+      conversion_rate: 20, //TASA DE CONVERSION EN PORCENTAJE
+      //TIEMPO DE RESPUESTA PROMEDIO EN DIAS Y HORAS(desde que se asigna el lead hasta que se contacta)
+      average_response_time_hours: 48,
+    },
+  ],
+  ranking_global: [
+    {
+      name: 'Juan Perez', //NOMBRE DEL COMERCIAL
+      total_product: {
+        product: 'Carta Fianza', //TIPO DE PRODUCTO
+        quantity: 50, //CANTIDAD DE LEADS TOTALES(esto es li mismo de deals del estado 112 al 116)
+      },
+      worker_id: '1e027181-e19c-4275-9057-939ef025a688', //ID DEL COMERCIAL
+    },
+  ],
+};

@@ -5,6 +5,10 @@ import { downloadAndUploadMedia } from '@/lib/storage/media';
 import { findOrCreateByWhatsApp, updateLastInteraction } from '@/features/chat/api/contact.api';
 import { findOrCreate, updateLastMessage } from '@/features/chat/api/conversation.api';
 import { create } from '@/features/chat/api/message.api';
+import { getChannelsByType } from '@/features/chat/api/channels.api';
+import { processIncomingMessage, isAIEnabledForChannel } from '@/lib/services/ai';
+import { sendWhatsAppMessage } from '@/lib/services/whatsapp';
+import type { WebsiteWidgetConfig } from '@/features/chat/types/settings';
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
 
@@ -92,6 +96,54 @@ export async function POST(req: Request) {
         await updateLastInteraction(contact.id);
 
         console.log('💾 Mensaje guardado en CRM');
+
+        /** ===========================
+         *   🤖 RESPUESTA DE IA
+         * =========================== */
+        // Solo procesar respuesta de IA para mensajes de texto
+        if (msg.type === 'text' && text) {
+          try {
+            // Obtener el canal de WhatsApp activo
+            const whatsappChannels = await getChannelsByType('whatsapp');
+            const activeChannel = whatsappChannels.find(ch => ch.status === 'active');
+
+            if (activeChannel) {
+              const channelConfig = activeChannel.config as WebsiteWidgetConfig;
+
+              if (isAIEnabledForChannel(channelConfig)) {
+                console.log('🤖 Procesando respuesta de IA...');
+                
+                const result = await processIncomingMessage({
+                  conversationId: conversation.id,
+                  userMessage: text,
+                  channelConfig,
+                  contactName: name || undefined,
+                  channel: 'whatsapp',
+                  autoSaveReply: true, // Guardar automáticamente la respuesta
+                });
+
+                if (result.shouldReply && result.reply) {
+                  console.log('🤖 Respuesta de IA generada:', result.reply.substring(0, 50) + '...');
+                  
+                  // Enviar respuesta por WhatsApp API
+                  const sendResult = await sendWhatsAppMessage({
+                    to: waId,
+                    message: result.reply,
+                  });
+
+                  if (sendResult.success) {
+                    console.log('✅ Mensaje de IA enviado a WhatsApp:', sendResult.messageId);
+                  } else {
+                    console.error('❌ Error enviando mensaje de IA:', sendResult.error);
+                  }
+                }
+              }
+            }
+          } catch (aiError) {
+            console.error('❌ Error en respuesta de IA:', aiError);
+            // No fallar el webhook por error de IA
+          }
+        }
       }
     }
 

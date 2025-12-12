@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/form';
 import { contactNoteSchema } from '../../schemas/contactNoteSchema';
 import { useCreateContactNote } from '../../hooks/useContacts';
+import { useUser } from '@/features/auth/hooks/useAuth';
 import { StickyNote } from 'lucide-react';
 import type { z } from 'zod';
 
@@ -38,6 +39,7 @@ interface AddNoteDialogProps {
 export function AddNoteDialog({ contactId, onNoteAdded }: AddNoteDialogProps) {
   const [open, setOpen] = useState(false);
   const createNoteMutation = useCreateContactNote();
+  const { data: user } = useUser();
 
   const form = useForm<ContactNoteFormData>({
     resolver: zodResolver(contactNoteSchema),
@@ -52,7 +54,7 @@ export function AddNoteDialog({ contactId, onNoteAdded }: AddNoteDialogProps) {
       {
         contactId,
         note: data.note,
-        authorId: 'current-agent', // TODO: Get from auth context
+        authorId: user?.id, // Use authenticated user ID, or undefined if not available
       },
       {
         onSuccess: () => {

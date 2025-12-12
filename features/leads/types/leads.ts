@@ -1,5 +1,4 @@
-import { LeadEntityType, LeadSource, LeadStatus } from "./leadEnums";
-
+import { LeadEntityType, LeadSource, LeadStatus } from './leadEnums';
 
 export enum Platform {
   FACEBOOK = 'facebook',
@@ -51,6 +50,4 @@ export interface LeadsFilters {
   search?: string;
   minScore?: number;
   maxScore?: number;
-  sortBy?: 'created_at' | 'score' | 'updated_at' | 'first_name';
-  sortOrder?: 'asc' | 'desc';
 }

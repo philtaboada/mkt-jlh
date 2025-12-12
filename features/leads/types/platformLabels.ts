@@ -2,10 +2,11 @@
 export const PlatformLabels: Record<string, string> = {
   fb: 'Facebook',
   ig: 'Instagram',
+  whatsapp: 'WhatsApp',
+  tiktok: 'TikTok',
   twitter: 'Twitter',
   linkedin: 'LinkedIn',
-  tiktok: 'TikTok',
-  youtube: 'YouTube',
+  web: 'Sitio Web',
   other: 'Otro',
 };
 

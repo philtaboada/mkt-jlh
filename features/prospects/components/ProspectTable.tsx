@@ -73,7 +73,7 @@ export default function ProspectTable({
           | undefined;
         const typeLabel = typeEntity ? LeadEntityTypeLabels[typeEntity] : undefined;
         return (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 line-clamp-1 max-w-sm" title={name}>
             <span className="font-medium">{name}</span>
             {typeLabel && <span className="text-xs text-muted-foreground">{typeLabel}</span>}
           </div>
@@ -154,6 +154,44 @@ export default function ProspectTable({
         );
       },
     } as ColumnDef<Prospect>,
+
+    {
+      id: 'product_date_passed',
+      header: 'F. de Ult. Gestión',
+      cell: ({ row }) => {
+        const value = row.original.products as ProspectProducts[];
+        if (!value || value.length === 0) return <div className="text-sm">-</div>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {value.map((prod) => {
+              const datePassed = prod.date_passed;
+              let bgColor = 'bg-gray-500'; // default
+              if (datePassed && datePassed !== '-') {
+                const days = parseInt(datePassed.split(' ')[0], 10);
+                if (days === 0) bgColor = 'bg-green-500';
+                else if (days === 2) bgColor = 'bg-orange-500';
+                else if (days >= 3) bgColor = 'bg-red-500';
+              }
+              return (
+                <Badge
+                  key={prod.id}
+                  variant="secondary"
+                  className={`text-xs font-semibold text-white ${bgColor} shadow-sm`}
+                >
+                  {prod.type === LeadProductTypeEnum.SEGUROS
+                    ? prod.insurance_type ||
+                      LeadProductTypeLabels[prod.type as keyof typeof LeadProductTypeLabels] ||
+                      prod.type
+                    : LeadProductTypeLabels[prod.type as keyof typeof LeadProductTypeLabels] ||
+                      prod.type}
+                  : {prod.date_passed ?? '-'}
+                </Badge>
+              );
+            })}
+          </div>
+        );
+      },
+    },
     {
       id: 'products_update',
       header: 'Última actualización',
@@ -175,7 +213,6 @@ export default function ProspectTable({
         );
       },
     } as ColumnDef<Prospect>,
-
     createActionsColumn<Prospect>([
       {
         label: 'Ver',
