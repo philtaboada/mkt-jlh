@@ -531,3 +531,25 @@ export async function verifyProducts(leadId: string) {
     throw error;
   }
 }
+
+export async function getDashboardCommercialData(filters: {
+  startDate: string;
+  endDate: string;
+  workers: string[];
+}) {
+  const supabase = await createClient();
+
+  try {
+    const { startDate, endDate, workers } = filters;
+
+    const { data, error } = await supabase.rpc('mkt_dashboard_comercial', {
+      params: { start_date: startDate, end_date: endDate, worker: workers },
+    });
+
+    if (error) throw error;
+    console.log('Dashboard commercial data fetched', data);
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
