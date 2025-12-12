@@ -34,6 +34,12 @@ export const navItems: NavItem[] = [
         icon: Target,
         description: 'Lista de prospectos',
       },
+      {
+        name: 'Dashboard Lead',
+        href: '/dashboard_lead',
+        icon: BarChart3,
+        description: 'Dashboard de leads',
+      },
     ],
   },
   {
