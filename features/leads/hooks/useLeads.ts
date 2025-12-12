@@ -11,12 +11,14 @@ import {
   deleteLead,
   bulkUpdateLeads,
   bulkInsertLeads,
+  getDashboardCommercialData,
 } from '@/features/leads/api/leads';
 import { LeadsFilters, Lead } from '@/features/leads/types/leads';
 import { LeadStatus } from '../types/leadEnums';
 import { LeadEntityType } from '@/features/leads/types/leadEnums';
 import { getDocumentSearchWithData } from '@/lib/api/documentSearch';
 import { toast } from 'sonner';
+import { DashboardCommercial } from '../types/dashboard';
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -267,5 +269,20 @@ export const useUpdateLeadEntityData = () => {
         error?.message || 'Ocurrió un error al actualizar los datos de la empresa o consorcio'
       );
     },
+  });
+};
+
+//DASHBAORD COMMERCIAL
+export const useDashboardCommercial = (filters: {
+  startDate: string;
+  endDate: string;
+  workers: string[];
+}) => {
+  return useQuery({
+    queryKey: ['dashboard_commercial', filters],
+    queryFn: async (): Promise<DashboardCommercial> => {
+      return getDashboardCommercialData(filters);
+    },
+    staleTime: 300000, // 5 minutos
   });
 };
