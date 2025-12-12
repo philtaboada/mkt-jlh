@@ -17,21 +17,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  Label,
-  Sector,
-} from 'recharts';
-import { Progress } from '@/components/ui/progress';
+import { PieChart, Pie, Cell, Label } from 'recharts';
+
 import { cn } from '@/lib/utils';
 import {
   Select,

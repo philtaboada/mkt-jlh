@@ -547,7 +547,6 @@ export async function getDashboardCommercialData(filters: {
     });
 
     if (error) throw error;
-    console.log('Dashboard commercial data fetched', data);
     return data;
   } catch (error) {
     throw error;
