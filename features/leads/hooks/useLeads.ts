@@ -177,20 +177,17 @@ export const useBulkImportFacebookLeads = () => {
     mutationFn: async (
       leads: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'assigned_user'>[]
     ) => {
-      // Procesar cada lead para enriquecer con datos de ruc y entity_type si están presentes y ruc tiene 11 caracteres
       const enrichedLeads = await Promise.all(
         leads.map(async (lead) => {
-          if (
-            lead.ruc &&
-            lead.type_entity &&
-            /^\d{11}$/.test(lead.ruc) &&
-            (lead.ruc.startsWith('1') || lead.ruc.startsWith('2'))
-          ) {
-            try {
-              let docData;
-              try {
-                docData = await getDocumentSearchWithData(lead.ruc, lead.type_entity);
-              } catch (error) {}
+          try {
+            const trimmedRuc = lead.ruc ? String(lead.ruc).trim() : '';
+            if (
+              trimmedRuc &&
+              lead.type_entity &&
+              /^\d{11}$/.test(trimmedRuc) &&
+              (trimmedRuc.startsWith('1') || trimmedRuc.startsWith('2'))
+            ) {
+              const docData = await getDocumentSearchWithData(trimmedRuc, lead.type_entity);
               if (docData) {
                 return {
                   ...lead,
@@ -201,12 +198,11 @@ export const useBulkImportFacebookLeads = () => {
                     : {}),
                 };
               }
-            } catch (error) {
-              // Ignorar errores y continuar sin enriquecer
-              console.warn('Error fetching document data for lead:', error);
             }
+            return lead;
+          } catch (error) {
+            return lead;
           }
-          return lead;
         })
       );
       return bulkInsertLeads(enrichedLeads);
