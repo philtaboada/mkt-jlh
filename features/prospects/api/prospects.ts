@@ -1,6 +1,7 @@
 'use server';
 import { createClient } from '@/lib/supabase/server';
 import { Prospect } from '@/features/prospects/types/prospects';
+import { UpdateProspectWorkerData } from '@/features/prospects/types/updateWorker';
 
 export interface GetProspectsParams {
   page_index?: number;
@@ -96,6 +97,37 @@ export async function createProspectGuaranteeLetter(payload: any) {
   try {
     const { data, error } = await supabase.rpc('mkt_guarante_letters_prospect_new', {
       data: payload,
+    });
+    if (error) {
+      throw error;
+    }
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateProspectWorker(prospectId: string, workerId: string) {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from('mkt_prospects')
+      .update({ worker_id: workerId })
+      .eq('id', prospectId);
+    if (error) {
+      throw error;
+    }
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateProductAndEntityFromJson(payload: UpdateProspectWorkerData) {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase.rpc('update_product_and_entity_from_json', {
+      p_payload: payload,
     });
     if (error) {
       throw error;
