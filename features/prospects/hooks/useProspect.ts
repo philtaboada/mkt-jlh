@@ -1,4 +1,4 @@
-import {  useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createProspectGuaranteeLetter,
   createProspectInsurance,
@@ -6,7 +6,6 @@ import {
   createProspectTrust,
   getProspects,
 } from '../api/prospects';
-
 
 export function useGetProspects(filter: any) {
   return useQuery({
