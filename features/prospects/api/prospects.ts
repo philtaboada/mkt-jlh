@@ -134,7 +134,6 @@ export async function updateProductAndEntityFromJson(payload: UpdateProspectWork
     }
     return data;
   } catch (error) {
-    console.error('Error updating product and entity:', error);
     throw error;
   }
 }
