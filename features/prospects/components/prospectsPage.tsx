@@ -1,17 +1,28 @@
 'use client';
 
+import { useState } from 'react';
 import HeaderDetail from '@/components/shared/HeaderDetail';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { EntityDialog } from '@/components/shared/dialogs/EntityDialog';
+import { ProspectEditWorker } from './ProspectEditWorker';
+import { ProspectView } from './ProspectView';
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { FilterProspect } from './FilterProspect';
 import { useGetProspects } from '../hooks/useProspect';
+import { useUpdateProspectWorker } from '../hooks/useUpdateProspectWorker';
 import ProspectTable from './ProspectTable';
+import { Prospect } from '../types/prospects';
+import { UpdateProspectWorkerData } from '../types/updateWorker';
 
 export function ProspectPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
+  const [isEditWorkerDialogOpen, setIsEditWorkerDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const { updateWorker } = useUpdateProspectWorker();
 
   // Derive filters from search params
   const page = parseInt(searchParams.get('page') || '1');
@@ -56,9 +67,26 @@ export function ProspectPageClient() {
     // Implement search logic here marketing123
   };
 
-  const onView = (prospect: any) => {
-    // Implement view logic here
+  const onView = (prospect: Prospect) => {
+    setSelectedProspect(prospect);
+    setIsViewDialogOpen(true);
   };
+
+  const onChangeWorker = (prospect: Prospect) => {
+    setSelectedProspect(prospect);
+    setIsEditWorkerDialogOpen(true);
+  };
+
+  const handleWorkerUpdate = async (data: UpdateProspectWorkerData) => {
+    if (!selectedProspect) return;
+
+    try {
+      await updateWorker(data);
+      setIsEditWorkerDialogOpen(false);
+      setSelectedProspect(null);
+    } catch (error) {}
+  };
+
   return (
     <div>
       <HeaderDetail
@@ -83,8 +111,45 @@ export function ProspectPageClient() {
           onPageChange={handlePageChange}
           onSearch={onSearch}
           onView={onView}
+          onChangeWorker={onChangeWorker}
         />
       </div>
+
+      <EntityDialog
+        title="Cambiar Personal"
+        description="Selecciona un nuevo personal para este prospecto"
+        open={isEditWorkerDialogOpen}
+        onOpenChange={setIsEditWorkerDialogOpen}
+        maxWidth="sm"
+        content={(onClose) =>
+          selectedProspect ? (
+            <ProspectEditWorker
+              prospect={selectedProspect}
+              onSubmit={(workerId) => {
+                const sanitizedWorkerId = {
+                  ...workerId,
+                  insurance_type:
+                    workerId.insurance_type === null ? undefined : workerId.insurance_type,
+                };
+                handleWorkerUpdate(sanitizedWorkerId);
+                onClose();
+              }}
+              onCancel={onClose}
+            />
+          ) : null
+        }
+      />
+
+      <EntityDialog
+        title={`Vista del Prospecto: ${selectedProspect?.business_or_person_name || 'Sin nombre'}`}
+        description="Información detallada del prospecto"
+        open={isViewDialogOpen}
+        onOpenChange={setIsViewDialogOpen}
+        maxWidth="4xl"
+        content={(onClose) =>
+          selectedProspect ? <ProspectView prospect={selectedProspect} /> : null
+        }
+      />
     </div>
   );
 }

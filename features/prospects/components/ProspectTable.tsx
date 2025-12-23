@@ -21,6 +21,7 @@ interface ProspectTableProps {
   onPageChange?: (pageIndex: number, pageSize: number) => void;
   onSearch?: () => void;
   onView?: (prospect: Prospect) => void;
+  onChangeWorker?: (prospect: Prospect) => void;
   urlSearchKey?: string;
 }
 
@@ -32,6 +33,7 @@ export default function ProspectTable({
   onSearch,
   urlSearchKey,
   onView,
+  onChangeWorker,
 }: ProspectTableProps) {
   const copyName = (name?: string | null) => {
     if (!name) return;
@@ -102,7 +104,6 @@ export default function ProspectTable({
           </div>
           <div>
             <div className="font-medium text-sm">{worker.name}</div>
-            {worker.email && <div className="text-xs text-muted-foreground">{worker.email}</div>}
           </div>
         </div>
       );
@@ -115,20 +116,23 @@ export default function ProspectTable({
         if (!value || value.length === 0) return <div className="text-sm">-</div>;
         return (
           <div className="flex flex-wrap gap-1">
-            {value.map((prod) => (
-              <Badge
-                key={prod.id}
-                variant="default"
-                className={`text-xs font-semibold text-white ${productColors[prod.type] || 'bg-gray-500'}`}
-              >
-                {prod.type === LeadProductTypeEnum.SEGUROS
-                  ? prod.insurance_type ||
-                    LeadProductTypeLabels[prod.type as keyof typeof LeadProductTypeLabels] ||
-                    prod.type
-                  : LeadProductTypeLabels[prod.type as keyof typeof LeadProductTypeLabels] ||
-                    prod.type}
-              </Badge>
-            ))}
+            {value.map((prod) => {
+              if (!prod) return null;
+              return (
+                <Badge
+                  key={prod.id}
+                  variant="default"
+                  className={`text-xs font-semibold text-white ${productColors[prod.type] || 'bg-gray-500'}`}
+                >
+                  {prod.type === LeadProductTypeEnum.SEGUROS
+                    ? prod.insurance_type ||
+                      LeadProductTypeLabels[prod.type as keyof typeof LeadProductTypeLabels] ||
+                      prod.type
+                    : LeadProductTypeLabels[prod.type as keyof typeof LeadProductTypeLabels] ||
+                      prod.type}
+                </Badge>
+              );
+            })}
           </div>
         );
       },
@@ -141,15 +145,18 @@ export default function ProspectTable({
         if (!value || value.length === 0) return <div className="text-sm">-</div>;
         return (
           <div className="flex flex-wrap gap-1">
-            {value.map((prod) => (
-              <Badge
-                key={prod.id}
-                variant="secondary"
-                className={`text-xs font-semibold text-white ${productColors[prod.type] || 'bg-linear-to-r from-gray-500 to-slate-600 text-white shadow-sm'}`}
-              >
-                {getSeaceDataTypeLabel(prod.status_code) || prod.status_code}
-              </Badge>
-            ))}
+            {value.map((prod) => {
+              if (!prod) return null;
+              return (
+                <Badge
+                  key={prod.id}
+                  variant="secondary"
+                  className={`text-xs font-semibold text-white ${productColors[prod.type] || 'bg-linear-to-r from-gray-500 to-slate-600 text-white shadow-sm'}`}
+                >
+                  {getSeaceDataTypeLabel(prod.status_code) || prod.status_code}
+                </Badge>
+              );
+            })}
           </div>
         );
       },
@@ -164,6 +171,7 @@ export default function ProspectTable({
         return (
           <div className="flex flex-wrap gap-1">
             {value.map((prod) => {
+              if (!prod) return null;
               const datePassed = prod.date_passed;
               let bgColor = 'bg-gray-500'; // default
               if (datePassed && datePassed !== '-') {
@@ -200,15 +208,18 @@ export default function ProspectTable({
         if (!value || value.length === 0) return <div className="text-sm">-</div>;
         return (
           <div className="flex flex-wrap gap-1">
-            {value.map((prod) => (
-              <Badge
-                key={prod.id}
-                variant="secondary"
-                className={`text-xs font-semibold text-white ${productColors[prod.type] || 'bg-linear-to-r from-gray-500 to-slate-600 text-white shadow-sm'}`}
-              >
-                {prod.update_date_passed ? formatDateTime(prod.update_date_passed) : '-'}
-              </Badge>
-            ))}
+            {value.map((prod) => {
+              if (!prod) return null;
+              return (
+                <Badge
+                  key={prod.id}
+                  variant="secondary"
+                  className={`text-xs font-semibold text-white ${productColors[prod.type] || 'bg-linear-to-r from-gray-500 to-slate-600 text-white shadow-sm'}`}
+                >
+                  {prod.update_date_passed ? formatDateTime(prod.update_date_passed) : '-'}
+                </Badge>
+              );
+            })}
           </div>
         );
       },
@@ -217,6 +228,10 @@ export default function ProspectTable({
       {
         label: 'Ver',
         onClick: (prospect) => onView?.(prospect),
+      },
+      {
+        label: 'Cambiar de personal',
+        onClick: (prospect) => onChangeWorker?.(prospect),
       },
       {
         label: 'Copiar nombre',
