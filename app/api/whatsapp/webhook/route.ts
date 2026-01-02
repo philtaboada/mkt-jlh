@@ -101,7 +101,7 @@ export async function POST(req: Request) {
 
 function verifySignature(signature: string, body: string): boolean {
   try {
-    const appSecret = process.env.APP_SECRET;
+    const appSecret = process.env.WHATSAPP_APP_SECRET;
     if (!appSecret) return false;
     const expected = signature.split('=')[1];
     const calc = crypto.createHmac('sha256', appSecret).update(body).digest('hex');

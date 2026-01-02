@@ -73,7 +73,6 @@ export function ConversationsList({
       filtered = filtered.filter((conv: any) => conv.status === filter);
     }
 
-    // Apply channel filter (by channel_id)
     // Si channelFilter es null, usar el primer canal activo
     const effectiveChannelFilter =
       channelFilter === null && activeChannels.length > 0 ? activeChannels[0].id : channelFilter;
@@ -85,7 +84,6 @@ export function ConversationsList({
     // Apply sorting
     filtered.sort((a: any, b: any) => {
       if (sortBy === 'unread_first') {
-        // Primero los no leídos
         if ((b.unread_count || 0) !== (a.unread_count || 0)) {
           return (b.unread_count || 0) - (a.unread_count || 0);
         }
@@ -103,7 +101,6 @@ export function ConversationsList({
 
     return filtered;
   }, [searchQuery, conversations, filter, channelFilter, sortBy, activeChannels]);
-  console.log('Filtered Conversations:', filteredConversations);
   const conversationCounts = useMemo(() => {
     return {
       all: conversations.length,
