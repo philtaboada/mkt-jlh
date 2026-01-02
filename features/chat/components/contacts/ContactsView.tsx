@@ -53,14 +53,24 @@ export function ContactsView() {
 
   const handleCreateContact = (newContact: {
     name: string;
-    email: string;
-    phone: string;
+    email?: string;
+    phone?: string;
+    wa_id?: string;
+    fb_id?: string;
+    ig_id?: string;
     status: 'lead' | 'open' | 'customer' | 'closed';
     source: string;
+    avatar_url?: string;
+    custom_fields?: Record<string, any>;
   }) => {
-    if (!newContact.name.trim()) return;
+    if (!newContact.name?.trim()) return;
+    const contactToCreate = {
+      ...newContact,
+      email: newContact.email ?? '',
+      phone: newContact.phone ?? '',
+    };
 
-    createContactMutation.mutate(newContact, {
+    createContactMutation.mutate(contactToCreate, {
       onSuccess: () => {
         setIsCreateDialogOpen(false);
       },

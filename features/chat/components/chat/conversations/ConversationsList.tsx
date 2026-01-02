@@ -126,7 +126,7 @@ export function ConversationsList({
         searchQuery={searchQuery}
         onSearchChange={onSearchChange}
         sortBy={sortBy}
-        setSortBy={setSortBy}
+        setSortBy={(sort) => setSortBy(sort as SortType)}
       />
 
       <ConversationFilters

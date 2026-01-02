@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import SelectOptions from '@/components/shared/select-options';
 import { Plus, X } from 'lucide-react';
-import type { Contact } from '../types/contact';
+import { Contact } from '../../types';
 
 type ContactStatus = 'lead' | 'open' | 'customer' | 'closed';
 

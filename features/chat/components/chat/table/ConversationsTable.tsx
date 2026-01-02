@@ -1,7 +1,6 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { DataTable } from '../../../components/shared/DataTable';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -13,7 +12,8 @@ import { MoreHorizontal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PaginationData } from '@/lib/types/common';
-import { Conversation } from '../types/conversation';
+import { Conversation } from '@/features/chat/types';
+import { DataTable } from '@/components/shared/DataTable';
 
 interface ConversationsTableProps {
   conversations: Conversation[];

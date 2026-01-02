@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { channelTypeIcons } from './constants';
+import { Dispatch, SetStateAction } from 'react';
+
+type FilterType = 'all' | 'open' | 'pending' | 'resolved' | 'snoozed';
 
 interface ConversationFiltersProps {
   activeChannels: any[];
@@ -11,7 +14,7 @@ interface ConversationFiltersProps {
   setChannelFilter: (filter: string | null) => void;
   channelStats: Record<string, number>;
   filter: string;
-  setFilter: (filter: string) => void;
+  setFilter: Dispatch<SetStateAction<FilterType>>;
   conversationCounts: Record<string, number>;
 }
 

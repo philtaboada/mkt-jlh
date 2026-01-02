@@ -1,11 +1,11 @@
 'use client';
 
-import type { Message, SenderType } from '../types/message';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { File, Music, Bot, User, Headphones } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { useState } from 'react';
+import { Message, SenderType } from '@/features/chat/types';
 
 interface MessageRendererProps {
   message: Message;

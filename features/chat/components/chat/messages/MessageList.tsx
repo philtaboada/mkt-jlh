@@ -9,7 +9,7 @@ interface MessageListProps {
   messages: any[];
   isLoading: boolean;
   contact: Contact;
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
   onFileDrop?: (files: File[]) => void;
 }
 

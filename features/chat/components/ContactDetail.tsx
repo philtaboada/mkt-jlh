@@ -68,15 +68,9 @@ export function ContactDetails({
       displayContact.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
   );
 
-  const { data: contactTags = [], isLoading: tagsLoading } = useContactTags(
-    isRealContact ? displayContact.id || '' : '',
-    () => isRealContact
-  );
-  const { data: contactNotes = [], isLoading: notesLoading } = useContactNotes(
-    isRealContact ? displayContact.id || '' : '',
-    () => isRealContact
-  );
-  const { data: allTags = [] } = useTags(() => isRealContact);
+  const { data: contactTags = [], isLoading: tagsLoading } = useContactTags(contact.id || '');
+  const { data: contactNotes = [], isLoading: notesLoading } = useContactNotes(contact.id || '');
+  const { data: allTags = [] } = useTags();
 
   const removeTagMutation = useRemoveTagFromContact();
   const deleteNoteMutation = useDeleteContactNote();

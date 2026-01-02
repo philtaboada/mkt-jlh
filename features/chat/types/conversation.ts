@@ -4,6 +4,7 @@ export type Contact = {
   wa_id?: string;
   last_interaction?: Date | null;
   avatar_url?: string | null;
+  source?: string;
 };
 
 export type Conversation = {
