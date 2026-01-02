@@ -183,9 +183,21 @@ export default function WhatsAppChannelConfigPage({ params }: PageProps) {
                 </a>
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
+              <Alert className="border-amber-500/50 bg-amber-500/10">
+                <AlertDescription className="text-amber-700 dark:text-amber-400 text-sm">
+                  <strong>Datos requeridos:</strong> Todos estos campos son necesarios para conectar
+                  WhatsApp Business correctamente
+                </AlertDescription>
+              </Alert>
+
               <div className="space-y-2">
-                <Label>ID de la cuenta de WhatsApp Business</Label>
+                <Label className="text-base font-semibold">
+                  ID de la cuenta de WhatsApp Business
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Lo encontrarás en Meta Business Suite → Configuración → ID de la cuenta
+                </p>
                 <Input
                   placeholder="Ej: 123456789012345"
                   value={whatsappConfig?.business_account_id || ''}
@@ -194,7 +206,10 @@ export default function WhatsAppChannelConfigPage({ params }: PageProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>ID del número de teléfono</Label>
+                <Label className="text-base font-semibold">ID del número de teléfono</Label>
+                <p className="text-xs text-muted-foreground">
+                  Aparece en Meta Business Suite → WhatsApp → Configuración de la API
+                </p>
                 <Input
                   placeholder="Ej: 123456789012345"
                   value={whatsappConfig?.phone_number_id || ''}
@@ -203,36 +218,53 @@ export default function WhatsAppChannelConfigPage({ params }: PageProps) {
               </div>
 
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-base font-semibold">
                   <Phone className="w-4 h-4" />
                   Número de teléfono
                 </Label>
+                <p className="text-xs text-muted-foreground">
+                  Número de WhatsApp Business (incluye código de país, ej: +51 para Perú)
+                </p>
                 <Input
                   placeholder="Ej: +51999999999"
                   value={whatsappConfig?.phone_number || ''}
                   onChange={(e) => updateConfig('phone_number', e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Número de WhatsApp Business conectado (con código de país)
-                </p>
               </div>
 
               <Separator />
 
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-base font-semibold">
                   <Key className="w-4 h-4" />
                   Access Token (permanente)
                 </Label>
+                <p className="text-xs text-muted-foreground">
+                  Generado en Meta Business Suite → Configuración de Apps → Tokens
+                </p>
                 <Input
                   type="password"
                   placeholder="EAAxxxxxxx..."
                   value={whatsappConfig?.access_token || ''}
                   onChange={(e) => updateConfig('access_token', e.target.value)}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-base font-semibold">
+                  <Key className="w-4 h-4" />
+                  Token de Verificación
+                </Label>
                 <p className="text-xs text-muted-foreground">
-                  Token de acceso permanente generado en Meta Business
+                  Token personalizado que creaste para validar el webhook. Lo necesitarás más abajo
+                  en "Configuración del Webhook"
                 </p>
+                <Input
+                  type="password"
+                  placeholder="Tu token de verificación personalizado"
+                  value={whatsappConfig?.verify_token || ''}
+                  onChange={(e) => updateConfig('verify_token', e.target.value)}
+                />
               </div>
             </CardContent>
           </Card>
@@ -245,14 +277,24 @@ export default function WhatsAppChannelConfigPage({ params }: PageProps) {
                 Configuración del Webhook
               </CardTitle>
               <CardDescription>
-                Configura estos valores en la sección de Webhooks de tu app de Meta
+                Copia estos valores exactos en la sección de Webhooks de tu app en Meta
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              <Alert className="border-blue-500/50 bg-blue-500/10">
+                <AlertDescription className="text-blue-700 dark:text-blue-400">
+                  <strong>Instrucciones:</strong> Ve a tu app de Meta → Configuración → Webhooks y
+                  copia los valores de abajo en los campos correspondientes
+                </AlertDescription>
+              </Alert>
+
               <div className="space-y-2">
-                <Label>URL del Webhook</Label>
+                <Label className="text-base font-semibold">1. URL del Webhook</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Copia este valor en el campo "URL de Callback" en Meta
+                </p>
                 <div className="flex gap-2">
-                  <Input value={webhookUrl} readOnly className="font-mono text-sm" />
+                  <Input value={webhookUrl} readOnly className="font-mono text-sm bg-muted" />
                   <Button
                     variant="outline"
                     size="icon"
@@ -267,14 +309,25 @@ export default function WhatsAppChannelConfigPage({ params }: PageProps) {
                 </div>
               </div>
 
+              <Separator />
+
               <div className="space-y-2">
-                <Label>Verify Token</Label>
+                <Label className="text-base font-semibold">2. Verify Token</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Copia este valor en el campo "Verify Token" en Meta
+                </p>
                 <div className="flex gap-2">
-                  <Input value="mkt_whatsapp_verify_token" readOnly className="font-mono text-sm" />
+                  <Input
+                    type="password"
+                    placeholder="Tu token de verificación"
+                    value={whatsappConfig?.verify_token || ''}
+                    onChange={(e) => updateConfig('verify_token', e.target.value)}
+                    className="font-mono text-sm"
+                  />
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => handleCopy('mkt_whatsapp_verify_token', 'verify')}
+                    onClick={() => handleCopy(whatsappConfig?.verify_token || '', 'verify')}
                   >
                     {copied === 'verify' ? (
                       <Check className="w-4 h-4" />
@@ -285,17 +338,40 @@ export default function WhatsAppChannelConfigPage({ params }: PageProps) {
                 </div>
               </div>
 
-              <Alert>
-                <AlertDescription className="text-sm">
-                  <strong>Campos del Webhook a suscribir:</strong>
-                  <ul className="list-disc ml-4 mt-2 space-y-1">
-                    <li>messages</li>
-                    <li>message_deliveries</li>
-                    <li>message_reads</li>
-                    <li>messaging_postbacks</li>
-                  </ul>
-                </AlertDescription>
-              </Alert>
+              <Separator />
+
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">3. Campos de Webhook a suscribir</Label>
+                <p className="text-xs text-muted-foreground">
+                  En Meta, selecciona estos campos en "Campos de webhook":
+                </p>
+                <Alert>
+                  <AlertDescription className="text-sm">
+                    <ul className="list-disc ml-4 space-y-1">
+                      <li>
+                        <code className="bg-muted px-2 py-1 rounded text-xs">messages</code> - Para
+                        recibir mensajes
+                      </li>
+                      <li>
+                        <code className="bg-muted px-2 py-1 rounded text-xs">
+                          message_deliveries
+                        </code>{' '}
+                        - Confirmación de entrega
+                      </li>
+                      <li>
+                        <code className="bg-muted px-2 py-1 rounded text-xs">message_reads</code> -
+                        Confirmación de lectura
+                      </li>
+                      <li>
+                        <code className="bg-muted px-2 py-1 rounded text-xs">
+                          messaging_postbacks
+                        </code>{' '}
+                        - Respuestas de botones
+                      </li>
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              </div>
 
               <div className="flex items-center gap-2 pt-2">
                 <input

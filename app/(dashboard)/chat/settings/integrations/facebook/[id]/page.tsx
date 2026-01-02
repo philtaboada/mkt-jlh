@@ -3,13 +3,24 @@
 import { useState, useEffect } from 'react';
 import { use } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Facebook, ExternalLink, Key, CheckCircle2, XCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  Facebook,
+  ExternalLink,
+  Key,
+  Webhook,
+  Copy,
+  Check,
+  CheckCircle2,
+  XCircle,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
 import { useChannel, useUpdateChannel } from '@/features/chat/hooks';
 import type { FacebookConfig } from '@/features/chat/types/settings';
 import { cn } from '@/lib/utils';
@@ -24,6 +35,7 @@ export default function FacebookChannelConfigPage({ params }: PageProps) {
   const { data: channel, isLoading } = useChannel(id);
   const updateChannelMutation = useUpdateChannel();
 
+  const [copied, setCopied] = useState<string | null>(null);
   const [config, setConfig] = useState<Partial<FacebookConfig>>({});
 
   useEffect(() => {
@@ -33,6 +45,19 @@ export default function FacebookChannelConfigPage({ params }: PageProps) {
   }, [channel]);
 
   const facebookConfig = config as FacebookConfig;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tu-dominio.com';
+  const webhookUrl = `${baseUrl}/api/facebook/webhook`;
+
+  const handleCopy = async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+      toast.success('Copiado al portapapeles');
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      toast.error('Error al copiar');
+    }
+  };
 
   const handleSaveConfig = () => {
     updateChannelMutation.mutate(
@@ -144,9 +169,20 @@ export default function FacebookChannelConfigPage({ params }: PageProps) {
                 </a>
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
+              <Alert className="border-amber-500/50 bg-amber-500/10">
+                <AlertDescription className="text-amber-700 dark:text-amber-400 text-sm">
+                  <strong>Datos requeridos:</strong> Todos estos campos son necesarios para conectar
+                  Facebook Messenger correctamente
+                </AlertDescription>
+              </Alert>
+
               <div className="space-y-2">
-                <Label>ID de la Página</Label>
+                <Label className="text-base font-semibold">ID de la Página</Label>
+                <p className="text-xs text-muted-foreground">
+                  Lo encontrarás en tu página de Facebook. Ve a Configuración → Información de la
+                  página
+                </p>
                 <Input
                   placeholder="Ej: 123456789012345"
                   value={facebookConfig?.page_id || ''}
@@ -155,7 +191,10 @@ export default function FacebookChannelConfigPage({ params }: PageProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>Nombre de la Página</Label>
+                <Label className="text-base font-semibold">Nombre de la Página</Label>
+                <p className="text-xs text-muted-foreground">
+                  El nombre público de tu página (ejemplo: "Mi Empresa S.A.")
+                </p>
                 <Input
                   placeholder="Ej: Mi Empresa"
                   value={facebookConfig?.page_name || ''}
@@ -163,17 +202,141 @@ export default function FacebookChannelConfigPage({ params }: PageProps) {
                 />
               </div>
 
+              <Separator />
+
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-base font-semibold">
                   <Key className="w-4 h-4" />
                   Page Access Token
                 </Label>
+                <p className="text-xs text-muted-foreground">
+                  Generado en Meta for Developers → Tu App → Configuración → Tokens de página
+                </p>
                 <Input
                   type="password"
                   placeholder="EAAxxxxxxx..."
                   value={facebookConfig?.page_access_token || ''}
                   onChange={(e) => updateConfig('page_access_token', e.target.value)}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-base font-semibold">
+                  <Key className="w-4 h-4" />
+                  Token de Verificación
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Token personalizado que creaste para validar el webhook. Lo necesitarás más abajo
+                  en "Configuración del Webhook"
+                </p>
+                <Input
+                  type="password"
+                  placeholder="Tu token de verificación personalizado"
+                  value={facebookConfig?.verify_token || ''}
+                  onChange={(e) => updateConfig('verify_token', e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Webhook Configuration */}
+          <Card className="bg-card">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Webhook className="w-5 h-5" />
+                Configuración del Webhook
+              </CardTitle>
+              <CardDescription>
+                Copia estos valores exactos en la sección de Webhooks de tu app en Meta
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Alert className="border-blue-500/50 bg-blue-500/10">
+                <AlertDescription className="text-blue-700 dark:text-blue-400">
+                  <strong>Instrucciones:</strong> Ve a tu app de Meta → Configuración → Webhooks y
+                  copia los valores de abajo en los campos correspondientes
+                </AlertDescription>
+              </Alert>
+
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">1. URL del Webhook</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Copia este valor en el campo "URL de Callback" en Meta
+                </p>
+                <div className="flex gap-2">
+                  <Input value={webhookUrl} readOnly className="font-mono text-sm bg-muted" />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleCopy(webhookUrl, 'webhook')}
+                  >
+                    {copied === 'webhook' ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">2. Verify Token</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Copia este valor en el campo "Verify Token" en Meta
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    type="password"
+                    placeholder="Tu token de verificación"
+                    value={facebookConfig?.verify_token || ''}
+                    onChange={(e) => updateConfig('verify_token', e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleCopy(facebookConfig?.verify_token || '', 'verify')}
+                  >
+                    {copied === 'verify' ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">3. Eventos de Webhook a suscribir</Label>
+                <p className="text-xs text-muted-foreground">
+                  En Meta, selecciona estos eventos en "Campos de webhook":
+                </p>
+                <Alert>
+                  <AlertDescription className="text-sm">
+                    <ul className="list-disc ml-4 space-y-1">
+                      <li>
+                        <code className="bg-muted px-2 py-1 rounded text-xs">messages</code> - Para
+                        recibir mensajes
+                      </li>
+                      <li>
+                        <code className="bg-muted px-2 py-1 rounded text-xs">
+                          messaging_postbacks
+                        </code>{' '}
+                        - Respuestas de botones
+                      </li>
+                      <li>
+                        <code className="bg-muted px-2 py-1 rounded text-xs">
+                          message_deliveries
+                        </code>{' '}
+                        - Confirmación de entrega (opcional)
+                      </li>
+                    </ul>
+                  </AlertDescription>
+                </Alert>
               </div>
             </CardContent>
           </Card>
