@@ -2,13 +2,11 @@
  * Servicio para enviar mensajes de WhatsApp
  */
 
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
-const WHATSAPP_API_URL = `https://graph.facebook.com/v22.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
-
 export interface SendWhatsAppMessageParams {
   to: string;
   message: string;
+  accessToken: string;
+  phoneNumberId: string;
 }
 
 export interface SendWhatsAppMessageResult {
@@ -23,12 +21,14 @@ export interface SendWhatsAppMessageResult {
 export async function sendWhatsAppMessage(
   params: SendWhatsAppMessageParams
 ): Promise<SendWhatsAppMessageResult> {
-  const { to, message } = params;
+  const { to, message, accessToken, phoneNumberId } = params;
 
-  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
-    console.error('WhatsApp credentials not configured');
+  if (!accessToken || !phoneNumberId) {
+    console.error('WhatsApp credentials not provided');
     return { success: false, error: 'WhatsApp not configured' };
   }
+
+  const apiUrl = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
 
   try {
     const payload = {
@@ -38,10 +38,10 @@ export async function sendWhatsAppMessage(
       text: { body: message },
     };
 
-    const response = await fetch(WHATSAPP_API_URL, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
