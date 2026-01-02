@@ -26,6 +26,7 @@ export interface WhatsAppConfig {
   phone_number: string;
   business_account_id: string;
   access_token?: string;
+  verify_token?: string;
   webhook_verified: boolean;
 }
 
@@ -73,12 +74,14 @@ export interface FacebookConfig {
   page_id: string;
   page_name: string;
   page_access_token?: string;
+  verify_token?: string;
 }
 
 export interface InstagramConfig {
   account_id: string;
   username: string;
   access_token?: string;
+  verify_token?: string;
 }
 
 export interface EmailConfig {
