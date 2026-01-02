@@ -33,6 +33,66 @@ export async function findOrCreateByWhatsApp(waId: string, name: string): Promis
   return newContact;
 }
 
+export async function findOrCreateByFacebook(fbId: string, name?: string): Promise<Contact> {
+  const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from('mkt_contacts')
+    .select('*')
+    .eq('fb_id', fbId)
+    .single();
+
+  if (existing) {
+    return existing;
+  }
+
+  const { data: newContact, error } = await supabase
+    .from('mkt_contacts')
+    .insert({
+      fb_id: fbId,
+      name: name || 'Contacto Facebook',
+      source: 'facebook',
+      status: 'lead',
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return newContact;
+}
+
+export async function findOrCreateByInstagram(igId: string, name?: string): Promise<Contact> {
+  const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from('mkt_contacts')
+    .select('*')
+    .eq('ig_id', igId)
+    .single();
+
+  if (existing) {
+    return existing;
+  }
+
+  const { data: newContact, error } = await supabase
+    .from('mkt_contacts')
+    .insert({
+      ig_id: igId,
+      name: name || 'Contacto Instagram',
+      source: 'instagram',
+      status: 'lead',
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return newContact;
+}
+
 export async function getContacts(): Promise<Contact[]> {
   const supabase = await createClient();
   const { data, error } = await supabase

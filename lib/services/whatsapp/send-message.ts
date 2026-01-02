@@ -73,19 +73,25 @@ export async function sendWhatsAppMessage(
 /**
  * Envía un mensaje de plantilla por WhatsApp
  */
-export async function sendWhatsAppTemplate(
-  to: string,
-  templateName: string,
-  languageCode: string = 'es',
+export async function sendWhatsAppTemplate(params: {
+  to: string;
+  templateName: string;
+  languageCode?: string;
   components?: Array<{
     type: string;
     parameters: Array<{ type: string; text?: string }>;
-  }>
-): Promise<SendWhatsAppMessageResult> {
-  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+  }>;
+  accessToken: string;
+  phoneNumberId: string;
+}): Promise<SendWhatsAppMessageResult> {
+  const { to, templateName, languageCode = 'es', components, accessToken, phoneNumberId } = params;
+
+  if (!accessToken || !phoneNumberId) {
     console.error('WhatsApp credentials not configured');
     return { success: false, error: 'WhatsApp not configured' };
   }
+
+  const apiUrl = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
 
   try {
     const payload: any = {
@@ -102,10 +108,10 @@ export async function sendWhatsAppTemplate(
       payload.template.components = components;
     }
 
-    const response = await fetch(WHATSAPP_API_URL, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
