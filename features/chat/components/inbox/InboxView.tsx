@@ -71,13 +71,12 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
         const normalizedMetadataName =
           typeof metadataName === 'string' && metadataName.trim() !== '' ? metadataName : undefined;
 
+        // Use full mkt_contacts object if it exists
         if (selectedConversation.mkt_contacts?.id) {
           return {
-            id: selectedConversation.mkt_contacts.id,
-            name: normalizedMktName ?? 'Sin nombre',
-            avatar_url: selectedConversation.mkt_contacts.avatar_url || undefined,
-            wa_id: selectedConversation.mkt_contacts.wa_id,
-            source: selectedConversation.channel,
+            ...selectedConversation.mkt_contacts,
+            name: normalizedMktName ?? selectedConversation.mkt_contacts.name ?? 'Sin nombre',
+            source: selectedConversation.mkt_contacts.source || selectedConversation.channel,
           } as Contact;
         }
 
@@ -147,6 +146,7 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
               {showContactPanel && (
                 <ContactDetails
                   contact={contact}
+                  conversationId={selectedConversationId || undefined}
                   onContactUpdated={() => {}}
                   onClose={() => setShowContactPanel(false)}
                 />

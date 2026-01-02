@@ -14,4 +14,5 @@ export type Contact = {
   last_interaction?: Date;
   created_at?: Date;
   updated_at?: Date;
+  visitor_id?: string;
 };

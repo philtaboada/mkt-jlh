@@ -138,6 +138,7 @@ export function ChatHeader({ contact, conversation }: ChatHeaderProps) {
           <div className="relative ml-auto w-full max-w-sm bg-background border-l border-border shadow-2xl">
             <ContactDetails
               contact={contact}
+              conversationId={conversation.id}
               onContactUpdated={() => {
                 console.log('Contact updated');
               }}

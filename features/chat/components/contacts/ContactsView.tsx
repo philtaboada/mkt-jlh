@@ -18,7 +18,7 @@ import { useContacts, useCreateContact } from '@/features/chat/hooks/useContacts
 import { ContactDetails } from '@/features/chat/components/ContactDetail';
 import { ContactCard } from './ContactCard';
 import { Contact } from '@/features/chat/types/contact';
-import { CreateContactDialog } from './CreateContactDialog';
+import { ContactFormDialog } from '@/features/chat/components/dialogs/ContactFormDialog';
 
 const statusColors: Record<string, { bg: string; text: string; label: string }> = {
   lead: { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Lead' },
@@ -151,7 +151,8 @@ export function ContactsView() {
       )}
 
       {/* Create Contact Dialog */}
-      <CreateContactDialog
+      <ContactFormDialog
+        mode="edit"
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         onSubmit={handleCreateContact}

@@ -1,15 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Mail, Phone, Smartphone, Calendar, Link2, X, UserPlus, Target } from 'lucide-react';
+import { Mail, Phone, Smartphone, Calendar, Link2, X, UserPlus, Target, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
-// import { EditContactDialog } from './edit-contact-dialog';
 import { AddTagDialog } from './dialogs/AddTag';
 import { AddNoteDialog } from './dialogs/AddNote';
+import { ContactFormDialog } from './dialogs/ContactFormDialog';
 import {
   useContactTags,
   useContactNotes,
@@ -17,11 +17,14 @@ import {
   useRemoveTagFromContact,
   useDeleteContactNote,
   useCreateContact,
+  useUpdateContact,
+  useUpdateConversationContact,
 } from '../hooks';
 import type { Contact } from '../types/contact';
 
 interface ContactDetailsProps {
   contact: Contact;
+  conversationId?: string;
   onContactUpdated: () => void;
   onClose?: () => void;
 }
@@ -43,24 +46,34 @@ const sourceIcons: Record<string, string> = {
   web: '🌐',
 };
 
-export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDetailsProps) {
+export function ContactDetails({
+  contact,
+  conversationId,
+  onContactUpdated,
+  onClose,
+}: ContactDetailsProps) {
   const [notesUpdated, setNotesUpdated] = useState(0);
   const [tagsUpdated, setTagsUpdated] = useState(0);
   const [activeTab, setActiveTab] = useState<'tags' | 'custom' | 'notes'>('tags');
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [displayContact, setDisplayContact] = useState<Contact>(contact);
 
-  // Check if this is a real contact (has valid UUID) or a visitor
+  useEffect(() => {
+    setDisplayContact(contact);
+  }, [contact]);
+
   const isRealContact = Boolean(
-    contact?.id &&
-      contact.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+    displayContact?.id &&
+      displayContact.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
   );
 
-  // Use hooks instead of chat-store functions
   const { data: contactTags = [], isLoading: tagsLoading } = useContactTags(
-    isRealContact ? contact.id || '' : '',
+    isRealContact ? displayContact.id || '' : '',
     () => isRealContact
   );
   const { data: contactNotes = [], isLoading: notesLoading } = useContactNotes(
-    isRealContact ? contact.id || '' : '',
+    isRealContact ? displayContact.id || '' : '',
     () => isRealContact
   );
   const { data: allTags = [] } = useTags(() => isRealContact);
@@ -68,11 +81,13 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
   const removeTagMutation = useRemoveTagFromContact();
   const deleteNoteMutation = useDeleteContactNote();
   const createContactMutation = useCreateContact();
+  const updateContactMutation = useUpdateContact();
+  const updateConversationMutation = useUpdateConversationContact();
 
   const handleRemoveTag = (tagId: string) => {
-    if (!contact.id) return;
+    if (!displayContact.id) return;
     removeTagMutation.mutate(
-      { contactId: contact.id, tagId },
+      { contactId: displayContact.id, tagId },
       {
         onSuccess: () => {
           setTagsUpdated((prev) => prev + 1);
@@ -91,36 +106,62 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
     });
   };
 
+  const handleCreateRealContact = () => {
+    setShowCreateDialog(true);
+  };
+
+  const handleSubmitCreateContact = (contactData: any) => {
+    console.log('handleSubmitCreateContact: contactData=', contactData);
+    createContactMutation.mutate(contactData, {
+      onSuccess: (newContact: any) => {
+        console.log('handleSubmitCreateContact: onSuccess with newContact=', newContact);
+        setShowCreateDialog(false);
+        setDisplayContact(newContact);
+
+        if (conversationId && newContact?.id) {
+          console.log('Linking conversation', conversationId, 'to contact', newContact.id);
+          updateConversationMutation.mutate(
+            { conversationId, contactId: newContact.id },
+            {
+              onSuccess: () => {
+                console.log('Conversation linked successfully');
+                onContactUpdated();
+              },
+            }
+          );
+        } else {
+          console.log('No conversationId or newContact.id', {
+            conversationId,
+            newContactId: newContact?.id,
+          });
+          onContactUpdated();
+        }
+      },
+    });
+  };
+
   const handleConvertToOpportunity = () => {
     // TODO: Implementar conversión a oportunidad
-    console.log('Convirtiendo contacto a oportunidad:', contact.id);
+    console.log('Convirtiendo contacto a oportunidad:', displayContact.id);
   };
 
   const handleEditContact = () => {
-    // TODO: Implementar edición de contacto
-    console.log('Editando contacto:', contact.id);
+    setShowEditDialog(true);
   };
 
-  const handleCreateRealContact = () => {
-    // Crear contacto real a partir de los datos del visitante
-    const contactData = {
-      name: contact.name || 'Sin nombre',
-      email: contact.email,
-      phone: contact.phone,
-      wa_id: contact.wa_id,
-      fb_id: contact.fb_id,
-      ig_id: contact.ig_id,
-      source: contact.source || 'web',
-      avatar_url: contact.avatar_url,
-      status: 'lead' as const,
-    };
+  const handleSubmitEditContact = (contactData: any) => {
+    if (!displayContact.id) return;
 
-    createContactMutation.mutate(contactData, {
-      onSuccess: () => {
-        // El contacto se creó exitosamente, llamar a onContactUpdated para refrescar
-        onContactUpdated();
-      },
-    });
+    updateContactMutation.mutate(
+      { id: displayContact.id, updates: contactData },
+      {
+        onSuccess: (updatedContact: any) => {
+          setShowEditDialog(false);
+          setDisplayContact(updatedContact);
+          onContactUpdated();
+        },
+      }
+    );
   };
 
   return (
@@ -146,14 +187,14 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
             /* Visitor Contact - Show creation option */
             <div className="text-center space-y-4">
               <Avatar className="h-20 w-20 mx-auto mb-4">
-                <AvatarImage src={contact.avatar_url || '/placeholder.svg'} />
+                <AvatarImage src={displayContact.avatar_url || '/placeholder.svg'} />
                 <AvatarFallback className="text-lg">
-                  {contact.name?.charAt(0) || 'V'}
+                  {displayContact.name?.charAt(0) || 'V'}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <h2 className="text-xl font-bold text-foreground mb-2">
-                  {contact.name || 'Visitante'}
+                  {displayContact.name || 'Visitante'}
                 </h2>
                 <p className="text-sm text-muted-foreground mb-4">
                   Este es un contacto temporal. Para gestionar etiquetas, notas y campos
@@ -168,6 +209,25 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
                   {createContactMutation.isPending ? 'Creando...' : 'Crear Contacto Real'}
                 </Button>
               </div>
+
+              {/* Modal para crear contacto con datos pre-rellenados */}
+              <ContactFormDialog
+                mode="create"
+                open={showCreateDialog}
+                onOpenChange={setShowCreateDialog}
+                onSubmit={handleSubmitCreateContact}
+                isLoading={createContactMutation.isPending}
+                conversationId={conversationId}
+                prefilledData={{
+                  name: displayContact.name,
+                  email: displayContact.email,
+                  phone: displayContact.phone,
+                  wa_id: displayContact.wa_id,
+                  fb_id: displayContact.fb_id,
+                  ig_id: displayContact.ig_id,
+                  source: displayContact.source,
+                }}
+              />
             </div>
           ) : (
             /* Real Contact - Show full details */
@@ -175,30 +235,30 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
               {/* Avatar and Basic Info */}
               <div className="text-center border-b border-border pb-6">
                 <Avatar className="h-20 w-20 mx-auto mb-4">
-                  <AvatarImage src={contact.avatar_url || '/placeholder.svg'} />
+                  <AvatarImage src={displayContact.avatar_url || '/placeholder.svg'} />
                   <AvatarFallback className="text-lg">
-                    {contact.name?.charAt(0) || 'C'}
+                    {displayContact.name?.charAt(0) || 'C'}
                   </AvatarFallback>
                 </Avatar>
                 <h2 className="text-xl font-bold text-foreground mb-2">
-                  {contact.name || 'Sin nombre'}
+                  {displayContact.name || 'Sin nombre'}
                 </h2>
 
                 {/* Status Badge */}
                 <div
                   className={cn(
-                    statusColors[contact.status || 'lead'].bg,
+                    statusColors[displayContact.status || 'lead'].bg,
                     'inline-block rounded px-2 py-1'
                   )}
                 >
                   <span
                     className={cn(
                       'text-xs font-medium',
-                      statusColors[contact.status || 'lead'].text
+                      statusColors[displayContact.status || 'lead'].text
                     )}
                   >
-                    {(contact.status || 'lead').charAt(0).toUpperCase() +
-                      (contact.status || 'lead').slice(1)}
+                    {(displayContact.status || 'lead').charAt(0).toUpperCase() +
+                      (displayContact.status || 'lead').slice(1)}
                   </span>
                 </div>
               </div>
@@ -210,70 +270,70 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
                 </h4>
 
                 {/* Email */}
-                {contact.email && (
+                {displayContact.email && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">Correo</label>
                     <div className="flex items-center gap-2 mt-2">
                       <Mail className="w-4 h-4 text-muted-foreground" />
                       <a
-                        href={`mailto:${contact.email}`}
+                        href={`mailto:${displayContact.email}`}
                         className="text-sm text-primary hover:underline"
                       >
-                        {contact.email}
+                        {displayContact.email}
                       </a>
                     </div>
                   </div>
                 )}
 
                 {/* Phone */}
-                {contact.phone && (
+                {displayContact.phone && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">Teléfono</label>
                     <div className="flex items-center gap-2 mt-2">
                       <Phone className="w-4 h-4 text-muted-foreground" />
                       <a
-                        href={`tel:${contact.phone}`}
+                        href={`tel:${displayContact.phone}`}
                         className="text-sm text-primary hover:underline"
                       >
-                        {contact.phone}
+                        {displayContact.phone}
                       </a>
                     </div>
                   </div>
                 )}
 
                 {/* WhatsApp ID */}
-                {contact.wa_id && (
+                {displayContact.wa_id && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">WhatsApp</label>
                     <div className="flex items-center gap-2 mt-2">
                       <Smartphone className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-mono">{contact.wa_id}</span>
+                      <span className="text-sm font-mono">{displayContact.wa_id}</span>
                     </div>
                   </div>
                 )}
 
                 {/* Facebook ID */}
-                {contact.fb_id && (
+                {displayContact.fb_id && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">
                       Facebook ID
                     </label>
                     <div className="flex items-center gap-2 mt-2">
                       <Link2 className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-mono">{contact.fb_id}</span>
+                      <span className="text-sm font-mono">{displayContact.fb_id}</span>
                     </div>
                   </div>
                 )}
 
                 {/* Instagram ID */}
-                {contact.ig_id && (
+                {displayContact.ig_id && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">
                       Instagram ID
                     </label>
                     <div className="flex items-center gap-2 mt-2">
                       <Link2 className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-mono">{contact.ig_id}</span>
+                      <span className="text-sm font-mono">{displayContact.ig_id}</span>
                     </div>
                   </div>
                 )}
@@ -287,19 +347,20 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
                   Información
                 </h4>
 
-                {contact.source && (
+                {displayContact.source && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">Fuente</label>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="text-lg">{sourceIcons[contact.source] || '•'}</span>
+                      <span className="text-lg">{sourceIcons[displayContact.source] || '•'}</span>
                       <span className="text-sm">
-                        {contact.source.charAt(0).toUpperCase() + contact.source.slice(1)}
+                        {displayContact.source.charAt(0).toUpperCase() +
+                          displayContact.source.slice(1)}
                       </span>
                     </div>
                   </div>
                 )}
 
-                {contact.created_at && (
+                {displayContact.created_at && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">
                       Fecha de Registro
@@ -307,13 +368,13 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
                     <div className="flex items-center gap-2 mt-2">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
                       <span className="text-sm">
-                        {new Date(contact.created_at).toLocaleDateString('es-ES')}
+                        {new Date(displayContact.created_at).toLocaleDateString('es-ES')}
                       </span>
                     </div>
                   </div>
                 )}
 
-                {contact.last_interaction && (
+                {displayContact.last_interaction && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">
                       Última Interacción
@@ -321,7 +382,7 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
                     <div className="flex items-center gap-2 mt-2">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
                       <span className="text-sm">
-                        {new Date(contact.last_interaction).toLocaleDateString('es-ES')}
+                        {new Date(displayContact.last_interaction).toLocaleDateString('es-ES')}
                       </span>
                     </div>
                   </div>
@@ -393,7 +454,7 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
                       <p className="text-xs text-muted-foreground">Sin etiquetas</p>
                     )}
                     <AddTagDialog
-                      contactId={contact.id || ''}
+                      contactId={displayContact.id || ''}
                       currentTags={contactTags.map((ct) => ct.mkt_tags).filter(Boolean)}
                       onTagAdded={() => setTagsUpdated((prev) => prev + 1)}
                     />
@@ -403,9 +464,10 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
                 {/* Custom Fields */}
                 {activeTab === 'custom' && (
                   <div className="space-y-3">
-                    {contact.custom_fields && Object.keys(contact.custom_fields).length > 0 ? (
+                    {displayContact.custom_fields &&
+                    Object.keys(displayContact.custom_fields).length > 0 ? (
                       <div className="space-y-2">
-                        {Object.entries(contact.custom_fields).map(([key, value]) => (
+                        {Object.entries(displayContact.custom_fields).map(([key, value]) => (
                           <div key={key} className="bg-muted p-2 rounded">
                             <p className="text-xs font-semibold text-muted-foreground capitalize">
                               {key}
@@ -454,7 +516,7 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
                       <p className="text-xs text-muted-foreground">Sin notas</p>
                     )}
                     <AddNoteDialog
-                      contactId={contact.id || ''}
+                      contactId={displayContact.id || ''}
                       onNoteAdded={() => setNotesUpdated((prev) => prev + 1)}
                     />
                   </div>
@@ -470,6 +532,7 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
         <div className="p-4 border-t border-border space-y-2 shrink-0">
           <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" onClick={handleEditContact}>
+              <Edit className="w-4 h-4 mr-2" />
               Editar
             </Button>
             <Button variant="outline" onClick={handleConvertToOpportunity}>
@@ -477,8 +540,16 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
               Oportunidad
             </Button>
           </div>
-          {/* <EditContactDialog contact={contact} onContactUpdated={onContactUpdated} /> */}
-          <p className="text-xs text-muted-foreground">Funciones de edición próximamente</p>
+
+          {/* Diálogo de edición */}
+          <ContactFormDialog
+            mode="edit"
+            open={showEditDialog}
+            onOpenChange={setShowEditDialog}
+            onSubmit={handleSubmitEditContact}
+            isLoading={updateContactMutation.isPending}
+            prefilledData={displayContact}
+          />
         </div>
       )}
     </div>

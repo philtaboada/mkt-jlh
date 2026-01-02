@@ -16,6 +16,7 @@ import {
   updateContactNote,
   deleteContactNote,
 } from '../api/contact.api';
+import { updateConversationContact } from '../api/conversation.api';
 import { Contact } from '../types/contact';
 
 export const useContacts = () => {
@@ -204,6 +205,22 @@ export const useDeleteContactNote = () => {
     },
     onError: (error) => {
       toast.error('Error al eliminar nota: ' + error.message);
+    },
+  });
+};
+
+export const useUpdateConversationContact = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ conversationId, contactId }: { conversationId: string; contactId: string }) =>
+      updateConversationContact(conversationId, contactId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      toast.success('Conversación vinculada al contacto');
+    },
+    onError: (error) => {
+      toast.error('Error al vincular conversación: ' + error.message);
     },
   });
 };
