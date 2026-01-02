@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import type React from 'react';
 
-import type { Contact, Conversation } from '../types';
+import type { Contact, Conversation } from '../../../types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MoreVertical, User, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ContactDetails } from './ContactDetail';
+import { ContactDetails } from '@/features/chat/components/ContactDetail';
 
 interface ChatHeaderProps {
   contact: Contact;
@@ -56,29 +56,29 @@ export function ChatHeader({ contact, conversation }: ChatHeaderProps) {
 
   return (
     <>
-      <div className="border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 p-4">
+      <div className="border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 p-3">
         <div className="flex items-center justify-between">
           {/* Contact Info Section - Clickable */}
           <button
             onClick={handleContactClick}
-            className="flex items-center gap-3 flex-1 min-w-0 text-left hover:bg-muted/30 rounded-lg p-2 -m-2 transition-colors cursor-pointer"
+            className="flex items-center gap-3 flex-1 min-w-0 text-left hover:bg-muted/30 rounded-md p-1.5 -m-1.5 transition-colors cursor-pointer"
           >
-            <div className="relative">
-              <Avatar className="h-12 w-12 ring-2 ring-background shadow-sm">
+            <div className="relative shrink-0">
+              <Avatar className="h-10 w-10 ring-1 ring-border/20">
                 <AvatarImage
                   src={contact.avatar_url}
                   alt={contact.name || 'Contacto'}
                   className="object-cover"
                 />
-                <AvatarFallback className="bg-linear-to-br from-blue-500 to-purple-600 text-white font-semibold">
-                  {contact.name?.charAt(0)?.toUpperCase() || <User className="h-6 w-6" />}
+                <AvatarFallback className="bg-linear-to-br from-blue-500 to-purple-600 text-white font-semibold text-sm">
+                  {contact.name?.charAt(0)?.toUpperCase() || <User className="h-4 w-4" />}
                 </AvatarFallback>
               </Avatar>
 
               {/* Channel Badge */}
               <div
                 className={cn(
-                  'absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background text-white text-xs flex items-center justify-center font-bold shadow-sm',
+                  'absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-background text-white text-[10px] flex items-center justify-center font-bold shadow-sm',
                   channelColor
                 )}
               >
@@ -86,27 +86,27 @@ export function ChatHeader({ contact, conversation }: ChatHeaderProps) {
               </div>
             </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h2 className="font-semibold text-foreground truncate text-lg">
+            <div className="flex-1 min-w-0 space-y-0.5">
+              <div className="flex items-center gap-2">
+                <h2 className="font-semibold text-foreground truncate text-base">
                   {contact.name || 'Sin nombre'}
                 </h2>
-                <Badge variant="secondary" className="text-xs px-2 py-0.5 shrink-0">
+                <Badge variant="secondary" className="text-xs px-1.5 py-0 shrink-0">
                   {channelLabel}
                 </Badge>
               </div>
 
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 {contact.email && (
-                  <span className="flex items-center gap-1 truncate">
+                  <span className="flex items-center gap-1 truncate max-w-32">
                     <span>✉️</span>
-                    {contact.email}
+                    <span className="truncate">{contact.email}</span>
                   </span>
                 )}
                 {contact.phone && (
-                  <span className="flex items-center gap-1 truncate">
+                  <span className="flex items-center gap-1 truncate max-w-32">
                     <span>📞</span>
-                    {contact.phone}
+                    <span className="truncate">{contact.phone}</span>
                   </span>
                 )}
                 {!contact.email && !contact.phone && (
@@ -118,17 +118,17 @@ export function ChatHeader({ contact, conversation }: ChatHeaderProps) {
               </div>
 
               {/* Status indicators */}
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-1.5">
                 {conversation.status && (
                   <Badge
                     variant={conversation.status === 'open' ? 'default' : 'secondary'}
-                    className="text-xs px-2 py-0.5"
+                    className="text-xs px-1.5 py-0 h-4"
                   >
                     {conversation.status === 'open' ? '🟢 Activo' : '⚪ Inactivo'}
                   </Badge>
                 )}
                 {conversation.assigned_to && (
-                  <Badge variant="outline" className="text-xs px-2 py-0.5">
+                  <Badge variant="outline" className="text-xs px-1.5 py-0 h-4">
                     👤 Asignado
                   </Badge>
                 )}
@@ -136,12 +136,12 @@ export function ChatHeader({ contact, conversation }: ChatHeaderProps) {
             </div>
           </button>
 
-          {/* Action Buttons - Solo los necesarios */}
-          <div className="flex items-center gap-1 ml-4">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-1 ml-3">
             <Button
               variant="ghost"
               size="icon"
-              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 h-9 w-9"
+              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 h-8 w-8"
               title="Más opciones"
             >
               <MoreVertical className="w-4 h-4" />

@@ -2,10 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { getTags, createTag, updateTag, deleteTag } from '../api/tag.api';
 
-export const useTags = () => {
+export const useTags = (enabled = true) => {
   return useQuery({
     queryKey: ['tags'],
     queryFn: getTags,
+    enabled,
   });
 };
 

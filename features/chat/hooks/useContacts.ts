@@ -80,19 +80,19 @@ export const useDeleteContact = () => {
   });
 };
 
-export const useContactTags = (contactId: string) => {
+export const useContactTags = (contactId: string, enabled = true) => {
   return useQuery({
     queryKey: ['contact-tags', contactId],
     queryFn: () => getContactTags(contactId),
-    enabled: !!contactId,
+    enabled: !!contactId && enabled,
   });
 };
 
-export const useContactNotes = (contactId: string) => {
+export const useContactNotes = (contactId: string, enabled = true) => {
   return useQuery({
     queryKey: ['contact-notes', contactId],
     queryFn: () => getContactNotes(contactId),
-    enabled: !!contactId,
+    enabled: !!contactId && enabled,
   });
 };
 

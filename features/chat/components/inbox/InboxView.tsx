@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useConversation } from '@/features/chat/hooks/useConversations';
 import { useMarkMessagesAsRead } from '@/features/chat/hooks/useMessages';
-import { ChatPanel } from '@/features/chat/components/ChatPanel';
-import { ConversationsList } from '@/features/chat/components/ConversationsList';
+import { ChatPanel } from '@/features/chat/components/chat/messages';
+import { ConversationsList } from '@/features/chat/components/chat/conversations';
 import { ContactDetails } from '@/features/chat/components/ContactDetail';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Inbox, PanelRightClose, PanelRight } from 'lucide-react';
@@ -27,7 +27,11 @@ export function InboxView() {
 
   // Efecto para marcar como leído después de seleccionar la conversación
   useEffect(() => {
-    if (selectedConversationId && selectedConversation?.unread_count && selectedConversation.unread_count > 0) {
+    if (
+      selectedConversationId &&
+      selectedConversation?.unread_count &&
+      selectedConversation.unread_count > 0
+    ) {
       // Pequeño delay para asegurar que el usuario realmente está viendo la conversación
       const timer = setTimeout(() => {
         markAsReadMutation.mutate(selectedConversationId);
