@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { getChannelsByType } from '@/features/chat/api/channels.api';
+import { findOrCreateByInstagram, updateLastInteraction } from '@/features/chat/api/contact.api';
+import { findOrCreate, updateLastMessage } from '@/features/chat/api/conversation.api';
+import { create } from '@/features/chat/api/message.api';
 import type { InstagramConfig } from '@/features/chat/types/settings';
 
 export async function GET(req: Request) {
@@ -40,6 +43,7 @@ export async function POST(req: Request) {
         const senderId = messaging.sender.id;
         let text = null;
         let mediaInfo = null;
+        let mediaType = 'text';
 
         if (messaging.message?.text) {
           text = messaging.message.text;
@@ -52,6 +56,7 @@ export async function POST(req: Request) {
             type: attachment.type,
             mime: attachment.payload?.media?.image_type || null,
           };
+          mediaType = attachment.type;
         }
 
         if (messaging.message?.image) {
@@ -60,6 +65,7 @@ export async function POST(req: Request) {
             type: 'image',
             mime: 'image/jpeg',
           };
+          mediaType = 'image';
         }
 
         if (messaging.message?.video) {
@@ -68,21 +74,43 @@ export async function POST(req: Request) {
             type: 'video',
             mime: 'video/mp4',
           };
+          mediaType = 'video';
         }
 
-        // TODO: Guardar mensaje en BD
-        // TODO: Procesar IA si es texto sin media
+        // Create or get contact
+        const contact = await findOrCreateByInstagram(senderId);
+        const conversation = await findOrCreate(contact.id, 'instagram');
+
+        // Prepare message data
+        const messageData = {
+          body: text || mediaInfo?.type || 'Media',
+          type: mediaType,
+          sender_type: 'user' as const,
+          sender_id: senderId,
+          media_url: mediaInfo?.url || undefined,
+          media_mime: mediaInfo?.mime || undefined,
+          metadata: {
+            ...messaging.message,
+            igSenderId: senderId,
+          },
+        };
+
+        // Save message to database
+        await create(conversation.id, messageData);
+        await updateLastMessage(conversation.id);
+        await updateLastInteraction(contact.id);
       }
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Instagram webhook error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 function verifySignature(signature: string, rawBody: string): boolean {
-  const appSecret = process.env.APP_SECRET;
+  const appSecret = process.env.INSTAGRAM_APP_SECRET;
   if (!appSecret) return false;
   const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
   return signature === expected;

@@ -1,18 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getChannelsByType } from '@/features/chat/api/channels.api';
+import { sendWhatsAppMessage } from '@/lib/services/whatsapp';
 import type { WhatsAppConfig } from '@/features/chat/types/settings';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { to, type, text } = body;
+    const { to, message } = body;
 
-    if (!to) {
-      return NextResponse.json({ error: "Missing 'to'" }, { status: 400 });
-    }
-
-    if (type === 'text' && (!text || !text.body)) {
-      return NextResponse.json({ error: 'Missing text.body' }, { status: 400 });
+    if (!to || !message) {
+      return NextResponse.json({ error: 'Missing required fields: to, message' }, { status: 400 });
     }
 
     const whatsappChannels = await getChannelsByType('whatsapp');
@@ -26,33 +23,27 @@ export async function POST(req: Request) {
     }
 
     const config = activeChannel.config as WhatsAppConfig;
-    const TOKEN = config.access_token;
-    const PHONE_NUMBER_ID = config.phone_number_id;
+    const accessToken = config.access_token;
+    const phoneNumberId = config.phone_number_id;
 
-    if (!TOKEN || !PHONE_NUMBER_ID) {
+    if (!accessToken || !phoneNumberId) {
       return NextResponse.json({ error: 'WhatsApp configuration not complete' }, { status: 400 });
     }
 
-    const payload = {
-      messaging_product: 'whatsapp',
+    const result = await sendWhatsAppMessage({
       to,
-      type,
-      text,
-    };
-
-    const response = await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
+      message,
+      accessToken,
+      phoneNumberId,
     });
 
-    const data = await response.json();
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, messageId: result.messageId });
   } catch (error) {
+    console.error('WhatsApp send error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

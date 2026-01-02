@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getChannelsByType } from '@/features/chat/api/channels.api';
+import { sendInstagramMessage } from '@/lib/services/instagram';
 import type { InstagramConfig } from '@/features/chat/types/settings';
 
 export async function POST(req: Request) {
@@ -22,38 +23,27 @@ export async function POST(req: Request) {
     }
 
     const config = activeChannel.config as InstagramConfig;
-    const ACCESS_TOKEN = config.access_token;
-    const BUSINESS_ACCOUNT_ID = config.account_id;
+    const accessToken = config.access_token;
+    const igUserId = config.account_id;
 
-    if (!ACCESS_TOKEN || !BUSINESS_ACCOUNT_ID) {
+    if (!accessToken || !igUserId) {
       return NextResponse.json({ error: 'Instagram configuration not complete' }, { status: 400 });
     }
 
-    const payload = {
-      recipient: {
-        id: to,
-      },
-      message: {
-        text: message,
-      },
-    };
+    const result = await sendInstagramMessage({
+      to,
+      message,
+      accessToken,
+      igUserId,
+    });
 
-    const response = await fetch(
-      `https://graph.instagram.com/v22.0/${BUSINESS_ACCOUNT_ID}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
 
-    const data = await response.json();
-
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, messageId: result.messageId });
   } catch (error) {
+    console.error('Instagram send error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

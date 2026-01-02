@@ -1,6 +1,9 @@
 import { NextRequest } from 'next/server';
 import crypto from 'crypto';
 import { getChannelsByType } from '@/features/chat/api/channels.api';
+import { findOrCreateByFacebook, updateLastInteraction } from '@/features/chat/api/contact.api';
+import { findOrCreate, updateLastMessage } from '@/features/chat/api/conversation.api';
+import { create } from '@/features/chat/api/message.api';
 import type { FacebookConfig } from '@/features/chat/types/settings';
 
 export async function GET(req: NextRequest) {
@@ -39,6 +42,7 @@ export async function POST(req: NextRequest) {
       for (const entry of body.entry) {
         for (const messaging of entry.messaging || []) {
           const senderId = messaging.sender.id;
+          const recipientId = messaging.recipient.id;
 
           if (messaging.message) {
             const message = messaging.message;
@@ -54,12 +58,50 @@ export async function POST(req: NextRequest) {
               };
             }
 
-            // TODO: Guardar mensaje en BD
-            // TODO: Procesar IA si es texto sin media
+            // Create or get contact
+            const contact = await findOrCreateByFacebook(senderId);
+            const conversation = await findOrCreate(contact.id, 'facebook');
+
+            // Prepare message data
+            const messageData = {
+              body: text || mediaInfo?.type || 'Media',
+              type: mediaInfo ? 'media' : 'text',
+              sender_type: 'user' as const,
+              sender_id: senderId,
+              media_url: mediaInfo?.url || undefined,
+              media_mime: mediaInfo?.mime || undefined,
+              metadata: {
+                ...message,
+                fbSenderId: senderId,
+                fbRecipientId: recipientId,
+              },
+            };
+
+            // Save message to database
+            await create(conversation.id, messageData);
+            await updateLastMessage(conversation.id);
+            await updateLastInteraction(contact.id);
           }
 
           if (messaging.postback) {
-            // TODO: Manejar postbacks
+            // Handle postbacks if needed
+            const contact = await findOrCreateByFacebook(senderId);
+            const conversation = await findOrCreate(contact.id, 'facebook');
+
+            const postbackData = {
+              body: messaging.postback.title || JSON.stringify(messaging.postback.payload),
+              type: 'postback',
+              sender_type: 'user' as const,
+              sender_id: senderId,
+              metadata: {
+                payload: messaging.postback.payload,
+                title: messaging.postback.title,
+              },
+            };
+
+            await create(conversation.id, postbackData);
+            await updateLastMessage(conversation.id);
+            await updateLastInteraction(contact.id);
           }
         }
       }
@@ -67,12 +109,13 @@ export async function POST(req: NextRequest) {
 
     return new Response('ok', { status: 200 });
   } catch (error) {
+    console.error('Facebook webhook error:', error);
     return new Response('Internal Server Error', { status: 500 });
   }
 }
 
 function verifySignature(signature: string, body: string): boolean {
-  const appSecret = process.env.APP_SECRET;
+  const appSecret = process.env.FACEBOOK_APP_SECRET;
   if (!appSecret) return false;
   const expectedSignature =
     'sha256=' + crypto.createHmac('sha256', appSecret).update(body).digest('hex');

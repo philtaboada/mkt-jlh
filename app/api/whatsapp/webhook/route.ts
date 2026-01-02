@@ -68,6 +68,7 @@ export async function POST(req: Request) {
         const messageData = {
           body: text,
           type: hasMedia ? msg.type : 'text',
+          sender_type: 'user' as const,
           sender_id: waId,
           media_url: mediaInfo?.url ?? undefined,
           media_mime: mediaInfo?.mime ?? undefined,
@@ -103,9 +104,12 @@ export async function POST(req: Request) {
                 });
 
                 if (result.shouldReply && result.reply) {
+                  const config = channelConfig as WhatsAppConfig;
                   await sendWhatsAppMessage({
                     to: waId,
                     message: result.reply,
+                    accessToken: config.access_token || '',
+                    phoneNumberId: config.phone_number_id,
                   });
                 }
               }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getChannelsByType } from '@/features/chat/api/channels.api';
+import { sendFacebookMessage } from '@/lib/services/facebook';
 import type { FacebookConfig } from '@/features/chat/types/settings';
 
 export async function POST(req: Request) {
@@ -22,36 +23,27 @@ export async function POST(req: Request) {
     }
 
     const config = activeChannel.config as FacebookConfig;
-    const PAGE_ACCESS_TOKEN = config.page_access_token;
+    const accessToken = config.page_access_token;
+    const pageId = config.page_id;
 
-    if (!PAGE_ACCESS_TOKEN) {
-      return NextResponse.json({ error: 'Facebook access token not configured' }, { status: 400 });
+    if (!accessToken || !pageId) {
+      return NextResponse.json({ error: 'Facebook configuration not complete' }, { status: 400 });
     }
 
-    const payload = {
-      recipient: {
-        id: to,
-      },
-      message: {
-        text: message,
-      },
-    };
+    const result = await sendFacebookMessage({
+      to,
+      message,
+      accessToken,
+      pageId,
+    });
 
-    const response = await fetch(
-      `https://graph.facebook.com/v22.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
 
-    const data = await response.json();
-
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, messageId: result.messageId });
   } catch (error) {
+    console.error('Facebook send error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
