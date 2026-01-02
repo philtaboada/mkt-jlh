@@ -87,50 +87,25 @@ export function ChatHeader({ contact, conversation }: ChatHeaderProps) {
             </div>
 
             <div className="flex-1 min-w-0 space-y-0.5">
-              <div className="flex items-center gap-2">
-                <h2 className="font-semibold text-foreground truncate text-base">
-                  {contact.name || 'Sin nombre'}
-                </h2>
-                <Badge variant="secondary" className="text-xs px-1.5 py-0 shrink-0">
-                  {channelLabel}
-                </Badge>
-              </div>
+              <h2 className="font-semibold text-foreground truncate text-base">
+                {contact.name || 'Sin nombre'}
+              </h2>
 
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                {contact.email && (
-                  <span className="flex items-center gap-1 truncate max-w-32">
-                    <span>✉️</span>
-                    <span className="truncate">{contact.email}</span>
+              <div className="text-xs text-muted-foreground">
+                {conversation.status === 'open' ? (
+                  <span className="text-green-600 font-medium">En línea</span>
+                ) : conversation.last_message_at ? (
+                  <span>
+                    visto por última vez{' '}
+                    {new Date(conversation.last_message_at).toLocaleDateString('es-ES', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </span>
-                )}
-                {contact.phone && (
-                  <span className="flex items-center gap-1 truncate max-w-32">
-                    <span>📞</span>
-                    <span className="truncate">{contact.phone}</span>
-                  </span>
-                )}
-                {!contact.email && !contact.phone && (
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Sin contacto
-                  </span>
-                )}
-              </div>
-
-              {/* Status indicators */}
-              <div className="flex items-center gap-1.5">
-                {conversation.status && (
-                  <Badge
-                    variant={conversation.status === 'open' ? 'default' : 'secondary'}
-                    className="text-xs px-1.5 py-0 h-4"
-                  >
-                    {conversation.status === 'open' ? '🟢 Activo' : '⚪ Inactivo'}
-                  </Badge>
-                )}
-                {conversation.assigned_to && (
-                  <Badge variant="outline" className="text-xs px-1.5 py-0 h-4">
-                    👤 Asignado
-                  </Badge>
+                ) : (
+                  <span>Sin actividad</span>
                 )}
               </div>
             </div>
