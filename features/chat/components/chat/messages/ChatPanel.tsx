@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { Contact } from '../../../types/contact';
 import type { Conversation } from '../../../types/conversation';
 import { MessageList } from './MessageList';
@@ -16,10 +16,15 @@ interface ChatPanelProps {
 
 export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
 
   // Use React Query hooks
   const { data: messages = [], isLoading } = useMessages(conversation.id || '');
   const createMessageMutation = useCreateMessage();
+
+  const handleFileDrop = (files: File[]) => {
+    setDroppedFiles((prev) => [...prev, ...files]);
+  };
 
   const handleSendMessage = (content: string) => {
     if (!content.trim() || !conversation.id) return;
@@ -57,12 +62,15 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         isLoading={isLoading}
         contact={contact}
         scrollRef={scrollRef}
+        onFileDrop={handleFileDrop}
       />
 
       <MessageInput
         onSendMessage={handleSendMessage}
         disabled={createMessageMutation.isPending}
         initialValue={templateMessage}
+        additionalFiles={droppedFiles}
+        onFilesCleared={() => setDroppedFiles([])}
       />
     </div>
   );

@@ -126,7 +126,7 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
   return (
     <div className="h-full flex flex-col bg-background border-l border-border overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-border flex items-center justify-between flex-shrink-0">
+      <div className="p-4 border-b border-border flex items-center justify-between shrink-0">
         <h3 className="font-semibold text-foreground">Detalles del Contacto</h3>
         {onClose && (
           <Button
@@ -467,7 +467,7 @@ export function ContactDetails({ contact, onContactUpdated, onClose }: ContactDe
 
       {/* Actions */}
       {isRealContact && (
-        <div className="p-4 border-t border-border space-y-2 flex-shrink-0">
+        <div className="p-4 border-t border-border space-y-2 shrink-0">
           <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" onClick={handleEditContact}>
               Editar

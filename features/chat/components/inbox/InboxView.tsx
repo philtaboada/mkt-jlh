@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useConversation } from '@/features/chat/hooks/useConversations';
 import { useMarkMessagesAsRead } from '@/features/chat/hooks/useMessages';
 import { ChatPanel } from '@/features/chat/components/chat/messages';
@@ -12,7 +13,13 @@ import type { Contact } from '@/features/chat/types/contact';
 import type { Conversation } from '@/features/chat/types/conversation';
 import { cn } from '@/lib/utils';
 
-export function InboxView() {
+interface InboxViewProps {
+  initialConversationId?: string;
+}
+
+export function InboxView({ initialConversationId }: InboxViewProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showContactPanel, setShowContactPanel] = useState(false);
@@ -20,10 +27,23 @@ export function InboxView() {
   const { data: selectedConversation } = useConversation(selectedConversationId || '');
   const markAsReadMutation = useMarkMessagesAsRead();
 
+  // Load selected conversation from URL or initial prop
+  useEffect(() => {
+    const conversationId = searchParams.get('conversation') || initialConversationId;
+    if (conversationId) {
+      setSelectedConversationId(conversationId);
+    }
+  }, [searchParams, initialConversationId]);
+
   // Marcar mensajes como leídos cuando se selecciona una conversación
-  const handleSelectConversation = useCallback((conversationId: string) => {
-    setSelectedConversationId(conversationId);
-  }, []);
+  const handleSelectConversation = useCallback(
+    (conversationId: string) => {
+      setSelectedConversationId(conversationId);
+      // Update URL with conversation ID in path
+      router.push(`/chat/inbox/${conversationId}`);
+    },
+    [router]
+  );
 
   // Efecto para marcar como leído después de seleccionar la conversación
   useEffect(() => {

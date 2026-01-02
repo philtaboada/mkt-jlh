@@ -103,7 +103,7 @@ export function ConversationsList({
 
     return filtered;
   }, [searchQuery, conversations, filter, channelFilter, sortBy, activeChannels]);
-
+  console.log('Filtered Conversations:', filteredConversations);
   const conversationCounts = useMemo(() => {
     return {
       all: conversations.length,

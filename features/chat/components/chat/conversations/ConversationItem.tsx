@@ -79,14 +79,16 @@ export function ConversationItem({
         <div className="flex-1 min-w-0 space-y-0.5">
           {/* Header: Name and timestamp */}
           <div className="flex items-center justify-between gap-2">
-            <h3
-              className={cn(
-                'text-sm font-medium line-clamp-1 max-w-[65%]',
-                hasUnread ? 'text-foreground font-semibold' : 'text-foreground'
-              )}
-            >
-              {contactName}
-            </h3>
+            <div className="flex-1 min-w-0">
+              <h3
+                className={cn(
+                  'text-sm font-medium line-clamp-1',
+                  hasUnread ? 'text-foreground font-semibold' : 'text-foreground'
+                )}
+              >
+                {contactName}
+              </h3>
+            </div>
             <time
               className={cn(
                 'text-xs shrink-0',
