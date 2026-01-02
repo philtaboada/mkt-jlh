@@ -1,13 +1,7 @@
 import { NextRequest } from 'next/server';
 import crypto from 'crypto';
-import { createLead } from '@/features/leads/api/leads';
-import { FacebookLeadData, mapFacebookLeadToLead } from '@/features/leads/types/leadFacebook';
-
-// Environment variables required:
-
-// META_VERIFY_TOKEN: Token para verificar el webhook en la configuración de la App
-// META_APP_SECRET: App Secret para validar la firma de las peticiones (seguridad)
-// META_PAGE_ACCESS_TOKEN: Token de acceso a la página (con permiso leads_retrieval)
+import { getChannelsByType } from '@/features/chat/api/channels.api';
+import type { FacebookConfig } from '@/features/chat/types/settings';
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -15,131 +9,71 @@ export async function GET(req: NextRequest) {
   const token = url.searchParams.get('hub.verify_token');
   const challenge = url.searchParams.get('hub.challenge');
 
-  if (mode === 'subscribe' && token === process.env.META_VERIFY_TOKEN) {
-    console.log('✅ Webhook verificado correctamente');
+  const facebookChannels = await getChannelsByType('facebook');
+  const activeChannel = facebookChannels.find((ch) => ch.status === 'active');
+  const config = activeChannel?.config as FacebookConfig;
+  const VERIFY_TOKEN = config?.verify_token;
+
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
     return new Response(challenge || '', { status: 200 });
-  } else {
-    console.log('❌ Verificación fallida');
-    return new Response('Forbidden', { status: 403 });
   }
+
+  return new Response('Forbidden', { status: 403 });
 }
 
 export async function POST(req: NextRequest) {
-  console.log('🔔 [DEBUG] POST request recibida en /api/facebook/webhook');
   try {
-    // 1. Obtener el cuerpo raw para la verificación de firma
     const rawBody = await req.text();
-    console.log('📦 [DEBUG] Raw Body Length:', rawBody.length);
-    
-    // 2. Validar firma antes de procesar nada
+
     const signature = req.headers.get('x-hub-signature-256');
-    if (signature && process.env.META_APP_SECRET) {
-      const isValid = verifySignature(signature, rawBody, process.env.META_APP_SECRET);
+    if (signature) {
+      const isValid = verifySignature(signature, rawBody);
       if (!isValid) {
-        console.log('❌ Firma inválida');
         return new Response('Invalid signature', { status: 403 });
       }
     }
 
-    // 3. Parsear el cuerpo ahora que es seguro
     const body = JSON.parse(rawBody);
-    console.log('📩 Webhook recibido:', JSON.stringify(body, null, 2));
 
-    // Procesar cada entrada
     if (body.object === 'page') {
       for (const entry of body.entry) {
-        for (const change of entry.changes) {
-          if (change.field === 'leadgen') {
-            const leadgenId = change.value.leadgen_id;
-            console.log('🆕 Nuevo lead ID:', leadgenId);
+        for (const messaging of entry.messaging || []) {
+          const senderId = messaging.sender.id;
 
-            // Obtener los datos del lead
-            try {
-              await fetchLeadData(leadgenId);
-            } catch (leadError) {
-              console.error(`❌ Error procesando lead ${leadgenId}:`, leadError);
-              // No lanzamos error aquí para no detener el procesamiento de otros leads en el mismo lote
+          if (messaging.message) {
+            const message = messaging.message;
+            let text = message.text || null;
+            let mediaInfo = null;
+
+            if (message.attachments && message.attachments.length > 0) {
+              const attachment = message.attachments[0];
+              mediaInfo = {
+                url: attachment.payload?.url,
+                type: attachment.type,
+                mime: attachment.payload?.media?.image_type || null,
+              };
             }
+
+            // TODO: Guardar mensaje en BD
+            // TODO: Procesar IA si es texto sin media
+          }
+
+          if (messaging.postback) {
+            // TODO: Manejar postbacks
           }
         }
       }
     }
 
-    return new Response('Webhook received', { status: 200 });
+    return new Response('ok', { status: 200 });
   } catch (error) {
-    console.error('❌ Error procesando webhook:', error);
-    return new Response('Error interno', { status: 500 });
+    return new Response('Internal Server Error', { status: 500 });
   }
 }
 
-// Función para obtener datos del lead
-async function fetchLeadData(leadgenId: string) {
-  try {
-    // Actualizado a v24.0 según tu captura de pantalla
-    const url = `https://graph.facebook.com/v24.0/${leadgenId}?access_token=${process.env.META_PAGE_ACCESS_TOKEN}`;
-    const response = await fetch(url);
-    const leadData = await response.json();
-
-    console.log('📋 Datos del lead:', JSON.stringify(leadData, null, 2));
-
-    // Mapear los datos del lead a FacebookLeadData
-    const fieldData = (leadData.field_data || []) as Array<{ name: string; values: string[] }>;
-    const getFieldValue = (name: string) =>
-      fieldData.find((f) => f.name === name)?.values?.[0] || '';
-
-    const fbLeadData: FacebookLeadData = {
-      id: leadData.id,
-      created_time: leadData.created_time,
-      ad_id: leadData.ad_id,
-      ad_name: leadData.ad_name,
-      adset_id: leadData.adset_id,
-      adset_name: leadData.adset_name,
-      campaign_id: leadData.campaign_id,
-      campaign_name: leadData.campaign_name,
-      form_id: leadData.form_id,
-      form_name: leadData.form_name,
-      is_organic: leadData.is_organic,
-      platform: leadData.platform,
-      '¿cuenta_con_una_licitación_pública_o_privada_aprobada?': getFieldValue(
-        '¿cuenta_con_una_licitación_pública_o_privada_aprobada?'
-      ),
-      '¿ganó_el_proyecto_o_servicio_como_empresa_o_consorcio?': getFieldValue(
-        '¿ganó_el_proyecto_o_servicio_como_empresa_o_consorcio?'
-      ),
-      '¿por_cuál_medio_prefiere_que_nos_comuniquemos_con_usted?': getFieldValue(
-        '¿por_cuál_medio_prefiere_que_nos_comuniquemos_con_usted?'
-      ),
-      'solo_atendemos_fideicomisos_públicos,_¿deseas_recibir_información?': getFieldValue(
-        'solo_atendemos_fideicomisos_públicos,_¿deseas_recibir_información?'
-      ),
-      '¿cuenta_con_un_proceso_de_fideicomiso_ganado?': getFieldValue(
-        '¿cuenta_con_un_proceso_de_fideicomiso_ganado?'
-      ),
-      '¿qué_medio_prefiere_para_ponernos_en_contacto_con_usted?_': getFieldValue(
-        '¿qué_medio_prefiere_para_ponernos_en_contacto_con_usted?_'
-      ),
-      ruc: getFieldValue('ruc'),
-      nombre_y_apellidos: getFieldValue('nombre_y_apellidos'),
-      phone_number: getFieldValue('phone_number'),
-      correo_electrónico: getFieldValue('correo_electrónico'),
-      provincia: getFieldValue('provincia'),
-      lead_status: leadData.lead_status || 'complete',
-    };
-
-    // Mapear a Lead usando la función existente
-    const lead = mapFacebookLeadToLead(fbLeadData);
-
-    // Guardar el lead en la base de datos
-    await createLead(lead);
-    return leadData;
-  } catch (error) {
-    console.error('❌ Error obteniendo datos del lead:', error);
-    throw error;
-  }
-}
-
-// Función para verificar firma (seguridad)
-function verifySignature(signature: string, body: string, appSecret: string): boolean {
+function verifySignature(signature: string, body: string): boolean {
+  const appSecret = process.env.APP_SECRET;
+  if (!appSecret) return false;
   const expectedSignature =
     'sha256=' + crypto.createHmac('sha256', appSecret).update(body).digest('hex');
 
