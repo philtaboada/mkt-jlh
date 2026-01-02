@@ -6,9 +6,7 @@ import { findOrCreateByWhatsApp, updateLastInteraction } from '@/features/chat/a
 import { findOrCreate, updateLastMessage } from '@/features/chat/api/conversation.api';
 import { create } from '@/features/chat/api/message.api';
 import { getChannelsByType } from '@/features/chat/api/channels.api';
-import { processIncomingMessage, isAIEnabledForChannel } from '@/lib/services/ai';
-import { sendWhatsAppMessage } from '@/lib/services/whatsapp';
-import type { WebsiteWidgetConfig, WhatsAppConfig } from '@/features/chat/types/settings';
+import type { WhatsAppConfig } from '@/features/chat/types/settings';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -53,6 +51,7 @@ export async function POST(req: Request) {
 
         const mediaTypes = ['image', 'audio', 'video', 'document', 'sticker'];
         const hasMedia = mediaTypes.includes(msg.type);
+        let messageType: 'text' | 'image' | 'audio' | 'video' | 'file' = 'text';
 
         if (hasMedia) {
           const mediaId = msg[msg.type]?.id;
@@ -63,17 +62,24 @@ export async function POST(req: Request) {
           if (mediaId) {
             mediaInfo = await downloadAndUploadMedia(mediaId, msg.type);
           }
+
+          // Map WhatsApp media types to MessageType
+          if (msg.type === 'image') messageType = 'image';
+          else if (msg.type === 'audio') messageType = 'audio';
+          else if (msg.type === 'video') messageType = 'video';
+          else if (msg.type === 'document') messageType = 'file';
+          else if (msg.type === 'sticker') messageType = 'image';
         }
 
         const messageData = {
           body: text,
-          type: hasMedia ? msg.type : 'text',
+          type: messageType,
           sender_type: 'user' as const,
           sender_id: waId,
           media_url: mediaInfo?.url ?? undefined,
           media_mime: mediaInfo?.mime ?? undefined,
           media_size: mediaInfo?.size ?? undefined,
-          media_name: msg[msg.type]?.filename ?? mediaInfo?.name ?? undefined,
+          media_name: msg[msg.type]?.filename ?? undefined,
           metadata: {
             ...msg,
             hasMedia,
@@ -84,40 +90,6 @@ export async function POST(req: Request) {
         await create(conversation.id, messageData);
         await updateLastMessage(conversation.id);
         await updateLastInteraction(contact.id);
-
-        if (msg.type === 'text' && text && !hasMedia) {
-          try {
-            const whatsappChannels = await getChannelsByType('whatsapp');
-            const activeChannel = whatsappChannels.find((ch) => ch.status === 'active');
-
-            if (activeChannel) {
-              const channelConfig = activeChannel.config as WebsiteWidgetConfig;
-
-              if (isAIEnabledForChannel(channelConfig)) {
-                const result = await processIncomingMessage({
-                  conversationId: conversation.id,
-                  userMessage: text,
-                  channelConfig,
-                  contactName: name || undefined,
-                  channel: 'whatsapp',
-                  autoSaveReply: true,
-                });
-
-                if (result.shouldReply && result.reply) {
-                  const config = channelConfig as WhatsAppConfig;
-                  await sendWhatsAppMessage({
-                    to: waId,
-                    message: result.reply,
-                    accessToken: config.access_token || '',
-                    phoneNumberId: config.phone_number_id,
-                  });
-                }
-              }
-            }
-          } catch (aiError) {
-            // Silent fail for AI processing
-          }
-        }
       }
     }
 

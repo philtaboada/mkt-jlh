@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
             const message = messaging.message;
             let text = message.text || null;
             let mediaInfo = null;
+            let messageType: 'text' | 'image' | 'audio' | 'video' | 'file' = 'text';
 
             if (message.attachments && message.attachments.length > 0) {
               const attachment = message.attachments[0];
@@ -56,6 +57,12 @@ export async function POST(req: NextRequest) {
                 type: attachment.type,
                 mime: attachment.payload?.media?.image_type || null,
               };
+
+              // Map Facebook attachment types to MessageType
+              if (attachment.type === 'image') messageType = 'image';
+              else if (attachment.type === 'audio') messageType = 'audio';
+              else if (attachment.type === 'video') messageType = 'video';
+              else if (attachment.type === 'file') messageType = 'file';
             }
 
             // Create or get contact
@@ -64,8 +71,8 @@ export async function POST(req: NextRequest) {
 
             // Prepare message data
             const messageData = {
-              body: text || mediaInfo?.type || 'Media',
-              type: mediaInfo ? 'media' : 'text',
+              body: text || 'Media',
+              type: messageType,
               sender_type: 'user' as const,
               sender_id: senderId,
               media_url: mediaInfo?.url || undefined,
@@ -84,16 +91,17 @@ export async function POST(req: NextRequest) {
           }
 
           if (messaging.postback) {
-            // Handle postbacks if needed
+            // Handle postbacks - store as text type
             const contact = await findOrCreateByFacebook(senderId);
             const conversation = await findOrCreate(contact.id, 'facebook');
 
             const postbackData = {
               body: messaging.postback.title || JSON.stringify(messaging.postback.payload),
-              type: 'postback',
+              type: 'text' as const,
               sender_type: 'user' as const,
               sender_id: senderId,
               metadata: {
+                type: 'postback',
                 payload: messaging.postback.payload,
                 title: messaging.postback.title,
               },

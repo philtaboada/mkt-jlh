@@ -43,7 +43,7 @@ export async function POST(req: Request) {
         const senderId = messaging.sender.id;
         let text = null;
         let mediaInfo = null;
-        let mediaType = 'text';
+        let messageType: 'text' | 'image' | 'audio' | 'video' | 'file' = 'text';
 
         if (messaging.message?.text) {
           text = messaging.message.text;
@@ -56,7 +56,11 @@ export async function POST(req: Request) {
             type: attachment.type,
             mime: attachment.payload?.media?.image_type || null,
           };
-          mediaType = attachment.type;
+          // Map Instagram attachment types to MessageType
+          if (attachment.type === 'image') messageType = 'image';
+          else if (attachment.type === 'audio') messageType = 'audio';
+          else if (attachment.type === 'video') messageType = 'video';
+          else if (attachment.type === 'file') messageType = 'file';
         }
 
         if (messaging.message?.image) {
@@ -65,7 +69,7 @@ export async function POST(req: Request) {
             type: 'image',
             mime: 'image/jpeg',
           };
-          mediaType = 'image';
+          messageType = 'image';
         }
 
         if (messaging.message?.video) {
@@ -74,7 +78,7 @@ export async function POST(req: Request) {
             type: 'video',
             mime: 'video/mp4',
           };
-          mediaType = 'video';
+          messageType = 'video';
         }
 
         // Create or get contact
@@ -83,8 +87,8 @@ export async function POST(req: Request) {
 
         // Prepare message data
         const messageData = {
-          body: text || mediaInfo?.type || 'Media',
-          type: mediaType,
+          body: text || 'Media',
+          type: messageType,
           sender_type: 'user' as const,
           sender_id: senderId,
           media_url: mediaInfo?.url || undefined,
