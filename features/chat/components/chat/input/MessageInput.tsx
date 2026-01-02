@@ -5,7 +5,7 @@ import type React from 'react';
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Paperclip, Smile, Loader2, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Send, Paperclip, Smile, Loader2, Sparkles, Image as ImageIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
@@ -148,14 +148,17 @@ export function MessageInput({
   };
 
   return (
-    <div className="border-t border-border p-4">
+    <div className="border-t border-border bg-background/95 backdrop-blur-sm p-4">
       {/* File Previews */}
       {selectedFiles.length > 0 && (
-        <div className="flex flex-wrap gap-2 p-2 bg-muted/30 rounded-lg border mb-3">
+        <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-xl border border-dashed border-muted-foreground/20 mb-3 max-h-32 overflow-y-auto">
           {selectedFiles.map((file, index) => (
-            <div key={index} className="relative group">
+            <div
+              key={index}
+              className="relative group animate-in slide-in-from-bottom-2 duration-200"
+            >
               {file.type.startsWith('image/') ? (
-                <div className="relative w-16 h-16 rounded-lg overflow-hidden border">
+                <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow">
                   <img
                     src={URL.createObjectURL(file)}
                     alt={file.name}
@@ -163,20 +166,20 @@ export function MessageInput({
                   />
                   <button
                     onClick={() => removeFile(index)}
-                    className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
                   >
-                    ×
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               ) : (
-                <div className="relative flex items-center gap-2 p-2 bg-background rounded-lg border max-w-xs">
-                  <Paperclip className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm truncate">{file.name}</span>
+                <div className="relative flex items-center gap-2 p-2 bg-background rounded-lg border border-border shadow-sm hover:shadow-md transition-shadow max-w-xs">
+                  <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm truncate flex-1">{file.name}</span>
                   <button
                     onClick={() => removeFile(index)}
-                    className="ml-1 w-4 h-4 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs hover:bg-destructive/80"
+                    className="ml-1 w-4 h-4 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs hover:bg-destructive/80 hover:scale-110 transition-all shrink-0"
                   >
-                    ×
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               )}
@@ -187,47 +190,37 @@ export function MessageInput({
 
       <div
         className={cn(
-          'relative flex items-center gap-2 p-3 rounded-lg  transition-colors bg-transparent',
-          isDragging ? 'border-primary bg-primary/5' : 'border-border'
+          'relative flex items-end gap-3 p-3 rounded-2xl border-2 transition-all duration-200 bg-background shadow-sm',
+          isDragging
+            ? 'border-primary bg-primary/5 shadow-lg scale-[1.02]'
+            : 'border-border hover:border-muted-foreground/50 hover:shadow-md'
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground hover:text-primary w-8 h-8 shrink-0"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={disabled || isLoading}
-        >
-          <Paperclip className="w-4 h-4" />
-        </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          onChange={handleFileSelect}
-          disabled={disabled || isLoading}
-        />
-
-        <Textarea
-          ref={textareaRef}
-          placeholder="Escribe tu mensaje..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          className="flex-1 border-0 bg-transparent p-0 px-3 resize-none min-h-8 max-h-32 overflow-y-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-          disabled={disabled || isLoading}
-          rows={1}
-        />
-
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-primary w-8 h-8"
+            className="text-muted-foreground hover:text-primary hover:bg-primary/10 w-9 h-9 rounded-xl transition-all hover:scale-105"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled || isLoading}
+          >
+            <Paperclip className="w-4 h-4" />
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileSelect}
+            disabled={disabled || isLoading}
+          />
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-primary hover:bg-primary/10 w-9 h-9 rounded-xl transition-all hover:scale-105"
             onClick={() => imageInputRef.current?.click()}
             disabled={disabled || isLoading}
           >
@@ -241,19 +234,25 @@ export function MessageInput({
             onChange={handleImageSelect}
             disabled={disabled || isLoading}
           />
+        </div>
+
+        <Textarea
+          ref={textareaRef}
+          placeholder="Escribe tu mensaje..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          className="flex-1 border-0 bg-transparent p-0 px-1 resize-none min-h-8 max-h-32 overflow-y-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base placeholder:text-muted-foreground/70"
+          disabled={disabled || isLoading}
+          rows={1}
+        />
+
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-primary w-8 h-8"
-            onClick={() => handleTemplateInsert('Hello!')}
-            disabled={disabled || isLoading}
-          >
-            <Smile className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:text-amber-500 hover:bg-amber-50 w-8 h-8"
+            className="text-muted-foreground hover:text-amber-500 hover:bg-amber-50 w-9 h-9 rounded-xl transition-all hover:scale-105"
             onClick={onAIAssist}
             disabled={disabled || isLoading}
             title="Asistente IA"
@@ -263,7 +262,7 @@ export function MessageInput({
           <Button
             onClick={handleSendMessage}
             disabled={(!message.trim() && selectedFiles.length === 0) || disabled || isLoading}
-            className="bg-primary hover:bg-primary/90 w-8 h-8 rounded-full"
+            className="bg-primary hover:bg-primary/90 hover:scale-105 w-10 h-10 rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             size="icon"
           >
             {isLoading ? (
@@ -274,6 +273,15 @@ export function MessageInput({
           </Button>
         </div>
       </div>
+
+      {isDragging && (
+        <div className="absolute inset-0 bg-primary/10 rounded-2xl border-2 border-dashed border-primary flex items-center justify-center pointer-events-none">
+          <div className="text-center">
+            <ImageIcon className="w-8 h-8 text-primary mx-auto mb-2" />
+            <p className="text-sm font-medium text-primary">Suelta los archivos aquí</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
