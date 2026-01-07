@@ -1,9 +1,11 @@
 'use client';
 
-import type { Message, SenderType } from '../types/message';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { File, Music, Bot, User, Headphones } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
+import { useState } from 'react';
+import { Message, SenderType } from '@/features/chat/types';
 
 interface MessageRendererProps {
   message: Message;
@@ -11,6 +13,7 @@ interface MessageRendererProps {
   senderAvatar?: string;
   isAgent: boolean;
   senderType?: SenderType;
+  onFileDrop?: (files: File[]) => void;
 }
 
 export function MessageRenderer({
@@ -19,7 +22,10 @@ export function MessageRenderer({
   senderAvatar,
   isAgent,
   senderType = 'user',
+  onFileDrop,
 }: MessageRendererProps) {
+  const [isDragging, setIsDragging] = useState(false);
+
   // Icono según el tipo de sender
   const getSenderIcon = () => {
     switch (senderType) {
@@ -35,12 +41,30 @@ export function MessageRenderer({
   // Color de fondo diferente para bot
   const getBubbleStyle = () => {
     if (senderType === 'bot') {
-      return 'bg-violet-500 text-white rounded-br-none';
+      return 'bg-violet-500 text-white rounded-br-none shadow-lg';
     }
     if (isAgent) {
-      return 'bg-primary text-primary-foreground rounded-br-none';
+      return 'bg-primary text-primary-foreground rounded-br-none shadow-lg';
     }
-    return 'bg-muted text-foreground rounded-bl-none';
+    return 'bg-muted text-foreground rounded-bl-none shadow-lg';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0 && onFileDrop) {
+      onFileDrop(files);
+    }
   };
 
   return (
@@ -52,7 +76,16 @@ export function MessageRenderer({
         </Avatar>
       )}
 
-      <div className={cn('max-w-xs lg:max-w-md rounded-lg', getBubbleStyle())}>
+      <div
+        className={cn(
+          'max-w-xs lg:max-w-md rounded-lg transition-all duration-200',
+          getBubbleStyle(),
+          isDragging ? 'ring-2 ring-primary ring-opacity-50 scale-105' : ''
+        )}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         {/* Sender label for agent/bot */}
         {isAgent && (
           <div className="px-4 pt-2 flex items-center gap-1 text-xs opacity-80">
@@ -64,7 +97,13 @@ export function MessageRenderer({
         {/* Text Message */}
         {message.type === 'text' && message.body && (
           <div className="px-4 py-2">
-            <p className="text-sm">{message.body}</p>
+            {senderType === 'bot' ? (
+              <div className="prose prose-sm max-w-none text-white prose-headings:text-white prose-p:text-white prose-strong:text-white prose-code:text-violet-200">
+                <ReactMarkdown>{message.body}</ReactMarkdown>
+              </div>
+            ) : (
+              <p className="text-sm whitespace-pre-wrap">{message.body}</p>
+            )}
           </div>
         )}
 

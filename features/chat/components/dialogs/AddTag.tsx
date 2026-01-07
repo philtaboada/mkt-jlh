@@ -21,9 +21,10 @@ interface AddTagDialogProps {
 
 export function AddTagDialog({ contactId, currentTags, onTagAdded }: AddTagDialogProps) {
   const [open, setOpen] = useState(false);
-  const { data: allTags = [], isLoading } = useTags();
+  const { data: allTags = [], isLoading } = useTags(open);
   const addTagMutation = useAddTagToContact();
 
+  // Solo calcular availableTags cuando el dialog esté abierto
   const availableTags = allTags.filter((tag) => !currentTags.find((ct) => ct.tag_id === tag.id));
 
   const handleAddTag = (tagId: string) => {

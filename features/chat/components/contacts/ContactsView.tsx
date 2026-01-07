@@ -18,7 +18,7 @@ import { useContacts, useCreateContact } from '@/features/chat/hooks/useContacts
 import { ContactDetails } from '@/features/chat/components/ContactDetail';
 import { ContactCard } from './ContactCard';
 import { Contact } from '@/features/chat/types/contact';
-import { CreateContactDialog } from './CreateContactDialog';
+import { ContactFormDialog } from '@/features/chat/components/dialogs/ContactFormDialog';
 
 const statusColors: Record<string, { bg: string; text: string; label: string }> = {
   lead: { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Lead' },
@@ -53,14 +53,24 @@ export function ContactsView() {
 
   const handleCreateContact = (newContact: {
     name: string;
-    email: string;
-    phone: string;
+    email?: string;
+    phone?: string;
+    wa_id?: string;
+    fb_id?: string;
+    ig_id?: string;
     status: 'lead' | 'open' | 'customer' | 'closed';
     source: string;
+    avatar_url?: string;
+    custom_fields?: Record<string, any>;
   }) => {
-    if (!newContact.name.trim()) return;
+    if (!newContact.name?.trim()) return;
+    const contactToCreate = {
+      ...newContact,
+      email: newContact.email ?? '',
+      phone: newContact.phone ?? '',
+    };
 
-    createContactMutation.mutate(newContact, {
+    createContactMutation.mutate(contactToCreate, {
       onSuccess: () => {
         setIsCreateDialogOpen(false);
       },
@@ -124,7 +134,7 @@ export function ContactsView() {
                 onCreateClick={() => setIsCreateDialogOpen(true)}
               />
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="flex flex-col gap-3">
                 {filteredContacts.map((contact) => (
                   <ContactCard
                     key={contact.id}
@@ -151,7 +161,8 @@ export function ContactsView() {
       )}
 
       {/* Create Contact Dialog */}
-      <CreateContactDialog
+      <ContactFormDialog
+        mode="edit"
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         onSubmit={handleCreateContact}

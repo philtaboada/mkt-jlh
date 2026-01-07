@@ -9,6 +9,7 @@ import {
   Settings,
   Target,
   Handshake,
+  Bot,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -73,6 +74,12 @@ export const navItems: NavItem[] = [
     href: '/chat',
     icon: MessageSquare,
     description: 'Centro de mensajes',
+  },
+  {
+    name: 'Agentes',
+    href: '/agents',
+    icon: Bot,
+    description: 'Gestión de agentes',
   },
   {
     name: 'Analytics',

@@ -16,6 +16,7 @@ import {
   updateContactNote,
   deleteContactNote,
 } from '../api/contact.api';
+import { updateConversationContact } from '../api/conversation.api';
 import { Contact } from '../types/contact';
 
 export const useContacts = () => {
@@ -80,19 +81,19 @@ export const useDeleteContact = () => {
   });
 };
 
-export const useContactTags = (contactId: string) => {
+export const useContactTags = (contactId: string, enabled = true) => {
   return useQuery({
     queryKey: ['contact-tags', contactId],
     queryFn: () => getContactTags(contactId),
-    enabled: !!contactId,
+    enabled: !!contactId && enabled,
   });
 };
 
-export const useContactNotes = (contactId: string) => {
+export const useContactNotes = (contactId: string, enabled = true) => {
   return useQuery({
     queryKey: ['contact-notes', contactId],
     queryFn: () => getContactNotes(contactId),
-    enabled: !!contactId,
+    enabled: !!contactId && enabled,
   });
 };
 
@@ -204,6 +205,22 @@ export const useDeleteContactNote = () => {
     },
     onError: (error) => {
       toast.error('Error al eliminar nota: ' + error.message);
+    },
+  });
+};
+
+export const useUpdateConversationContact = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ conversationId, contactId }: { conversationId: string; contactId: string }) =>
+      updateConversationContact(conversationId, contactId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      toast.success('Conversación vinculada al contacto');
+    },
+    onError: (error) => {
+      toast.error('Error al vincular conversación: ' + error.message);
     },
   });
 };

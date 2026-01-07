@@ -33,6 +33,66 @@ export async function findOrCreateByWhatsApp(waId: string, name: string): Promis
   return newContact;
 }
 
+export async function findOrCreateByFacebook(fbId: string, name?: string): Promise<Contact> {
+  const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from('mkt_contacts')
+    .select('*')
+    .eq('fb_id', fbId)
+    .single();
+
+  if (existing) {
+    return existing;
+  }
+
+  const { data: newContact, error } = await supabase
+    .from('mkt_contacts')
+    .insert({
+      fb_id: fbId,
+      name: name || 'Contacto Facebook',
+      source: 'facebook',
+      status: 'lead',
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return newContact;
+}
+
+export async function findOrCreateByInstagram(igId: string, name?: string): Promise<Contact> {
+  const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from('mkt_contacts')
+    .select('*')
+    .eq('ig_id', igId)
+    .single();
+
+  if (existing) {
+    return existing;
+  }
+
+  const { data: newContact, error } = await supabase
+    .from('mkt_contacts')
+    .insert({
+      ig_id: igId,
+      name: name || 'Contacto Instagram',
+      source: 'instagram',
+      status: 'lead',
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return newContact;
+}
+
 export async function getContacts(): Promise<Contact[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -95,20 +155,26 @@ export async function findOrCreateByEmail(
 
 export async function createContact(contact: Partial<Contact>): Promise<Contact> {
   const supabase = await createClient();
+
+  // Build object with only non-empty values
+  const insertData: any = {
+    name: contact.name,
+    status: contact.status || 'lead',
+    custom_fields: contact.custom_fields || {},
+  };
+
+  // Only include optional fields if they have values
+  if (contact.email) insertData.email = contact.email;
+  if (contact.phone) insertData.phone = contact.phone;
+  if (contact.wa_id) insertData.wa_id = contact.wa_id;
+  if (contact.fb_id) insertData.fb_id = contact.fb_id;
+  if (contact.ig_id) insertData.ig_id = contact.ig_id;
+  if (contact.avatar_url) insertData.avatar_url = contact.avatar_url;
+  if (contact.source) insertData.source = contact.source;
+
   const { data, error } = await supabase
     .from('mkt_contacts')
-    .insert({
-      name: contact.name,
-      email: contact.email,
-      phone: contact.phone,
-      wa_id: contact.wa_id,
-      fb_id: contact.fb_id,
-      ig_id: contact.ig_id,
-      avatar_url: contact.avatar_url,
-      status: contact.status || 'lead',
-      source: contact.source,
-      custom_fields: contact.custom_fields || {},
-    })
+    .insert(insertData)
     .select('*')
     .single();
 
@@ -121,12 +187,22 @@ export async function createContact(contact: Partial<Contact>): Promise<Contact>
 
 export async function updateContact(id: string, updates: Partial<Contact>): Promise<Contact> {
   const supabase = await createClient();
+
+  // Build update object, removing empty string values
+  const updateData: any = {
+    updated_at: new Date().toISOString(),
+  };
+
+  // Only include fields that have non-empty values
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value !== '' && value !== null && value !== undefined) {
+      updateData[key] = value;
+    }
+  });
+
   const { data, error } = await supabase
     .from('mkt_contacts')
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq('id', id)
     .select('*')
     .single();

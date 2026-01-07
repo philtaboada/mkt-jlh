@@ -106,13 +106,7 @@ export async function getConversationById(id: string): Promise<Conversation> {
     .select(
       `
         *,
-        mkt_contacts (
-          id,
-          name,
-          wa_id,
-          last_interaction,
-          avatar_url
-        )
+        mkt_contacts (*)
       `
     )
     .eq('id', id)
@@ -128,6 +122,25 @@ export async function getConversationById(id: string): Promise<Conversation> {
 export async function updateLastMessage(id: string): Promise<void> {
   const supabase = await createClient();
   await supabase.from('mkt_conversations').update({ last_message_at: new Date() }).eq('id', id);
+}
+
+export async function updateConversationContact(
+  conversationId: string,
+  contactId: string
+): Promise<Conversation> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('mkt_conversations')
+    .update({ contact_id: contactId })
+    .eq('id', conversationId)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 }
 
 // ============================================================================
@@ -227,7 +240,7 @@ export async function createWidgetConversation(
       channel: 'website',
       contact_id: contactId,
       status: 'open',
-     // priority: 'medium',
+      // priority: 'medium',
       metadata: {
         visitor_id: params.visitorId,
         visitor_info: params.visitorInfo,
