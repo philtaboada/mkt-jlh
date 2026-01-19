@@ -15,6 +15,51 @@ export interface SendWhatsAppMessageResult {
   error?: string;
 }
 
+interface WhatsAppApiError {
+  message?: string;
+  type?: string;
+  code?: number;
+  error_subcode?: number;
+  fbtrace_id?: string;
+}
+
+interface WhatsAppApiResponse {
+  messages?: Array<{ id?: string }>;
+  error?: WhatsAppApiError;
+}
+
+interface WhatsAppTemplateComponentParameter {
+  type: string;
+  text?: string;
+}
+
+interface WhatsAppTemplateComponent {
+  type: string;
+  parameters: WhatsAppTemplateComponentParameter[];
+}
+
+interface WhatsAppTemplatePayload {
+  messaging_product: 'whatsapp';
+  to: string;
+  type: 'template';
+  template: {
+    name: string;
+    language: { code: string };
+    components?: WhatsAppTemplateComponent[];
+  };
+}
+
+function buildWhatsAppErrorMessage(params: { status: number; error?: WhatsAppApiError }): string {
+  const { status, error } = params;
+  if (!error?.message) {
+    return `Failed to send message (status ${status})`;
+  }
+  if (!error.code) {
+    return error.message;
+  }
+  return `(#${error.code}) ${error.message}`;
+}
+
 /**
  * Envía un mensaje de texto por WhatsApp
  */
@@ -34,7 +79,7 @@ export async function sendWhatsAppMessage(
       type: 'text',
       text: { body: message },
     };
-    const response = await fetch(apiUrl, {
+    const response: Response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -42,15 +87,17 @@ export async function sendWhatsAppMessage(
       },
       body: JSON.stringify(payload),
     });
-    const data = await response.json();
+    const data: WhatsAppApiResponse = await response.json();
     if (!response.ok) {
       console.error('WhatsApp API error:', {
         status: response.status,
         error: data.error,
+        to,
+        phoneNumberId,
       });
       return {
         success: false,
-        error: data.error?.message || `Failed to send message (status ${response.status})`,
+        error: buildWhatsAppErrorMessage({ status: response.status, error: data.error }),
       };
     }
     console.info('WhatsApp API success', {
@@ -85,16 +132,13 @@ export async function sendWhatsAppTemplate(params: {
   phoneNumberId: string;
 }): Promise<SendWhatsAppMessageResult> {
   const { to, templateName, languageCode = 'es', components, accessToken, phoneNumberId } = params;
-
   if (!accessToken || !phoneNumberId) {
     console.error('WhatsApp credentials not configured');
     return { success: false, error: 'WhatsApp not configured' };
   }
-
   const apiUrl = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
-
   try {
-    const payload: any = {
+    const payload: WhatsAppTemplatePayload = {
       messaging_product: 'whatsapp',
       to,
       type: 'template',
@@ -103,12 +147,10 @@ export async function sendWhatsAppTemplate(params: {
         language: { code: languageCode },
       },
     };
-
     if (components) {
       payload.template.components = components;
     }
-
-    const response = await fetch(apiUrl, {
+    const response: Response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -116,17 +158,20 @@ export async function sendWhatsAppTemplate(params: {
       },
       body: JSON.stringify(payload),
     });
-
-    const data = await response.json();
-
+    const data: WhatsAppApiResponse = await response.json();
     if (!response.ok) {
-      console.error('WhatsApp API error:', data);
+      console.error('WhatsApp API error:', {
+        status: response.status,
+        error: data.error,
+        to,
+        phoneNumberId,
+        templateName,
+      });
       return {
         success: false,
-        error: data.error?.message || 'Failed to send template',
+        error: buildWhatsAppErrorMessage({ status: response.status, error: data.error }),
       };
     }
-
     return {
       success: true,
       messageId: data.messages?.[0]?.id,
