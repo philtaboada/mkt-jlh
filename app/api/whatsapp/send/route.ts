@@ -29,6 +29,15 @@ interface WhatsAppSendRequest {
   template?: WhatsAppTemplateRequest;
 }
 
+interface WhatsAppEnvLog {
+  channelId: string;
+  channelStatus: string;
+  phoneNumberId: string;
+  businessAccountId: string;
+  hasAccessToken: boolean;
+  accessTokenLength: number;
+}
+
 function normalizePhoneNumber(params: { raw: string }): string {
   return params.raw.replace(/[^\d]/g, '');
 }
@@ -39,6 +48,19 @@ function isValidPhoneNumber(params: { value: string }): boolean {
     params.value.length >= MIN_PHONE_LENGTH &&
     params.value.length <= MAX_PHONE_LENGTH
   );
+}
+
+function logWhatsAppEnv(params: { config: WhatsAppConfig; channel: Channel }): void {
+  const accessToken: string | undefined = params.config.access_token;
+  const envLog: WhatsAppEnvLog = {
+    channelId: params.channel.id,
+    channelStatus: params.channel.status,
+    phoneNumberId: params.config.phone_number_id,
+    businessAccountId: params.config.business_account_id,
+    hasAccessToken: Boolean(accessToken),
+    accessTokenLength: accessToken ? accessToken.length : 0,
+  };
+  console.info('[whatsapp-send] env', envLog);
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -67,6 +89,7 @@ export async function POST(req: Request): Promise<Response> {
     const accessToken: string | undefined = config.access_token;
     const phoneNumberId: string = config.phone_number_id;
     const businessAccountId: string = config.business_account_id;
+    logWhatsAppEnv({ config, channel: activeChannel });
     if (!accessToken || !phoneNumberId || !businessAccountId) {
       return NextResponse.json({ error: 'WhatsApp configuration not complete' }, { status: 400 });
     }
