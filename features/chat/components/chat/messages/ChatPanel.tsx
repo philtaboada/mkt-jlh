@@ -38,6 +38,37 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         body: content,
       },
     });
+    if (conversation.channel === 'whatsapp') {
+      const recipient = contact.wa_id;
+      if (!recipient) {
+        console.warn('[whatsapp-send] missing wa_id for contact', {
+          conversationId: conversation.id,
+          contactId: contact.id,
+        });
+      } else {
+        console.info('[whatsapp-send] sending message', {
+          conversationId: conversation.id,
+          contactId: contact.id,
+          to: recipient,
+          messageLength: content.length,
+        });
+        try {
+          const response = await fetch('/api/whatsapp/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: recipient, message: content }),
+          });
+          const responseBody = await response.json();
+          if (!response.ok) {
+            console.error('[whatsapp-send] failed', { status: response.status, responseBody });
+          } else {
+            console.info('[whatsapp-send] delivered', { responseBody });
+          }
+        } catch (error) {
+          console.error('[whatsapp-send] request error', error);
+        }
+      }
+    }
     setTimeout(() => {
       if (scrollRef.current) {
         scrollRef.current.scrollIntoView({ behavior: 'smooth' });

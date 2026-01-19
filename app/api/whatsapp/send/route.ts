@@ -30,6 +30,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'WhatsApp configuration not complete' }, { status: 400 });
     }
 
+    console.info('[whatsapp-send] request', {
+      channelId: activeChannel.id,
+      to,
+      messageLength: message.length,
+    });
     const result = await sendWhatsAppMessage({
       to,
       message,
@@ -38,9 +43,11 @@ export async function POST(req: Request) {
     });
 
     if (!result.success) {
+      console.error('[whatsapp-send] failed', { error: result.error });
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
+    console.info('[whatsapp-send] success', { messageId: result.messageId });
     return NextResponse.json({ success: true, messageId: result.messageId });
   } catch (error) {
     console.error('WhatsApp send error:', error);

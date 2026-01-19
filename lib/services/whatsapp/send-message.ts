@@ -57,6 +57,10 @@ export async function sendWhatsAppMessage(
       };
     }
 
+    console.info('WhatsApp API success', {
+      to,
+      messageId: data.messages?.[0]?.id,
+    });
     return {
       success: true,
       messageId: data.messages?.[0]?.id,
