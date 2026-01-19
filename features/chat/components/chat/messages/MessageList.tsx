@@ -1,9 +1,10 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageRenderer } from '../renderer';
 import type { Contact } from '../../../types/contact';
+import { Bot } from 'lucide-react';
 
 interface MessageListProps {
   messages: any[];
@@ -63,16 +64,30 @@ export function MessageList({
           onDrop={handleDrop}
         >
           {/* Drag hint */}
-          <div className="text-center text-muted-foreground text-sm py-2">
-            Puedes arrastrar archivos aquí para compartirlos
-          </div>
+          {messages.length > 0 && (
+            <div className="text-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-[10px] font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full uppercase tracking-widest">
+                Arrastra archivos para compartir
+              </span>
+            </div>
+          )}
+
           {isLoading ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <p>Cargando mensajes...</p>
+            <div className="flex flex-col items-center justify-center min-h-[400px] text-muted-foreground animate-in fade-in duration-500">
+              <div className="w-10 h-10 border-2 border-primary/20 border-t-primary rounded-full animate-spin mb-4" />
+              <p className="text-sm font-medium">Cargando mensajes...</p>
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <p>No hay mensajes aún</p>
+            <div className="flex flex-col items-center justify-center min-h-[400px] text-muted-foreground animate-in fade-in zoom-in-95 duration-500">
+              <div className="w-16 h-16 bg-muted/50 rounded-3xl flex items-center justify-center mb-4 shadow-inner">
+                <Bot className="w-8 h-8 opacity-20" />
+              </div>
+              <p className="text-sm font-semibold text-foreground/70">
+                No hay mensajes aún
+              </p>
+              <p className="text-xs opacity-60 mt-1">
+                Envía un mensaje para iniciar la conversación
+              </p>
             </div>
           ) : (
             messages.map((msg) => {

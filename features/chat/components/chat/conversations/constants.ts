@@ -1,13 +1,14 @@
-import { MessageCircle, Clock, CheckCheck, AlertCircle } from 'lucide-react';
+import { MessageCircle, Clock, CheckCheck, AlertCircle, MessageSquare, Users, Instagram, Globe, Mail, Link } from 'lucide-react';
 
 // Iconos por tipo de canal
-export const channelTypeIcons: Record<string, { icon: string; bgColor: string }> = {
-  whatsapp: { icon: '📱', bgColor: 'bg-emerald-500' },
-  facebook: { icon: '👥', bgColor: 'bg-blue-500' },
-  instagram: { icon: '📷', bgColor: 'bg-gradient-to-br from-purple-500 to-pink-500' },
-  website: { icon: '🌐', bgColor: 'bg-sky-500' },
-  web: { icon: '🌐', bgColor: 'bg-gray-500' },
-  email: { icon: '✉️', bgColor: 'bg-amber-500' },
+export const channelTypeIcons: Record<string, { icon: React.ElementType; bgColor: string }> = {
+  whatsapp: { icon: MessageSquare, bgColor: 'bg-emerald-500' },
+  facebook: { icon: Users, bgColor: 'bg-blue-600' },
+  instagram: { icon: Instagram, bgColor: 'bg-gradient-to-br from-purple-500 to-pink-500' },
+  website: { icon: Globe, bgColor: 'bg-sky-500' },
+  web: { icon: Globe, bgColor: 'bg-sky-500' },
+  email: { icon: Mail, bgColor: 'bg-amber-500' },
+  link: { icon: Link, bgColor: 'bg-gray-500' },
 };
 
 export const statusConfig: Record<

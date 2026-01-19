@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle } from 'lucide-react';
 import { useConversations } from '../../../hooks/useConversations';
@@ -157,23 +158,43 @@ export function ConversationsList({
 
       {/* Conversations List */}
       <ScrollArea className="flex-1">
-        <div className="divide-y divide-border">
+        <div className="flex flex-col">
           {isLoading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin w-6 h-6 border-2 border-muted-foreground/30 border-t-primary rounded-full mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">Cargando conversaciones...</p>
+            <div className="p-12 text-center animate-in fade-in duration-500">
+              <div className="relative w-12 h-12 mx-auto mb-4">
+                <div className="absolute inset-0 border-2 border-primary/20 rounded-full" />
+                <div className="absolute inset-0 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Cargando conversaciones...
+              </p>
             </div>
           ) : filteredConversations.length === 0 ? (
-            <div className="p-8 text-center">
-              <div className="w-12 h-12 bg-muted rounded-full mx-auto mb-3 flex items-center justify-center">
-                <MessageCircle className="w-6 h-6 text-muted-foreground" />
+            <div className="p-12 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="w-16 h-16 bg-muted/50 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-inner">
+                <MessageCircle className="w-8 h-8 text-muted-foreground/50" />
               </div>
-              <p className="text-sm text-muted-foreground">No hay conversaciones</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <h4 className="text-sm font-semibold text-foreground mb-1">
+                No hay chats
+              </h4>
+              <p className="text-xs text-muted-foreground px-4">
                 {filter !== 'all' || channelFilter !== 'all'
-                  ? 'Prueba cambiando los filtros'
-                  : 'Las conversaciones aparecerán aquí'}
+                  ? 'Prueba ajustando los filtros de búsqueda'
+                  : 'Tus conversaciones de todos los canales aparecerán aquí'}
               </p>
+              {(filter !== 'all' || channelFilter !== 'all') && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={() => {
+                    setFilter('all');
+                    setChannelFilter('all');
+                  }}
+                  className="mt-2 text-xs h-auto p-0"
+                >
+                  Restablecer filtros
+                </Button>
+              )}
             </div>
           ) : (
             filteredConversations.map((conv: any) => (

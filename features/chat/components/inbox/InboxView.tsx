@@ -27,7 +27,15 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
 
   const resolvedConversationId: string | null =
     selectedConversationId ?? searchParams.get('conversation') ?? initialConversationId ?? null;
-  const { data: selectedConversation } = useConversation(resolvedConversationId || '');
+  const isConversationIdValid = Boolean(
+    resolvedConversationId &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        resolvedConversationId
+      )
+  );
+  const safeConversationId: string =
+    isConversationIdValid && resolvedConversationId ? resolvedConversationId : '';
+  const { data: selectedConversation } = useConversation(safeConversationId);
   const selectedContactId: string =
     selectedConversation?.mkt_contacts?.id || selectedConversation?.contact_id || '';
   const { data: selectedContact } = useContact(selectedContactId);
@@ -57,6 +65,9 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
       return () => clearTimeout(timer);
     }
   }, [resolvedConversationId, selectedConversation?.unread_count, markAsReadMutation]);
+  useEffect(() => {
+    setShowContactPanel(false);
+  }, [resolvedConversationId]);
 
   // Create contact object from conversation data
   const contact: Contact | undefined = selectedConversation
@@ -118,7 +129,10 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
       {/* Main Chat Area */}
       <div className="flex-1 flex overflow-hidden">
         {selectedConversation && contact && conversation ? (
-          <>
+          <div
+            key={resolvedConversationId || 'conversation-empty'}
+            className="flex w-full overflow-hidden"
+          >
             {/* Chat Panel */}
             <div className="flex-1 flex flex-col overflow-hidden bg-card">
               {/* Toggle Contact Panel Button */}
@@ -155,7 +169,7 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
                 />
               )}
             </div>
-          </>
+          </div>
         ) : (
           <InboxEmptyState />
         )}
@@ -166,18 +180,21 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
 
 function InboxEmptyState() {
   return (
-    <div className="flex-1 flex items-center justify-center bg-card">
-      <div className="text-center max-w-md px-8">
-        <div className="w-20 h-20 bg-primary/10 rounded-2xl mx-auto mb-6 flex items-center justify-center">
-          <Inbox className="w-10 h-10 text-primary" />
+    <div className="flex-1 flex items-center justify-center bg-muted/30 backdrop-blur-sm">
+      <div className="text-center max-w-md px-12 py-16 bg-background rounded-3xl shadow-xl border border-border/50 animate-in zoom-in-95 duration-500">
+        <div className="w-24 h-24 bg-primary/10 rounded-3xl mx-auto mb-8 flex items-center justify-center shadow-inner">
+          <Inbox className="w-12 h-12 text-primary animate-bounce-slow" />
         </div>
-        <h3 className="text-xl font-semibold text-foreground mb-2">Bandeja de entrada</h3>
-        <p className="text-muted-foreground mb-6">
-          Selecciona una conversación del panel lateral para comenzar a responder mensajes
+        <h3 className="text-2xl font-bold text-foreground mb-3 tracking-tight">
+          Bandeja de entrada
+        </h3>
+        <p className="text-muted-foreground mb-8 leading-relaxed">
+          Selecciona una conversación del panel lateral para comenzar a
+          gestionar tus mensajes en tiempo real.
         </p>
-        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <MessageCircle className="w-4 h-4" />
-          <span>Todas las conversaciones en un solo lugar</span>
+        <div className="inline-flex items-center justify-center gap-2.5 px-4 py-2 bg-muted rounded-full text-xs font-bold text-muted-foreground uppercase tracking-widest shadow-sm">
+          <MessageCircle className="w-4 h-4 text-primary" />
+          <span>Omnicanalidad activa</span>
         </div>
       </div>
     </div>

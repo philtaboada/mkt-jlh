@@ -7,7 +7,17 @@ import type { Contact, Conversation } from '../../../types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MoreVertical, User, Clock } from 'lucide-react';
+import {
+  MoreVertical,
+  User,
+  Clock,
+  MessageSquare,
+  Users,
+  Instagram,
+  Globe,
+  Mail,
+  Link,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ContactDetails } from '@/features/chat/components/ContactDetail';
 
@@ -16,12 +26,13 @@ interface ChatHeaderProps {
   conversation: Conversation;
 }
 
-const channelIcons: Record<string, React.ReactNode> = {
-  whatsapp: '📱',
-  facebook: '👥',
-  instagram: '📷',
-  web: '🌐',
-  website: '🌐',
+const channelIcons: Record<string, React.ElementType> = {
+  whatsapp: MessageSquare,
+  facebook: Users,
+  instagram: Instagram,
+  web: Globe,
+  website: Globe,
+  email: Mail,
 };
 
 const channelLabels: Record<string, string> = {
@@ -30,19 +41,21 @@ const channelLabels: Record<string, string> = {
   instagram: 'Instagram',
   web: 'Web',
   website: 'Website',
+  email: 'Email',
 };
 
 const channelColors: Record<string, string> = {
-  whatsapp: 'bg-green-500',
+  whatsapp: 'bg-emerald-500',
   facebook: 'bg-blue-600',
-  instagram: 'bg-pink-500',
-  web: 'bg-purple-500',
-  website: 'bg-purple-500',
+  instagram: 'bg-gradient-to-br from-purple-500 to-pink-500',
+  web: 'bg-sky-500',
+  website: 'bg-sky-500',
+  email: 'bg-amber-500',
 };
 
 export function ChatHeader({ contact, conversation }: ChatHeaderProps) {
   const [isContactDetailOpen, setIsContactDetailOpen] = useState(false);
-  const channelIcon = channelIcons[conversation.channel] || '•';
+  const IconComponent = channelIcons[conversation.channel] || MessageSquare;
   const channelLabel = channelLabels[conversation.channel] || conversation.channel;
   const channelColor = channelColors[conversation.channel] || 'bg-gray-500';
 
@@ -78,11 +91,11 @@ export function ChatHeader({ contact, conversation }: ChatHeaderProps) {
               {/* Channel Badge */}
               <div
                 className={cn(
-                  'absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-background text-white text-[10px] flex items-center justify-center font-bold shadow-sm',
+                  'absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-background text-white flex items-center justify-center shadow-sm',
                   channelColor
                 )}
               >
-                {channelIcon}
+                <IconComponent className="w-2.5 h-2.5" />
               </div>
             </div>
 
