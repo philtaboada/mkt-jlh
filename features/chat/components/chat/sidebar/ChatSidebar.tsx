@@ -7,12 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   Inbox,
   AtSign,
-  Bot,
   Settings,
-  BarChart3,
-  Clock,
-  Star,
-  Archive,
   Zap,
   Tag,
   UserCircle,
@@ -103,14 +98,14 @@ export function ChatSidebar() {
         </div>
 
         {/* Divider */}
-        <div className="w-12 h-px bg-border mb-6" />
+        {/* <div className="w-12 h-px bg-border mb-6" /> */}
 
         {/* Tools Navigation */}
-        <div className="flex flex-col gap-1 flex-1">
+        {/* <div className="flex flex-col gap-1 flex-1">
           {toolsNav.map((item) => (
             <NavButton key={item.href} item={item} isActive={isActive(item.href)} badgeCount={0} />
           ))}
-        </div>
+        </div>}
 
         {/* Settings at bottom */}
         <div className="flex flex-col gap-1 mt-auto">

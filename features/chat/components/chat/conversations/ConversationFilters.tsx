@@ -7,13 +7,20 @@ import { channelTypeIcons } from './constants';
 import { Dispatch, SetStateAction } from 'react';
 
 type FilterType = 'all' | 'open' | 'pending' | 'resolved' | 'snoozed';
+type ChannelFilter = 'all' | string;
+
+interface ActiveChannel {
+  id: string;
+  name: string;
+  type: string;
+}
 
 interface ConversationFiltersProps {
-  activeChannels: any[];
-  channelFilter: string | null;
-  setChannelFilter: (filter: string | null) => void;
+  activeChannels: ActiveChannel[];
+  channelFilter: ChannelFilter;
+  setChannelFilter: (filter: ChannelFilter) => void;
   channelStats: Record<string, number>;
-  filter: string;
+  filter: FilterType;
   setFilter: Dispatch<SetStateAction<FilterType>>;
   conversationCounts: Record<string, number>;
 }
@@ -27,19 +34,41 @@ export function ConversationFilters({
   setFilter,
   conversationCounts,
 }: ConversationFiltersProps) {
+  const selectedChannelLabel = (() => {
+    if (channelFilter === 'all') {
+      return 'Todos los canales';
+    }
+    const selectedChannel = activeChannels.find((channel) => channel.id === channelFilter);
+    return selectedChannel?.name || 'Canal';
+  })();
+
+  const selectedStatusLabel = (() => {
+    if (filter === 'all') {
+      return 'Todos los estados';
+    }
+    if (filter === 'open') {
+      return '🟢 Abiertos';
+    }
+    if (filter === 'pending') {
+      return '🟡 Pendientes';
+    }
+    if (filter === 'resolved') {
+      return '⚪ Resueltos';
+    }
+    return '⏸️ Pospuestos';
+  })();
+
   return (
     <>
       {/* Channel Filter Tabs */}
       <div className="px-3 py-2 border-b border-border">
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin pb-1">
-          {activeChannels.map((channel: any, index: number) => {
+          {activeChannels.map((channel: ActiveChannel) => {
             const typeConfig = channelTypeIcons[channel.type] || {
               icon: '🔗',
               bgColor: 'bg-gray-500',
             };
-            // El primer canal está seleccionado por defecto si channelFilter es null
-            const isSelected =
-              channelFilter === channel.id || (channelFilter === null && index === 0);
+            const isSelected = channelFilter === channel.id;
             return (
               <Button
                 key={channel.id}
@@ -75,6 +104,15 @@ export function ConversationFilters({
             </Badge>
           </Button>
         </div>
+      </div>
+
+      <div className="px-3 py-2 border-b border-border bg-muted/30 text-[11px] text-muted-foreground flex items-center gap-2">
+        <Badge variant="secondary" className="h-5 px-2 text-[10px]">
+          Canal: {selectedChannelLabel}
+        </Badge>
+        <Badge variant="secondary" className="h-5 px-2 text-[10px]">
+          Estado: {selectedStatusLabel}
+        </Badge>
       </div>
 
       {/* Status Filter Tabs */}

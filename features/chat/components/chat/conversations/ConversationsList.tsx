@@ -11,6 +11,7 @@ import { ConversationItem } from './ConversationItem';
 
 type FilterType = 'all' | 'open' | 'pending' | 'resolved' | 'snoozed';
 type SortType = 'newest' | 'oldest' | 'unread_first';
+type ChannelFilter = 'all' | string;
 
 interface ConversationsListProps {
   onSelectConversation: (conversationId: string) => void;
@@ -26,7 +27,7 @@ export function ConversationsList({
   onSearchChange,
 }: ConversationsListProps) {
   const [filter, setFilter] = useState<FilterType>('all');
-  const [channelFilter, setChannelFilter] = useState<string | null>(null); // null = primer canal activo
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
   const [sortBy, setSortBy] = useState<SortType>('newest');
 
   const { data: conversationsResult, isLoading } = useConversations();
@@ -43,16 +44,30 @@ export function ConversationsList({
   }, [activeChannels]);
 
   // Obtener conteo por canal (usando channel_id de las conversaciones)
+  const conversationsByStatus = useMemo(() => {
+    if (filter === 'all') {
+      return conversations;
+    }
+    return conversations.filter((conv: any) => conv.status === filter);
+  }, [conversations, filter]);
+
   const channelStats = useMemo(() => {
-    const stats: Record<string, number> = { all: conversations.length };
-    conversations.forEach((conv: any) => {
+    const stats: Record<string, number> = { all: conversationsByStatus.length };
+    conversationsByStatus.forEach((conv: any) => {
       const channelId = conv.channel_id;
       if (channelId) {
         stats[channelId] = (stats[channelId] || 0) + 1;
       }
     });
     return stats;
-  }, [conversations]);
+  }, [conversationsByStatus]);
+
+  const conversationsByChannel = useMemo(() => {
+    if (channelFilter === 'all') {
+      return conversations;
+    }
+    return conversations.filter((conv: any) => conv.channel_id === channelFilter);
+  }, [conversations, channelFilter]);
 
   const filteredConversations = useMemo(() => {
     let filtered = conversations.filter((conv: any) => {
@@ -73,12 +88,8 @@ export function ConversationsList({
       filtered = filtered.filter((conv: any) => conv.status === filter);
     }
 
-    // Si channelFilter es null, usar el primer canal activo
-    const effectiveChannelFilter =
-      channelFilter === null && activeChannels.length > 0 ? activeChannels[0].id : channelFilter;
-
-    if (effectiveChannelFilter && effectiveChannelFilter !== 'all') {
-      filtered = filtered.filter((conv: any) => conv.channel_id === effectiveChannelFilter);
+    if (channelFilter !== 'all') {
+      filtered = filtered.filter((conv: any) => conv.channel_id === channelFilter);
     }
 
     // Apply sorting
@@ -103,14 +114,15 @@ export function ConversationsList({
   }, [searchQuery, conversations, filter, channelFilter, sortBy, activeChannels]);
   const conversationCounts = useMemo(() => {
     return {
-      all: conversations.length,
-      open: conversations.filter((c: any) => c.status === 'open').length,
-      pending: conversations.filter((c: any) => c.status === 'pending').length,
-      resolved: conversations.filter((c: any) => c.status === 'resolved' || c.status === 'closed')
-        .length,
-      snoozed: conversations.filter((c: any) => c.status === 'snoozed').length,
+      all: conversationsByChannel.length,
+      open: conversationsByChannel.filter((c: any) => c.status === 'open').length,
+      pending: conversationsByChannel.filter((c: any) => c.status === 'pending').length,
+      resolved: conversationsByChannel.filter(
+        (c: any) => c.status === 'resolved' || c.status === 'closed'
+      ).length,
+      snoozed: conversationsByChannel.filter((c: any) => c.status === 'snoozed').length,
     };
-  }, [conversations]);
+  }, [conversationsByChannel]);
 
   const totalUnread = useMemo(() => {
     return conversations.reduce((acc: number, c: any) => acc + (c.unread_count || 0), 0);

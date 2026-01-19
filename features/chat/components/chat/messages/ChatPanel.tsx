@@ -22,33 +22,27 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
   const { data: messages = [], isLoading } = useMessages(conversation.id || '');
   const createMessageMutation = useCreateMessage();
 
-  const handleFileDrop = (files: File[]) => {
+  const handleFileDrop = (files: File[]): void => {
     setDroppedFiles((prev) => [...prev, ...files]);
   };
 
-  const handleSendMessage = (content: string) => {
+  const handleSendMessage = async (content: string): Promise<void> => {
     if (!content.trim() || !conversation.id) return;
 
-    createMessageMutation.mutate(
-      {
-        conversationId: conversation.id,
-        data: {
-          sender_type: 'agent' as const,
-          sender_id: 'agent-current',
-          type: 'text' as const,
-          body: content,
-        },
+    await createMessageMutation.mutateAsync({
+      conversationId: conversation.id,
+      data: {
+        sender_type: 'agent' as const,
+        sender_id: 'agent-current',
+        type: 'text' as const,
+        body: content,
       },
-      {
-        onSuccess: () => {
-          setTimeout(() => {
-            if (scrollRef.current) {
-              scrollRef.current.scrollIntoView({ behavior: 'smooth' });
-            }
-          }, 100);
-        },
+    });
+    setTimeout(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollIntoView({ behavior: 'smooth' });
       }
-    );
+    }, 100);
   };
 
   return (

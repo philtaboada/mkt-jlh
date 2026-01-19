@@ -9,7 +9,7 @@ import { Send, Paperclip, Smile, Loader2, Sparkles, Image as ImageIcon, X } from
 import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string) => Promise<void>;
   onAttachFile?: (file: File) => void;
   onAttachImage?: (file: File) => void;
   onAIAssist?: () => void;
@@ -62,14 +62,16 @@ export function MessageInput({
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (): Promise<void> => {
     if ((!message.trim() && selectedFiles.length === 0) || disabled || isLoading) return;
 
     setIsLoading(true);
     try {
-      onSendMessage(message.trim());
+      await onSendMessage(message.trim());
       setMessage('');
       setSelectedFiles([]); // Limpiar archivos después de enviar
+    } catch {
+      // El toast se maneja en la mutación
     } finally {
       setIsLoading(false);
     }
