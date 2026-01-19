@@ -22,14 +22,11 @@ export async function sendWhatsAppMessage(
   params: SendWhatsAppMessageParams
 ): Promise<SendWhatsAppMessageResult> {
   const { to, message, accessToken, phoneNumberId } = params;
-
   if (!accessToken || !phoneNumberId) {
     console.error('WhatsApp credentials not provided');
     return { success: false, error: 'WhatsApp not configured' };
   }
-
   const apiUrl = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
-
   try {
     const payload = {
       messaging_product: 'whatsapp',
@@ -37,7 +34,6 @@ export async function sendWhatsAppMessage(
       type: 'text',
       text: { body: message },
     };
-
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -46,17 +42,17 @@ export async function sendWhatsAppMessage(
       },
       body: JSON.stringify(payload),
     });
-
     const data = await response.json();
-
     if (!response.ok) {
-      console.error('WhatsApp API error:', data);
+      console.error('WhatsApp API error:', {
+        status: response.status,
+        error: data.error,
+      });
       return {
         success: false,
-        error: data.error?.message || 'Failed to send message',
+        error: data.error?.message || `Failed to send message (status ${response.status})`,
       };
     }
-
     console.info('WhatsApp API success', {
       to,
       messageId: data.messages?.[0]?.id,
