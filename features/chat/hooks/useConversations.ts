@@ -9,6 +9,7 @@ import {
   getConversationCounts,
 } from '../api/conversation.api';
 import { createClient } from '@/lib/supabase/client';
+import type { Conversation } from '../types/conversation';
 
 export const useConversations = (pageIndex = 0, pageSize = 10) => {
   const queryClient = useQueryClient();
@@ -56,9 +57,7 @@ export const useConversation = (id: string) => {
   // Suscripción específica para esta conversación
   useEffect(() => {
     if (!isValidUUID) return;
-
     const supabase = createClient();
-
     const channel = supabase
       .channel(`conversation:${id}`)
       .on(
@@ -70,11 +69,18 @@ export const useConversation = (id: string) => {
           filter: `id=eq.${id}`,
         },
         (payload) => {
-          queryClient.setQueryData(['conversation', id], payload.new);
+          queryClient.setQueryData(['conversation', id], (existing?: Conversation) => {
+            const updated: Conversation = payload.new as Conversation;
+            if (!existing) return updated;
+            return {
+              ...existing,
+              ...updated,
+              mkt_contacts: existing.mkt_contacts,
+            };
+          });
         }
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
