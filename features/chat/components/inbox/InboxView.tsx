@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useConversation } from '@/features/chat/hooks/useConversations';
+import { useContact } from '@/features/chat/hooks/useContacts';
 import { useMarkMessagesAsRead } from '@/features/chat/hooks/useMessages';
 import { ChatPanel } from '@/features/chat/components/chat/messages';
 import { ConversationsList } from '@/features/chat/components/chat/conversations';
@@ -24,16 +25,13 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showContactPanel, setShowContactPanel] = useState(false);
 
-  const { data: selectedConversation } = useConversation(selectedConversationId || '');
+  const resolvedConversationId: string | null =
+    selectedConversationId ?? searchParams.get('conversation') ?? initialConversationId ?? null;
+  const { data: selectedConversation } = useConversation(resolvedConversationId || '');
+  const selectedContactId: string =
+    selectedConversation?.mkt_contacts?.id || selectedConversation?.contact_id || '';
+  const { data: selectedContact } = useContact(selectedContactId);
   const markAsReadMutation = useMarkMessagesAsRead();
-
-  // Load selected conversation from URL or initial prop
-  useEffect(() => {
-    const conversationId = searchParams.get('conversation') || initialConversationId;
-    if (conversationId) {
-      setSelectedConversationId(conversationId);
-    }
-  }, [searchParams, initialConversationId]);
 
   // Marcar mensajes como leídos cuando se selecciona una conversación
   const handleSelectConversation = useCallback(
@@ -48,17 +46,17 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
   // Efecto para marcar como leído después de seleccionar la conversación
   useEffect(() => {
     if (
-      selectedConversationId &&
+      resolvedConversationId &&
       selectedConversation?.unread_count &&
       selectedConversation.unread_count > 0
     ) {
       // Pequeño delay para asegurar que el usuario realmente está viendo la conversación
       const timer = setTimeout(() => {
-        markAsReadMutation.mutate(selectedConversationId);
+        markAsReadMutation.mutate(resolvedConversationId);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [selectedConversationId, selectedConversation?.unread_count]);
+  }, [resolvedConversationId, selectedConversation?.unread_count, markAsReadMutation]);
 
   // Create contact object from conversation data
   const contact: Contact | undefined = selectedConversation
@@ -71,12 +69,17 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
         const normalizedMetadataName =
           typeof metadataName === 'string' && metadataName.trim() !== '' ? metadataName : undefined;
 
-        // Use full mkt_contacts object if it exists
-        if (selectedConversation.mkt_contacts?.id) {
+        // Use full contact object if it exists
+        const resolvedContact = selectedConversation.mkt_contacts?.id
+          ? selectedConversation.mkt_contacts
+          : selectedContact?.id
+            ? selectedContact
+            : undefined;
+        if (resolvedContact) {
           return {
-            ...selectedConversation.mkt_contacts,
-            name: normalizedMktName ?? selectedConversation.mkt_contacts.name ?? 'Sin nombre',
-            source: selectedConversation.mkt_contacts.source || selectedConversation.channel,
+            ...resolvedContact,
+            name: normalizedMktName ?? resolvedContact.name ?? 'Sin nombre',
+            source: resolvedContact.source || selectedConversation.channel,
           } as Contact;
         }
 
@@ -107,7 +110,7 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
       {/* Conversations Sidebar */}
       <ConversationsList
         onSelectConversation={handleSelectConversation}
-        selectedConversationId={selectedConversationId}
+        selectedConversationId={resolvedConversationId}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
       />
@@ -146,7 +149,7 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
               {showContactPanel && (
                 <ContactDetails
                   contact={contact}
-                  conversationId={selectedConversationId || undefined}
+                  conversationId={resolvedConversationId || undefined}
                   onContactUpdated={() => {}}
                   onClose={() => setShowContactPanel(false)}
                 />
