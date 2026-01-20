@@ -31,12 +31,63 @@ export async function POST(req: Request) {
     const rawBody = await req.clone().text();
     const signature = req.headers.get('X-Hub-Signature-256');
 
+    console.info('[whatsapp-webhook] incoming request', {
+      hasSignature: Boolean(signature),
+      bodyLength: rawBody.length,
+    });
+
     if (signature && !verifySignature(signature, rawBody)) {
+      console.warn('[whatsapp-webhook] invalid signature');
       return new Response('Invalid signature', { status: 403 });
     }
 
     const body = JSON.parse(rawBody);
     const value = body.entry?.[0]?.changes?.[0]?.value;
+
+    // Log detallado del mensaje para debugging
+    if (value?.messages?.length > 0) {
+      const firstMsg = value.messages[0];
+      console.info('[whatsapp-webhook] message received', {
+        type: firstMsg.type,
+        from: firstMsg.from,
+        hasText: Boolean(firstMsg.text),
+        hasImage: Boolean(firstMsg.image),
+        hasAudio: Boolean(firstMsg.audio),
+        hasVideo: Boolean(firstMsg.video),
+        hasDocument: Boolean(firstMsg.document),
+        hasSticker: Boolean(firstMsg.sticker),
+        imageId: firstMsg.image?.id,
+        audioId: firstMsg.audio?.id,
+        rawMessage: JSON.stringify(firstMsg).substring(0, 500),
+      });
+    }
+
+    const statuses = value?.statuses as
+      | Array<{
+          id?: string;
+          status?: string;
+          recipient_id?: string;
+          timestamp?: string;
+          errors?: Array<{
+            code?: number;
+            title?: string;
+            message?: string;
+            error_data?: { details?: string };
+          }>;
+        }>
+      | undefined;
+
+    if (statuses && statuses.length > 0) {
+      for (const status of statuses) {
+        console.info('[whatsapp-webhook] status update', {
+          id: status.id,
+          status: status.status,
+          recipientId: status.recipient_id,
+          timestamp: status.timestamp,
+          errors: status.errors,
+        });
+      }
+    }
 
     if (value?.messages?.length > 0) {
       for (const msg of value.messages) {
@@ -57,10 +108,29 @@ export async function POST(req: Request) {
           const mediaId = msg[msg.type]?.id;
           const caption = msg[msg.type]?.caption;
 
+          console.info('[whatsapp-webhook] incoming media', {
+            waId,
+            messageType: msg.type,
+            mediaId,
+            hasCaption: Boolean(caption),
+          });
+
           if (caption) text = caption;
 
           if (mediaId) {
-            mediaInfo = await downloadAndUploadMedia(mediaId, msg.type);
+            try {
+              // Pasar el tipo de canal 'whatsapp' en lugar del tipo de media
+              mediaInfo = await downloadAndUploadMedia(mediaId, msg.type, 'whatsapp');
+            } catch (mediaError) {
+              console.error('[whatsapp-webhook] media download/upload error', {
+                waId,
+                mediaId,
+                mediaType: msg.type,
+                error: mediaError instanceof Error ? mediaError.message : String(mediaError),
+              });
+              // Continuamos, pero el mensaje no tendrá URL de media
+              text = `[Media Error: ${msg.type}] ${text || ''}`;
+            }
           }
 
           // Map WhatsApp media types to MessageType
@@ -95,6 +165,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ status: 'ok' });
   } catch (err) {
+    console.error('[whatsapp-webhook] CRITICAL ERROR', {
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     return new Response('Internal Server Error', { status: 500 });
   }
 }

@@ -9,7 +9,7 @@ import { Send, Paperclip, Smile, Loader2, Sparkles, Image as ImageIcon, X } from
 import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
-  onSendMessage: (content: string) => Promise<void>;
+  onSendMessage: (content: string, attachments?: File[]) => Promise<void>;
   onAttachFile?: (file: File) => void;
   onAttachImage?: (file: File) => void;
   onAIAssist?: () => void;
@@ -67,7 +67,7 @@ export function MessageInput({
 
     setIsLoading(true);
     try {
-      await onSendMessage(message.trim());
+      await onSendMessage(message.trim(), selectedFiles);
       setMessage('');
       setSelectedFiles([]); // Limpiar archivos después de enviar
     } catch {

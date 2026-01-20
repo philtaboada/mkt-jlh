@@ -157,58 +157,60 @@ export function ConversationsList({
       </div>
 
       {/* Conversations List */}
-      <ScrollArea className="flex-1">
-        <div className="flex flex-col">
-          {isLoading ? (
-            <div className="p-12 text-center animate-in fade-in duration-500">
-              <div className="relative w-12 h-12 mx-auto mb-4">
-                <div className="absolute inset-0 border-2 border-primary/20 rounded-full" />
-                <div className="absolute inset-0 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="flex-1 min-h-0">
+        <ScrollArea className="h-full">
+          <div className="flex flex-col pb-2">
+            {isLoading ? (
+              <div className="p-12 text-center animate-in fade-in duration-500">
+                <div className="relative w-12 h-12 mx-auto mb-4">
+                  <div className="absolute inset-0 border-2 border-primary/20 rounded-full" />
+                  <div className="absolute inset-0 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Cargando conversaciones...
+                </p>
               </div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Cargando conversaciones...
-              </p>
-            </div>
-          ) : filteredConversations.length === 0 ? (
-            <div className="p-12 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="w-16 h-16 bg-muted/50 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-inner">
-                <MessageCircle className="w-8 h-8 text-muted-foreground/50" />
+            ) : filteredConversations.length === 0 ? (
+              <div className="p-12 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="w-16 h-16 bg-muted/50 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-inner">
+                  <MessageCircle className="w-8 h-8 text-muted-foreground/50" />
+                </div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">
+                  No hay chats
+                </h4>
+                <p className="text-xs text-muted-foreground px-4">
+                  {filter !== 'all' || channelFilter !== 'all'
+                    ? 'Prueba ajustando los filtros de búsqueda'
+                    : 'Tus conversaciones de todos los canales aparecerán aquí'}
+                </p>
+                {(filter !== 'all' || channelFilter !== 'all') && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => {
+                      setFilter('all');
+                      setChannelFilter('all');
+                    }}
+                    className="mt-2 text-xs h-auto p-0"
+                  >
+                    Restablecer filtros
+                  </Button>
+                )}
               </div>
-              <h4 className="text-sm font-semibold text-foreground mb-1">
-                No hay chats
-              </h4>
-              <p className="text-xs text-muted-foreground px-4">
-                {filter !== 'all' || channelFilter !== 'all'
-                  ? 'Prueba ajustando los filtros de búsqueda'
-                  : 'Tus conversaciones de todos los canales aparecerán aquí'}
-              </p>
-              {(filter !== 'all' || channelFilter !== 'all') && (
-                <Button
-                  variant="link"
-                  size="sm"
-                  onClick={() => {
-                    setFilter('all');
-                    setChannelFilter('all');
-                  }}
-                  className="mt-2 text-xs h-auto p-0"
-                >
-                  Restablecer filtros
-                </Button>
-              )}
-            </div>
-          ) : (
-            filteredConversations.map((conv: any) => (
-              <ConversationItem
-                key={conv.id}
-                conversation={conv}
-                channelsMap={channelsMap}
-                isSelected={selectedConversationId === conv.id}
-                onClick={() => onSelectConversation(conv.id)}
-              />
-            ))
-          )}
-        </div>
-      </ScrollArea>
+            ) : (
+              filteredConversations.map((conv: any) => (
+                <ConversationItem
+                  key={conv.id}
+                  conversation={conv}
+                  channelsMap={channelsMap}
+                  isSelected={selectedConversationId === conv.id}
+                  onClick={() => onSelectConversation(conv.id)}
+                />
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </div>
     </div>
   );
 }
