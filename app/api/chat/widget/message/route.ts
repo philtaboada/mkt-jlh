@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getChannelByWidgetToken } from '@/features/chat/api/channels.api';
 import { findOrCreateWidgetConversation } from '@/features/chat/api/conversation.api';
-import { createWidgetMessage } from '@/features/chat/api/message.api';
+import { createWidgetMessage, getLastMessage } from '@/features/chat/api/message.api';
 import { processIncomingMessage, isAIEnabledForChannel } from '@/lib/services/ai';
 import type { WebsiteWidgetConfig } from '@/features/chat/types/settings';
 
@@ -57,6 +57,29 @@ export async function POST(request: NextRequest) {
       conversationId = conversation.id;
     }
 
+    // Verificar si hay un agente activo ANTES de guardar el mensaje del usuario
+    const channelConfig = channel.config as WebsiteWidgetConfig;
+    let shouldProcessWithAI = false;
+    
+    if (isAIEnabledForChannel(channelConfig)) {
+      // Verificar el último mensaje antes de guardar el nuevo
+      const lastMessage = await getLastMessage(conversationId);
+      
+      // Solo procesar con IA si:
+      // 1. No hay mensajes (conversación nueva)
+      // 2. El último mensaje es del bot (sender_type: 'bot')
+      // 3. El último mensaje es del usuario (continuación de conversación con bot)
+      // NO procesar si el último mensaje es de un agente
+      if (!lastMessage || 
+          lastMessage.sender_type === 'bot' || 
+          lastMessage.sender_type === 'user') {
+        shouldProcessWithAI = true;
+      } else if (lastMessage.sender_type === 'agent') {
+        console.log('AI: Último mensaje es de un agente, no procesando con IA');
+        shouldProcessWithAI = false;
+      }
+    }
+
     // Guardar mensaje del usuario (visitor)
     await createWidgetMessage({
       conversationId,
@@ -65,12 +88,10 @@ export async function POST(request: NextRequest) {
       senderType: 'user',
     });
 
-    // Procesar respuesta de IA si está habilitada
-    // La respuesta se guarda en BD y Realtime la propagará automáticamente
-    const channelConfig = channel.config as WebsiteWidgetConfig;
+    // Procesar respuesta de IA solo si corresponde
     let handoffToHuman = false;
 
-    if (isAIEnabledForChannel(channelConfig)) {
+    if (shouldProcessWithAI) {
       const result = await processIncomingMessage({
         conversationId,
         userMessage: message,

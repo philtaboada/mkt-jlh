@@ -62,6 +62,27 @@ export async function getMessagesByConversation(conversationId: string): Promise
   return data;
 }
 
+/**
+ * Obtiene el último mensaje de una conversación
+ */
+export async function getLastMessage(conversationId: string): Promise<Message | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('mkt_messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null; // No messages found
+    throw error;
+  }
+
+  return data;
+}
+
 // ============================================================================
 // Widget-specific functions
 // ============================================================================

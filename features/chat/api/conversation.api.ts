@@ -143,6 +143,52 @@ export async function updateConversationContact(
   return data;
 }
 
+/**
+ * Marca una conversación como transferida a agente humano
+ * Actualiza el metadata de la conversación con información del handoff
+ */
+export async function markConversationAsHandoff(conversationId: string): Promise<void> {
+  const supabase = await createClient();
+  
+  // Obtener el metadata actual
+  const { data: conversation, error: fetchError } = await supabase
+    .from('mkt_conversations')
+    .select('metadata')
+    .eq('id', conversationId)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching conversation for handoff:', fetchError);
+    throw fetchError;
+  }
+
+  if (!conversation) {
+    console.warn(`Conversation ${conversationId} not found for handoff marking`);
+    return;
+  }
+
+  const currentMetadata = (conversation.metadata as Record<string, unknown>) || {};
+  
+  // Actualizar metadata con información del handoff
+  const { error: updateError } = await supabase
+    .from('mkt_conversations')
+    .update({
+      metadata: {
+        ...currentMetadata,
+        ai_handoff: true,
+        ai_handoff_at: new Date().toISOString(),
+      },
+    })
+    .eq('id', conversationId);
+
+  if (updateError) {
+    console.error('Error marking conversation as handoff:', updateError);
+    throw updateError;
+  }
+
+  console.log(`✅ Conversación ${conversationId} marcada como transferida a agente`);
+}
+
 // ============================================================================
 // Conversation Counts
 // ============================================================================
@@ -220,7 +266,6 @@ export async function createWidgetConversation(
 ): Promise<Conversation> {
   const supabase = await createClient();
 
-  // Si hay email, buscar o crear contacto usando la función reutilizable
   let contactId: string | null = null;
 
   if (params.visitorInfo?.email) {
@@ -239,7 +284,7 @@ export async function createWidgetConversation(
       channel_id: params.channelId,
       channel: 'website',
       contact_id: contactId,
-      status: 'open',
+      status: params.status || 'open',
       // priority: 'medium',
       metadata: {
         visitor_id: params.visitorId,
