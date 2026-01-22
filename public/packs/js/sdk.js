@@ -440,12 +440,28 @@
         .mkt-chat-messages {
           flex: 1;
           overflow-y: auto;
-          padding: 20px;
+          padding: 24px 20px;
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 18px;
           background: linear-gradient(180deg, var(--mkt-bg-secondary) 0%, var(--mkt-bg) 100%);
           scroll-behavior: smooth;
+          position: relative;
+        }
+
+        /* Subtle pattern overlay for messages area */
+        .mkt-chat-messages::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-image: 
+            radial-gradient(circle at 1px 1px, rgba(0,0,0,0.02) 1px, transparent 0);
+          background-size: 20px 20px;
+          pointer-events: none;
+          opacity: 0.5;
         }
 
         .mkt-chat-messages::-webkit-scrollbar {
@@ -467,13 +483,166 @@
 
         /* Message Bubbles */
         .mkt-chat-message {
-          max-width: 82%;
+          max-width: 70%;
           padding: 14px 18px;
           font-size: 14px;
           line-height: 1.6;
           word-wrap: break-word;
           animation: mkt-message-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
           position: relative;
+        }
+
+        .mkt-chat-message-content {
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+        }
+
+        /* Markdown Styles */
+        .mkt-chat-message-content.mkt-markdown {
+          line-height: 1.7;
+        }
+
+        .mkt-chat-message-content.mkt-markdown h1,
+        .mkt-chat-message-content.mkt-markdown h2,
+        .mkt-chat-message-content.mkt-markdown h3 {
+          margin: 12px 0 8px 0;
+          font-weight: 700;
+          line-height: 1.3;
+        }
+
+        .mkt-chat-message-content.mkt-markdown h1 {
+          font-size: 18px;
+          border-bottom: 2px solid rgba(255,255,255,0.2);
+          padding-bottom: 6px;
+        }
+
+        .mkt-chat-message-content.mkt-markdown h2 {
+          font-size: 16px;
+        }
+
+        .mkt-chat-message-content.mkt-markdown h3 {
+          font-size: 15px;
+        }
+
+        .mkt-chat-message-content.mkt-markdown p {
+          margin: 4px 0;
+          line-height: 1.6;
+        }
+
+        .mkt-chat-message-content.mkt-markdown p:first-child {
+          margin-top: 0;
+        }
+
+        .mkt-chat-message-content.mkt-markdown p:last-child {
+          margin-bottom: 0;
+        }
+
+        .mkt-chat-message-content.mkt-markdown br {
+          line-height: 1.6;
+        }
+
+        /* Reducir espacio entre elementos */
+        .mkt-chat-message-content.mkt-markdown p + p {
+          margin-top: 6px;
+        }
+
+        .mkt-chat-message-content.mkt-markdown p + h1,
+        .mkt-chat-message-content.mkt-markdown p + h2,
+        .mkt-chat-message-content.mkt-markdown p + h3 {
+          margin-top: 12px;
+        }
+
+        .mkt-chat-message-content.mkt-markdown ul,
+        .mkt-chat-message-content.mkt-markdown ol {
+          margin: 10px 0;
+          padding-left: 24px;
+        }
+
+        .mkt-chat-message-content.mkt-markdown li {
+          margin: 6px 0;
+          line-height: 1.6;
+        }
+
+        .mkt-chat-message-content.mkt-markdown code {
+          background: rgba(0,0,0,0.15);
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .mkt-chat-message-content.mkt-markdown pre {
+          background: rgba(0,0,0,0.2);
+          padding: 12px;
+          border-radius: 8px;
+          overflow-x: auto;
+          margin: 10px 0;
+          border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .mkt-chat-message-content.mkt-markdown pre code {
+          background: transparent;
+          padding: 0;
+          font-size: 12px;
+          display: block;
+          white-space: pre-wrap;
+        }
+
+        .mkt-chat-message-content.mkt-markdown a {
+          color: inherit;
+          text-decoration: underline;
+          text-decoration-color: rgba(255,255,255,0.5);
+          transition: text-decoration-color 0.2s;
+        }
+
+        .mkt-chat-message-content.mkt-markdown a:hover {
+          text-decoration-color: rgba(255,255,255,0.9);
+        }
+
+        .mkt-chat-message-content.mkt-markdown blockquote {
+          border-left: 3px solid rgba(255,255,255,0.3);
+          padding-left: 14px;
+          margin: 10px 0;
+          font-style: italic;
+          opacity: 0.9;
+        }
+
+        .mkt-chat-message-content.mkt-markdown strong {
+          font-weight: 700;
+        }
+
+        .mkt-chat-message-content.mkt-markdown em {
+          font-style: italic;
+        }
+
+        /* Markdown styles for bot messages (light background) */
+        .mkt-chat-message.bot .mkt-chat-message-content.mkt-markdown code {
+          background: rgba(0,0,0,0.08);
+          color: var(--mkt-text);
+        }
+
+        .mkt-chat-message.bot .mkt-chat-message-content.mkt-markdown pre {
+          background: var(--mkt-bg-secondary);
+          border-color: var(--mkt-border);
+        }
+
+        .mkt-chat-message.bot .mkt-chat-message-content.mkt-markdown a {
+          color: var(--mkt-primary);
+          text-decoration-color: var(--mkt-primary);
+        }
+
+        .mkt-chat-message.bot .mkt-chat-message-content.mkt-markdown a:hover {
+          color: var(--mkt-primary-hover);
+        }
+
+        .mkt-chat-message.bot .mkt-chat-message-content.mkt-markdown h1 {
+          border-bottom-color: var(--mkt-border);
+        }
+
+        .mkt-chat-message.bot .mkt-chat-message-content.mkt-markdown blockquote {
+          border-left-color: var(--mkt-primary);
+          color: var(--mkt-text-secondary);
         }
 
         @keyframes mkt-message-in {
@@ -492,7 +661,8 @@
           color: white;
           align-self: flex-end;
           border-radius: 20px 20px 6px 20px;
-          box-shadow: 0 4px 12px var(--mkt-primary-glow);
+          box-shadow: 0 4px 12px var(--mkt-primary-glow), 0 2px 4px rgba(0,0,0,0.1);
+          backdrop-filter: blur(10px);
         }
 
         .mkt-chat-message.bot {
@@ -502,15 +672,30 @@
           border-radius: 20px 20px 20px 6px;
           box-shadow: var(--mkt-shadow-sm);
           border: 1px solid var(--mkt-border-light);
+          backdrop-filter: blur(10px);
+        }
+
+        .mkt-chat-message.user:hover {
+          box-shadow: 0 6px 16px var(--mkt-primary-glow), 0 2px 6px rgba(0,0,0,0.15);
+          transform: translateY(-1px);
+          transition: all 0.2s ease;
+        }
+
+        .mkt-chat-message.bot:hover {
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          border-color: var(--mkt-border);
+          transition: all 0.2s ease;
         }
 
         .mkt-chat-message-time {
-          font-size: 10px;
-          opacity: 0.6;
-          margin-top: 6px;
+          font-size: 11px;
+          opacity: 0.65;
+          margin-top: 8px;
           display: flex;
           align-items: center;
           gap: 4px;
+          font-weight: 500;
+          letter-spacing: 0.2px;
         }
 
         .mkt-chat-message.user .mkt-chat-message-time {
@@ -1184,8 +1369,17 @@
       if (message.id) {
         messageEl.dataset.messageId = message.id;
       }
+      
+      // Detectar si es markdown (solo para mensajes del bot/IA)
+      const isMarkdownContent = message.type === 'bot' && this.isMarkdown(message.text);
+      const messageContent = isMarkdownContent 
+        ? this.renderMarkdown(message.text)
+        : this.escapeHtml(message.text);
+      
       messageEl.innerHTML = `
-        ${this.escapeHtml(message.text)}
+        <div class="mkt-chat-message-content ${isMarkdownContent ? 'mkt-markdown' : ''}">
+          ${messageContent}
+        </div>
         <div class="mkt-chat-message-time">${this.formatTime(message.timestamp)}</div>
       `;
       
@@ -1262,6 +1456,202 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    // Detectar si el texto contiene markdown
+    isMarkdown(text) {
+      if (!text || typeof text !== 'string') return false;
+      
+      // Patrones comunes de markdown
+      const markdownPatterns = [
+        /#{1,6}\s+.+/,           // Headers (# ## ###)
+        /\*\*.*?\*\*/,           // Bold (**text**)
+        /\*.*?\*/,               // Italic (*text*)
+        /_.*?_/,                 // Italic (_text_)
+        /`.*?`/,                 // Inline code (`code`)
+        /```[\s\S]*?```/,        // Code blocks (```code```)
+        /\[.*?\]\(.*?\)/,        // Links [text](url)
+        /^\s*[-*+]\s+/,          // Unordered lists
+        /^\s*\d+\.\s+/,          // Ordered lists
+        />\s+/,                  // Blockquotes (> text)
+        /\n\n/,                  // Multiple line breaks
+      ];
+      
+      return markdownPatterns.some(pattern => pattern.test(text));
+    }
+
+    // Renderizar markdown a HTML (versión mejorada con mejor soporte de listas)
+    renderMarkdown(text) {
+      if (!text) return '';
+      
+      let html = text;
+      
+      // Proteger bloques de código primero
+      const codeBlockPlaceholders = [];
+      html = html.replace(/```[\s\S]*?```/g, (match) => {
+        const idx = codeBlockPlaceholders.length;
+        codeBlockPlaceholders.push(match);
+        return `__CODEBLOCK${idx}__`;
+      });
+      
+      // Proteger código inline
+      const inlineCodePlaceholders = [];
+      html = html.replace(/`[^`\n]+`/g, (match) => {
+        const idx = inlineCodePlaceholders.length;
+        inlineCodePlaceholders.push(match);
+        return `__INLINECODE${idx}__`;
+      });
+      
+      // Función auxiliar para procesar markdown inline (negrita, cursiva, links)
+      const processInlineMarkdown = (text) => {
+        let result = text;
+        // Bold (**texto** o __texto__) - antes de italic
+        result = result.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+        result = result.replace(/__([^_]+?)__/g, '<strong>$1</strong>');
+        // Italic (*texto* o _texto_) - solo si no es parte de negrita
+        result = result.replace(/(?<!\*)\*([^*\s][^*]*?[^*\s])\*(?!\*)/g, '<em>$1</em>');
+        result = result.replace(/(?<!_)_([^_\s][^_]*?[^_\s])_(?!_)/g, '<em>$1</em>');
+        // Links
+        result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        return result;
+      };
+      
+      // Procesar línea por línea para manejar listas correctamente
+      const lines = html.split('\n');
+      const processed = [];
+      let inUl = false, inOl = false;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        
+        // Headers
+        if (trimmed.match(/^###\s+/)) {
+          if (inUl) { processed.push('</ul>'); inUl = false; }
+          if (inOl) { processed.push('</ol>'); inOl = false; }
+          const content = trimmed.replace(/^###\s+/, '');
+          processed.push(`<h3>${processInlineMarkdown(content)}</h3>`);
+          continue;
+        }
+        if (trimmed.match(/^##\s+/)) {
+          if (inUl) { processed.push('</ul>'); inUl = false; }
+          if (inOl) { processed.push('</ol>'); inOl = false; }
+          const content = trimmed.replace(/^##\s+/, '');
+          processed.push(`<h2>${processInlineMarkdown(content)}</h2>`);
+          continue;
+        }
+        if (trimmed.match(/^#\s+/)) {
+          if (inUl) { processed.push('</ul>'); inUl = false; }
+          if (inOl) { processed.push('</ol>'); inOl = false; }
+          const content = trimmed.replace(/^#\s+/, '');
+          processed.push(`<h1>${processInlineMarkdown(content)}</h1>`);
+          continue;
+        }
+        
+        // Blockquotes
+        if (trimmed.match(/^>\s+/)) {
+          if (inUl) { processed.push('</ul>'); inUl = false; }
+          if (inOl) { processed.push('</ol>'); inOl = false; }
+          const content = trimmed.replace(/^>\s+/, '');
+          processed.push(`<blockquote>${processInlineMarkdown(content)}</blockquote>`);
+          continue;
+        }
+        
+        // Listas no ordenadas (-, *, +)
+        const ulMatch = line.match(/^[\s]*[-*+]\s+(.+)$/);
+        if (ulMatch) {
+          if (!inUl) {
+            if (inOl) { processed.push('</ol>'); inOl = false; }
+            processed.push('<ul>');
+            inUl = true;
+          }
+          const itemContent = processInlineMarkdown(ulMatch[1]);
+          processed.push(`<li>${itemContent}</li>`);
+          continue;
+        }
+        
+        // Listas ordenadas (1., 2., etc)
+        const olMatch = line.match(/^\s*(\d+)\.\s+(.+)$/);
+        if (olMatch) {
+          if (!inOl) {
+            if (inUl) { processed.push('</ul>'); inUl = false; }
+            processed.push('<ol>');
+            inOl = true;
+          }
+          const itemContent = processInlineMarkdown(olMatch[2]);
+          processed.push(`<li>${itemContent}</li>`);
+          continue;
+        }
+        
+        // Línea normal - cerrar listas si están abiertas
+        if (inUl) { processed.push('</ul>'); inUl = false; }
+        if (inOl) { processed.push('</ol>'); inOl = false; }
+        
+        // Si la línea está vacía, mantenerla para párrafos
+        if (trimmed === '') {
+          processed.push('');
+        } else {
+          // Procesar markdown inline en la línea
+          processed.push(processInlineMarkdown(line));
+        }
+      }
+      
+      // Cerrar listas si quedaron abiertas
+      if (inUl) processed.push('</ul>');
+      if (inOl) processed.push('</ol>');
+      
+      html = processed.join('\n');
+      
+      // Restaurar código inline
+      inlineCodePlaceholders.forEach((code, idx) => {
+        const content = code.replace(/`/g, '');
+        html = html.replace(`__INLINECODE${idx}__`, `<code>${this.escapeHtml(content)}</code>`);
+      });
+      
+      // Restaurar bloques de código
+      codeBlockPlaceholders.forEach((block, idx) => {
+        const content = block.replace(/```/g, '').trim();
+        html = html.replace(`__CODEBLOCK${idx}__`, `<pre><code>${this.escapeHtml(content)}</code></pre>`);
+      });
+      
+      // Escapar HTML en contenido de texto (pero no en tags que creamos)
+      // Solo escapar texto que no está dentro de tags HTML
+      html = html.replace(/(<[^>]+>)([^<]*)(<\/[^>]+>)/g, (match, openTag, content, closeTag) => {
+        // Si el contenido tiene tags HTML anidados, no procesar
+        if (content.includes('<')) return match;
+        return openTag + this.escapeHtml(content) + closeTag;
+      });
+      
+      // Escapar texto suelto que no está en tags
+      html = html.split(/(<[^>]+>)/g).map((part, idx) => {
+        if (part.startsWith('<') && part.endsWith('>')) {
+          return part; // Es un tag, no escapar
+        }
+        // Es texto, escapar HTML peligroso pero mantener estructura
+        return part.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }).join('');
+      
+      // Normalizar saltos de línea múltiples
+      html = html.replace(/\n{3,}/g, '\n\n');
+      
+      // Procesar párrafos
+      const paragraphs = html.split(/\n\n+/);
+      html = paragraphs.map(p => {
+        p = p.trim();
+        if (!p) return '';
+        
+        // Si ya es un tag HTML, no envolver
+        if (p.match(/^<(h[1-6]|ul|ol|pre|blockquote|p)/)) {
+          return p;
+        }
+        
+        // Convertir saltos de línea simples a <br>
+        p = p.replace(/\n/g, '<br>');
+        
+        return p ? `<p>${p}</p>` : '';
+      }).filter(p => p).join('');
+      
+      return html;
     }
 
     formatTime(date) {
