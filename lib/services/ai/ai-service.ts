@@ -1,9 +1,6 @@
-/**
- * Servicio de IA para respuestas automáticas
- * Usa Vercel AI SDK v5 para soporte unificado de múltiples proveedores
- */
 
-import { generateText, streamText, CoreMessage } from 'ai';
+
+import { generateText, streamText, type ModelMessage } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -49,7 +46,7 @@ function createModel(provider: AIConfig['provider'], model: string, apiKey: stri
 /**
  * Convierte mensajes del chat al formato del AI SDK
  */
-function formatMessages(context?: ConversationContext): CoreMessage[] {
+function formatMessages(context?: ConversationContext): ModelMessage[] {
   if (!context?.messages || context.messages.length === 0) {
     return [];
   }
@@ -59,7 +56,7 @@ function formatMessages(context?: ConversationContext): CoreMessage[] {
 
   return recentMessages
     .filter((msg) => msg.body) // Solo mensajes con contenido
-    .map((msg): CoreMessage => ({
+    .map((msg): ModelMessage => ({
       role: msg.sender_type === 'user' ? 'user' : 'assistant',
       content: msg.body || '',
     }));
@@ -103,6 +100,52 @@ export class AIService {
   }
 
   /**
+   * Obtiene contenido de URLs de la base de conocimientos
+   */
+  private async fetchKnowledgeBaseContent(): Promise<string> {
+    if (!this.config.knowledge_base_enabled || !this.config.knowledge_base_urls?.length) {
+      return '';
+    }
+
+    try {
+      const contents: string[] = [];
+      
+      for (const url of this.config.knowledge_base_urls) {
+        try {
+          const response = await fetch(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; JLH-ChatBot/1.0)',
+            },
+            signal: AbortSignal.timeout(5000), 
+          });
+
+          if (response.ok) {
+            const text = await response.text();
+            const textContent = text
+              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .substring(0, 5000); 
+            
+            if (textContent) {
+              contents.push(`Contenido de ${url}:\n${textContent}`);
+            }
+          }
+        } catch (error) {
+          console.warn(`Error fetching knowledge base URL ${url}:`, error);
+        }
+      }
+
+      return contents.length > 0 ? `\n\nInformación adicional de la base de conocimientos:\n${contents.join('\n\n')}` : '';
+    } catch (error) {
+      console.error('Error fetching knowledge base:', error);
+      return '';
+    }
+  }
+
+  /**
    * Genera una respuesta de IA (sin streaming)
    */
   async generateResponse(
@@ -110,9 +153,18 @@ export class AIService {
     context?: ConversationContext
   ): Promise<AIResponse> {
     try {
-      const messages: CoreMessage[] = [
+      let knowledgeBaseContent = '';
+      if (this.config.knowledge_base_enabled && this.config.knowledge_base_urls?.length) {
+        knowledgeBaseContent = await this.fetchKnowledgeBaseContent();
+      }
+
+      const userMessageWithContext = knowledgeBaseContent
+        ? `${userMessage}${knowledgeBaseContent}`
+        : userMessage;
+
+      const messages: ModelMessage[] = [
         ...formatMessages(context),
-        { role: 'user', content: userMessage },
+        { role: 'user', content: userMessageWithContext },
       ];
 
       const result = await generateText({
@@ -144,9 +196,18 @@ export class AIService {
     userMessage: string,
     context?: ConversationContext
   ): Promise<ReadableStream<string>> {
-    const messages: CoreMessage[] = [
+    let knowledgeBaseContent = '';
+    if (this.config.knowledge_base_enabled && this.config.knowledge_base_urls?.length) {
+      knowledgeBaseContent = await this.fetchKnowledgeBaseContent();
+    }
+
+    const userMessageWithContext = knowledgeBaseContent
+      ? `${userMessage}${knowledgeBaseContent}`
+      : userMessage;
+
+    const messages: ModelMessage[] = [
       ...formatMessages(context),
-      { role: 'user', content: userMessage },
+      { role: 'user', content: userMessageWithContext },
     ];
 
     const result = streamText({

@@ -55,7 +55,6 @@ export async function processIncomingMessage(
   const aiService = await AIService.create(aiConfig);
 
   if (!aiService) {
-    console.warn('AI Service not available - no API key configured');
     return { shouldReply: false };
   }
 
