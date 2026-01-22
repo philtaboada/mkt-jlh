@@ -140,13 +140,20 @@ export function MessageRenderer({
           )}
 
           {/* Image Message */}
-          {message.type === 'image' && message.media_url && (
+          {message.type === 'image' && (
             <div className="p-1.5">
-              <img
-                src={message.media_url || '/placeholder.svg'}
-                alt="Imagen compartida"
-                className="rounded-xl max-h-80 w-full object-cover shadow-sm group-hover:shadow-md transition-shadow cursor-zoom-in"
-              />
+              {message.media_url ? (
+                <img
+                  src={message.media_url}
+                  alt="Imagen compartida"
+                  className="rounded-xl max-h-80 w-full object-cover shadow-sm group-hover:shadow-md transition-shadow cursor-zoom-in"
+                />
+              ) : (
+                <div className="rounded-xl bg-background/10 p-8 flex flex-col items-center justify-center gap-2 text-current/70">
+                  <File className="w-8 h-8" />
+                  <span className="text-xs">Imagen no disponible</span>
+                </div>
+              )}
               {message.body && (
                 <p className="text-sm p-2.5 leading-relaxed">{message.body}</p>
               )}
@@ -154,14 +161,18 @@ export function MessageRenderer({
           )}
 
           {/* Audio Message */}
-          {message.type === 'audio' && message.media_url && (
+          {message.type === 'audio' && (
             <div className="px-4 py-3 flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-background/20 flex items-center justify-center">
                 <Music className="w-4 h-4" />
               </div>
-              <audio controls className="h-8 max-w-[200px]">
-                <source src={message.media_url} type={message.media_mime} />
-              </audio>
+              {message.media_url ? (
+                <audio controls className="h-8 max-w-[200px]">
+                  <source src={message.media_url} type={message.media_mime} />
+                </audio>
+              ) : (
+                <span className="text-xs opacity-70">Audio no disponible</span>
+              )}
             </div>
           )}
 

@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 import { downloadAndUploadMedia } from '@/lib/storage/media';
+
+// Forzar runtime nodejs para asegurar que los logs aparezcan
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 import { findOrCreateByWhatsApp, updateLastInteraction } from '@/features/chat/api/contact.api';
 import { findOrCreate, updateLastMessage } from '@/features/chat/api/conversation.api';
 import { create } from '@/features/chat/api/message.api';
@@ -121,15 +125,22 @@ export async function POST(req: Request) {
             try {
               // Pasar el tipo de canal 'whatsapp' en lugar del tipo de media
               mediaInfo = await downloadAndUploadMedia(mediaId, msg.type, 'whatsapp');
+              console.info('[whatsapp-webhook] media upload success', {
+                waId,
+                mediaId,
+                mediaType: msg.type,
+                url: mediaInfo?.url,
+              });
             } catch (mediaError) {
+              const errorMessage = mediaError instanceof Error ? mediaError.message : String(mediaError);
               console.error('[whatsapp-webhook] media download/upload error', {
                 waId,
                 mediaId,
                 mediaType: msg.type,
-                error: mediaError instanceof Error ? mediaError.message : String(mediaError),
+                error: errorMessage,
               });
-              // Continuamos, pero el mensaje no tendrá URL de media
-              text = `[Media Error: ${msg.type}] ${text || ''}`;
+              // Guardamos el error específico en el body para debugging
+              text = `[Error: ${errorMessage}] ${text || ''}`;
             }
           }
 

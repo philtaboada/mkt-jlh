@@ -31,7 +31,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { FacebookLeadData, mapFacebookLeadToLead } from '@/features/leads/types/leadFacebook';
+import {
+  FacebookLeadData,
+  mapFacebookLeadToLead,
+  GenericExcelLeadData,
+  mapGenericExcelToLead,
+  isGenericExcelFormat,
+} from '@/features/leads/types/leadFacebook';
 
 interface ImportResult {
   inserted: number;
@@ -220,14 +226,17 @@ export function ImportModal({
         });
       }, 200);
 
-      // Detectar si es un archivo de Facebook Leads basado en las columnas
+      // Detectar el tipo de archivo basado en las columnas
       const isFacebookLeads = parsedData.headers.some(
         (header) => header.includes('¿') || header === 'lead_status' || header === 'platform'
       );
+      const isGenericExcel = isGenericExcelFormat(parsedData.headers);
 
       let dataToImport;
+      let skippedRows = 0;
 
       if (isFacebookLeads) {
+        // Formato Facebook Leads
         dataToImport = parsedData.rawData
           .map((row: any) => {
             try {
@@ -238,8 +247,39 @@ export function ImportModal({
             }
           })
           .filter(Boolean);
+      } else if (isGenericExcel) {
+        // Formato Excel genérico (columnas en español)
+        const mappedData = parsedData.rawData.map((row: any) => {
+          try {
+            return mapGenericExcelToLead(row as GenericExcelLeadData);
+          } catch (error) {
+            console.error('Error mapping generic Excel lead:', error, row);
+            return null;
+          }
+        });
+        
+        // Contar filas omitidas (sin nombre)
+        skippedRows = mappedData.filter((item: any) => item === null).length;
+        dataToImport = mappedData.filter(Boolean);
+        
+        if (skippedRows > 0) {
+          toast.warning(`${skippedRows} filas omitidas por no tener nombre completo`);
+        }
       } else {
-        dataToImport = parsedData.rawData;
+        // Formato desconocido - mostrar error con las columnas detectadas
+        clearInterval(progressInterval);
+        toast.error(
+          `Formato de archivo no reconocido. Columnas detectadas: ${parsedData.headers.slice(0, 5).join(', ')}...`
+        );
+        setIsUploading(false);
+        return;
+      }
+
+      if (dataToImport.length === 0) {
+        clearInterval(progressInterval);
+        toast.error('No hay datos válidos para importar');
+        setIsUploading(false);
+        return;
       }
 
       const result = await onImport(dataToImport);
