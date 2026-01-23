@@ -11,13 +11,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { MessageSquare, UserPlus, UserCheck, Phone, Mail, Hash } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useActiveChannels } from '../../../hooks/useChannels';
 import { useContacts } from '../../../hooks/useContacts';
 import { toast } from 'sonner';
@@ -38,6 +33,7 @@ export function CreateConversationDialog({
   onCreated,
 }: CreateConversationDialogProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: channels = [] } = useActiveChannels();
   const { data: contacts = [] } = useContacts();
   const [contactMode, setContactMode] = useState<'existing' | 'new'>('existing');
@@ -59,9 +55,18 @@ export function CreateConversationDialog({
   const contactOptions = useMemo(() => {
     return filteredContacts.map((contact: any) => ({
       value: contact.id,
-      label: `${contact.name || 'Sin nombre'}${contact.phone ? ` - ${contact.phone}` : ''}${contact.email ? ` (${contact.email})` : ''}`,
+      label: contact.name || 'Sin nombre',
+      subtitle: contact.phone || contact.email || undefined,
     }));
   }, [filteredContacts]);
+
+  const channelOptions = useMemo(() => {
+    return channels.map((channel: any) => ({
+      value: channel.id,
+      label: channel.name,
+      subtitle: channel.type ? `Canal ${channel.type}` : undefined,
+    }));
+  }, [channels]);
 
   const handleCreate = async () => {
     if (!selectedChannelId) {
@@ -97,13 +102,10 @@ export function CreateConversationDialog({
           setIsLoading(false);
           return;
         }
-        console.log('✅ Usando contacto existente:', contact.id, contact.name);
       } else {
-        console.log('📝 Creando nuevo contacto...');
         if (isWhatsApp) {
           const normalizedPhone = contactPhone.replace(/[^\d]/g, '');
           contact = await findOrCreateByWhatsApp(normalizedPhone, contactName || `Contacto ${normalizedPhone}`);
-          console.log('✅ Contacto creado/obtenido (WhatsApp):', contact.id, contact.name);
         } else {
           contact = await findOrCreateByEmail(
             contactEmail,
@@ -111,18 +113,15 @@ export function CreateConversationDialog({
             contactPhone,
             'manual'
           );
-          console.log('✅ Contacto creado/obtenido (Email):', contact.id, contact.name);
         }
       }
 
-      // Crear conversación relacionando el contacto con el canal
-      console.log('💬 Creando conversación para contacto:', contact.id, 'canal:', selectedChannel?.type, 'channel_id:', selectedChannelId);
       const conversation = await findOrCreate(
         contact.id,
         selectedChannel?.type || '',
         selectedChannelId
       );
-      console.log('✅ Conversación creada/obtenida:', conversation.id);
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
 
       toast.success('Conversación creada');
       onOpenChange(false);
@@ -150,49 +149,84 @@ export function CreateConversationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle>Nueva Conversación</DialogTitle>
-          <DialogDescription>
-            Crea una nueva conversación con un contacto
-          </DialogDescription>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <MessageSquare className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <DialogTitle className="text-xl">Nueva Conversación</DialogTitle>
+              <DialogDescription className="mt-1">
+                Crea una nueva conversación con un contacto
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="channel">Canal *</Label>
-            <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
-              <SelectTrigger id="channel">
-                <SelectValue placeholder="Selecciona un canal" />
-              </SelectTrigger>
-              <SelectContent>
-                {channels.map((channel: any) => (
-                  <SelectItem key={channel.id} value={channel.id}>
-                    {channel.name} ({channel.type})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="space-y-5 py-4">
+          {/* Canal Selection */}
+          <div className="space-y-2.5">
+            <Label htmlFor="channel" className="text-sm font-semibold flex items-center gap-2">
+              <Hash className="w-4 h-4 text-muted-foreground" />
+              Canal *
+            </Label>
+            <SelectOptions
+              items={channelOptions}
+              value={selectedChannelId}
+              onChange={(value) => setSelectedChannelId(value as string)}
+              placeholder="Selecciona un canal..."
+              searchable
+            />
           </div>
 
+          {/* Contact Mode Selection */}
           {selectedChannelId && (
-            <div className="space-y-2">
-              <Label>Contacto</Label>
-              <Select value={contactMode} onValueChange={(value) => setContactMode(value as 'existing' | 'new')}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="existing">Seleccionar contacto existente</SelectItem>
-                  <SelectItem value="new">Crear nuevo contacto</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-2.5 pt-2 border-t">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-muted-foreground" />
+                Tipo de Contacto
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant={contactMode === 'existing' ? 'default' : 'outline'}
+                  className="h-auto py-3 flex flex-col items-start gap-1"
+                  onClick={() => setContactMode('existing')}
+                >
+                  <div className="flex items-center gap-2 w-full">
+                    <UserCheck className="w-4 h-4" />
+                    <span className="font-medium">Existente</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground text-left">
+                    Seleccionar de la lista
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={contactMode === 'new' ? 'default' : 'outline'}
+                  className="h-auto py-3 flex flex-col items-start gap-1"
+                  onClick={() => setContactMode('new')}
+                >
+                  <div className="flex items-center gap-2 w-full">
+                    <UserPlus className="w-4 h-4" />
+                    <span className="font-medium">Nuevo</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground text-left">
+                    Crear nuevo contacto
+                  </span>
+                </Button>
+              </div>
             </div>
           )}
 
+          {/* Existing Contact Selection */}
           {contactMode === 'existing' && selectedChannelId && (
-            <div className="space-y-2">
-              <Label htmlFor="contact">Seleccionar Contacto *</Label>
+            <div className="space-y-2.5 pt-2 border-t">
+              <Label htmlFor="contact" className="text-sm font-semibold flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-muted-foreground" />
+                Seleccionar Contacto *
+              </Label>
               <SelectOptions
                 items={contactOptions}
                 value={selectedContactId}
@@ -203,61 +237,92 @@ export function CreateConversationDialog({
             </div>
           )}
 
+          {/* New Contact Form */}
           {contactMode === 'new' && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre</Label>
+            <div className="space-y-4 pt-2 border-t">
+              <div className="space-y-2.5">
+                <Label htmlFor="name" className="text-sm font-semibold flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-muted-foreground" />
+                  Nombre del Contacto
+                </Label>
                 <Input
                   id="name"
-                  placeholder="Nombre del contacto"
+                  placeholder="Ej: Juan Pérez"
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
+                  className="h-10"
                 />
               </div>
 
               {isWhatsApp ? (
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Teléfono *</Label>
+                <div className="space-y-2.5">
+                  <Label htmlFor="phone" className="text-sm font-semibold flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    Número de Teléfono *
+                  </Label>
                   <Input
                     id="phone"
+                    type="tel"
                     placeholder="51987654321"
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
+                    className="h-10"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Ingresa el número sin espacios ni caracteres especiales
+                  </p>
                 </div>
               ) : (
                 <>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Correo Electrónico *</Label>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="email" className="text-sm font-semibold flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                      Correo Electrónico *
+                    </Label>
                     <Input
                       id="email"
                       type="email"
                       placeholder="contacto@ejemplo.com"
                       value={contactEmail}
                       onChange={(e) => setContactEmail(e.target.value)}
+                      className="h-10"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone-optional">Teléfono (opcional)</Label>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="phone-optional" className="text-sm font-semibold flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      Teléfono (opcional)
+                    </Label>
                     <Input
                       id="phone-optional"
+                      type="tel"
                       placeholder="51987654321"
                       value={contactPhone}
                       onChange={(e) => setContactPhone(e.target.value)}
+                      className="h-10"
                     />
                   </div>
                 </>
               )}
-            </>
+            </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <div className="flex justify-end gap-3 pt-4 border-t">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
             Cancelar
           </Button>
-          <Button onClick={handleCreate} disabled={isLoading}>
-            {isLoading ? 'Creando...' : 'Crear Conversación'}
+          <Button onClick={handleCreate} disabled={isLoading} className="min-w-[140px]">
+            {isLoading ? (
+              <>
+                <span className="animate-pulse">Creando...</span>
+              </>
+            ) : (
+              <>
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Crear Conversación
+              </>
+            )}
           </Button>
         </div>
       </DialogContent>

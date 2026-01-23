@@ -109,6 +109,7 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
     ? {
         id: selectedConversation.id,
         contact_id: selectedConversation.contact_id,
+        channel_id: selectedConversation.channel_id,
         channel: selectedConversation.channel,
         status: selectedConversation.status,
         assigned_to: selectedConversation.assigned_to,

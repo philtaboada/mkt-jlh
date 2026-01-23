@@ -98,6 +98,7 @@ export async function getContacts(): Promise<Contact[]> {
   const { data, error } = await supabase
     .from('mkt_contacts')
     .select('*')
+    .order('created_at', { ascending: false })
     .order('last_interaction', { ascending: false, nullsFirst: false });
 
   if (error) {

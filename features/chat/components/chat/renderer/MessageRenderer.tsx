@@ -9,11 +9,19 @@ import {
   Headphones,
   Check,
   CheckCheck,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
+import { formatLocalTime } from '@/lib/utils/dateFormat';
 import { Message, SenderType } from '@/features/chat/types';
+
+const ReactPlayer = dynamic(
+  () => import('react-player'),
+  { ssr: false }
+) as any;
 
 interface MessageRendererProps {
   message: Message;
@@ -33,6 +41,39 @@ export function MessageRenderer({
   onFileDrop,
 }: MessageRendererProps) {
   const [isDragging, setIsDragging] = useState(false);
+
+  const handleDownload = async (e: React.MouseEvent<HTMLAnchorElement>, url: string, filename: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Error al descargar el archivo');
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'archivo';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+    } catch (error) {
+      console.error('Error al descargar:', error);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || 'archivo';
+      link.target = '_blank';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
 
   // Icono según el tipo de sender
   const getSenderIcon = () => {
@@ -143,11 +184,46 @@ export function MessageRenderer({
           {message.type === 'image' && (
             <div className="p-1.5">
               {message.media_url ? (
-                <img
-                  src={message.media_url}
-                  alt="Imagen compartida"
-                  className="rounded-xl max-h-80 w-full object-cover shadow-sm group-hover:shadow-md transition-shadow cursor-zoom-in"
-                />
+                <>
+                  <div className="relative group">
+                    <img
+                      src={message.media_url}
+                      alt={message.media_name || 'Imagen compartida'}
+                      className="rounded-xl max-h-80 w-full object-cover shadow-sm group-hover:shadow-md transition-shadow cursor-zoom-in"
+                      loading="lazy"
+                      onError={(e) => {
+                        // Fallback si la imagen no carga (ej: webp no soportado)
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent && !parent.querySelector('.image-error')) {
+                          const errorDiv = document.createElement('div');
+                          errorDiv.className = 'image-error rounded-xl bg-background/10 p-8 flex flex-col items-center justify-center gap-2 text-current/70';
+                          errorDiv.innerHTML = `
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span class="text-xs">${message.media_name || 'Imagen no disponible'}</span>
+                          `;
+                          parent.appendChild(errorDiv);
+                        }
+                      }}
+                    />
+                    <a
+                      href={message.media_url}
+                      onClick={(e) => handleDownload(e, message.media_url!, message.media_name || 'imagen')}
+                      className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-black/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Descargar imagen"
+                    >
+                      <Download className="w-4 h-4" />
+                    </a>
+                  </div>
+                  {message.media_name && !message.body && (
+                    <p className="text-xs text-muted-foreground mt-1 px-2 truncate">
+                      {message.media_name}
+                    </p>
+                  )}
+                </>
               ) : (
                 <div className="rounded-xl bg-background/10 p-8 flex flex-col items-center justify-center gap-2 text-current/70">
                   <File className="w-8 h-8" />
@@ -167,9 +243,19 @@ export function MessageRenderer({
                 <Music className="w-4 h-4" />
               </div>
               {message.media_url ? (
-                <audio controls className="h-8 max-w-[200px]">
-                  <source src={message.media_url} type={message.media_mime} />
-                </audio>
+                <>
+                  <audio controls className="h-8 max-w-[200px]">
+                    <source src={message.media_url} type={message.media_mime} />
+                  </audio>
+                  <a
+                    href={message.media_url}
+                    onClick={(e) => handleDownload(e, message.media_url!, message.media_name || 'audio')}
+                    className="p-2 hover:bg-background/20 rounded-lg transition-colors"
+                    title="Descargar audio"
+                  >
+                    <Download className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                  </a>
+                </>
               ) : (
                 <span className="text-xs opacity-70">Audio no disponible</span>
               )}
@@ -179,13 +265,33 @@ export function MessageRenderer({
           {/* Video Message */}
           {message.type === 'video' && message.media_url && (
             <div className="p-1.5">
-              <video
-                controls
-                className="rounded-xl max-h-80 w-full shadow-sm"
-                poster={'/video-thumbnail.png'}
-              >
-                <source src={message.media_url} type={message.media_mime} />
-              </video>
+              <div className="relative group">
+                <div className="rounded-xl overflow-hidden shadow-sm max-h-80">
+                  <ReactPlayer
+                    url={message.media_url}
+                    controls={true}
+                    width="100%"
+                    height="auto"
+                    playing={false}
+                    pip={true}
+                    stopOnUnmount={true}
+                    playsinline={true}
+                  />
+                </div>
+                <a
+                  href={message.media_url}
+                  onClick={(e) => handleDownload(e, message.media_url!, message.media_name || 'video')}
+                  className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-black/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Descargar video"
+                >
+                  <Download className="w-4 h-4" />
+                </a>
+              </div>
+              {message.media_name && (
+                <p className="text-xs text-muted-foreground mt-1 px-2 truncate">
+                  {message.media_name}
+                </p>
+              )}
             </div>
           )}
 
@@ -209,6 +315,14 @@ export function MessageRenderer({
                   </p>
                 )}
               </div>
+              <a
+                href={message.media_url}
+                onClick={(e) => handleDownload(e, message.media_url!, message.media_name || 'archivo')}
+                className="p-2 hover:bg-background/20 rounded-lg transition-colors shrink-0"
+                title="Descargar archivo"
+              >
+                <Download className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+              </a>
             </div>
           )}
         </div>
@@ -221,12 +335,7 @@ export function MessageRenderer({
           )}
         >
           <span className="text-[10px] font-medium text-muted-foreground/70">
-            {message.created_at
-              ? new Date(message.created_at).toLocaleTimeString('es-ES', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : '--:--'}
+            {formatLocalTime(message.created_at)}
           </span>
           {getStatusIcon()}
         </div>

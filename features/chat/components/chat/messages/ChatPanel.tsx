@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import type { MessageTemplate } from '../../../types/template';
 import { sendFirstMessageWithTemplate } from '../../../api/whatsapp-message.api';
 import { sendWhatsAppTextMessage, sendWhatsAppMediaMessage } from '../../../api/send-message.api';
+import { updateMessageWhatsAppId } from '../../../api/message.api';
 import { resolveMediaType, resolveWhatsAppType } from '../../../utils/media-utils';
 
 interface ChatPanelProps {
@@ -72,7 +73,7 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
 
     // Enviar mensaje de texto
     if (content.trim()) {
-      await createMessageMutation.mutateAsync({
+      const createdMessage = await createMessageMutation.mutateAsync({
         conversationId: conversation.id,
         data: {
           sender_type: 'agent' as const,
@@ -89,6 +90,9 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         });
         if (!result.success) {
           console.error('[whatsapp-send] error:', result.error);
+        } else if (result.messageId && createdMessage?.id) {
+          // Guardar el wamid en el metadata del mensaje
+          await updateMessageWhatsAppId(createdMessage.id, result.messageId);
         }
       }
     }
@@ -107,7 +111,7 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
             toast.warning(`WhatsApp no soporta ${file.type}, se enviará como documento`);
           }
 
-          await createMessageMutation.mutateAsync({
+          const createdMessage = await createMessageMutation.mutateAsync({
             conversationId: conversation.id,
             data: {
               sender_type: 'agent' as const,
@@ -122,14 +126,21 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
 
           if (conversation.channel === 'whatsapp' && contact.wa_id) {
             const whatsappType = resolveWhatsAppType({ type });
+            // Para imágenes y videos, usar el nombre del archivo como caption
+            // Para documentos, usar filename
+            const isDocument = whatsappType === 'document';
             const result = await sendWhatsAppMediaMessage({
               to: contact.wa_id,
               type: whatsappType,
               mediaUrl: uploadResult.url,
-              caption: file.name,
+              caption: isDocument ? undefined : file.name, // Caption solo para imágenes/videos
+              filename: isDocument ? file.name : undefined, // Filename solo para documentos
             });
             if (!result.success) {
               console.error('[whatsapp-send] media error:', result.error);
+            } else if (result.messageId && createdMessage?.id) {
+              // Guardar el wamid en el metadata del mensaje
+              await updateMessageWhatsAppId(createdMessage.id, result.messageId);
             }
           }
         } catch (error) {
