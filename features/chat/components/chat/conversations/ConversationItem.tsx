@@ -1,17 +1,40 @@
 'use client';
 
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { channelTypeIcons, statusConfig } from './constants';
 import { formatTime } from './utils';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, MoreVertical, Trash2, Archive, CheckCircle, Clock } from 'lucide-react';
+import { updateConversationStatus, deleteConversation } from '../../../api/conversation.api';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 interface ConversationItemProps {
   conversation: any;
   channelsMap: Record<string, { id: string; name: string; type: string }>;
   isSelected: boolean;
   onClick: () => void;
+  onDeleted?: () => void;
 }
 
 export function ConversationItem({
@@ -19,8 +42,41 @@ export function ConversationItem({
   channelsMap,
   isSelected,
   onClick,
+  onDeleted,
 }: ConversationItemProps) {
+  const queryClient = useQueryClient();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const status = statusConfig[conversation.status] || statusConfig.open;
+
+  const handleStatusChange = async (newStatus: 'open' | 'closed' | 'pending' | 'snoozed') => {
+    try {
+      await updateConversationStatus(conversation.id, newStatus);
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      toast.success('Estado actualizado');
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Error al actualizar el estado');
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteConversation(conversation.id);
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      toast.success('Conversación eliminada');
+      setShowDeleteDialog(false);
+      if (onDeleted) {
+        onDeleted();
+      }
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      toast.error('Error al eliminar la conversación');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Obtener info del canal - primero del join, luego del mapa, luego fallback
   const channelFromJoin = conversation.mkt_channels;
@@ -47,17 +103,20 @@ export function ConversationItem({
   const avatarInitial = contactName?.charAt(0)?.toUpperCase() || '?';
 
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'w-full p-4 text-left transition-all duration-200 border-l-2 border-transparent hover:bg-muted/50 group relative',
-        isSelected && 'bg-primary/5 border-l-primary shadow-[inset_0_1px_0_0_rgba(0,0,0,0.05)]',
-        hasUnread && !isSelected && 'bg-primary/2'
-      )}
-    >
-      <div className="flex items-start gap-3">
-        {/* Avatar with channel indicator */}
-        <div className="relative shrink-0">
+    <>
+      <div
+        className={cn(
+          'w-full p-4 transition-all duration-200 border-l-2 border-transparent hover:bg-muted/50 group relative flex items-start gap-3',
+          isSelected && 'bg-primary/5 border-l-primary shadow-[inset_0_1px_0_0_rgba(0,0,0,0.05)]',
+          hasUnread && !isSelected && 'bg-primary/2'
+        )}
+      >
+        <button
+          onClick={onClick}
+          className="flex-1 flex items-start gap-3 text-left"
+        >
+          {/* Avatar with channel indicator */}
+          <div className="relative shrink-0">
           <Avatar className="h-12 w-12 border border-border/50 shadow-sm group-hover:shadow transition-shadow">
             <AvatarImage src={avatarUrl} alt={contactName} className="object-cover" />
             <AvatarFallback
@@ -133,7 +192,86 @@ export function ConversationItem({
             )}
           </div>
         </div>
+        </button>
+
+        {/* Actions Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStatusChange('open');
+              }}
+              className="cursor-pointer"
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Abrir
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStatusChange('pending');
+              }}
+              className="cursor-pointer"
+            >
+              <Clock className="w-4 h-4 mr-2" />
+              Pendiente
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStatusChange('closed');
+              }}
+              className="cursor-pointer"
+            >
+              <Archive className="w-4 h-4 mr-2" />
+              Cerrar
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteDialog(true);
+              }}
+              className="cursor-pointer text-destructive focus:text-destructive"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Eliminar
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-    </button>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar conversación?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente esta conversación y todos sus mensajes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

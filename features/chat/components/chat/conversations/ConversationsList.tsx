@@ -9,6 +9,7 @@ import { useActiveChannels } from '../../../hooks/useChannels';
 import { ConversationHeader } from './ConversationHeader';
 import { ConversationFilters } from './ConversationFilters';
 import { ConversationItem } from './ConversationItem';
+import { CreateConversationDialog } from './CreateConversationDialog';
 
 type FilterType = 'all' | 'open' | 'pending' | 'resolved' | 'snoozed';
 type SortType = 'newest' | 'oldest' | 'unread_first';
@@ -30,6 +31,7 @@ export function ConversationsList({
   const [filter, setFilter] = useState<FilterType>('all');
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
   const [sortBy, setSortBy] = useState<SortType>('newest');
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const { data: conversationsResult, isLoading } = useConversations();
   const { data: activeChannels = [] } = useActiveChannels();
@@ -137,6 +139,7 @@ export function ConversationsList({
         onSearchChange={onSearchChange}
         sortBy={sortBy}
         setSortBy={(sort) => setSortBy(sort as SortType)}
+        onCreateConversation={() => setShowCreateDialog(true)}
       />
 
       <ConversationFilters
@@ -205,12 +208,26 @@ export function ConversationsList({
                   channelsMap={channelsMap}
                   isSelected={selectedConversationId === conv.id}
                   onClick={() => onSelectConversation(conv.id)}
+                  onDeleted={() => {
+                    if (selectedConversationId === conv.id) {
+                      onSelectConversation('');
+                    }
+                  }}
                 />
               ))
             )}
           </div>
         </ScrollArea>
       </div>
+
+      <CreateConversationDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onCreated={(conversationId) => {
+          onSelectConversation(conversationId);
+          setShowCreateDialog(false);
+        }}
+      />
     </div>
   );
 }

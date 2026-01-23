@@ -63,6 +63,9 @@ export const useMessages = (conversationId: string) => {
     enabled: !!conversationId,
     // Sin polling - usamos Realtime
     staleTime: Infinity,
+    gcTime: 10 * 60 * 1000, // 10 minutos - mantener en cache
+    refetchOnMount: false, // No refetch al montar si ya tenemos datos
+    refetchOnWindowFocus: false, // No refetch al cambiar de ventana
   });
 };
 

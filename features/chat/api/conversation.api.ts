@@ -14,26 +14,44 @@ import { findOrCreateByEmail } from './contact.api';
 // Core Conversation Functions
 // ============================================================================
 
-export async function findOrCreate(contactId: string, channel: string): Promise<Conversation> {
+export async function findOrCreate(
+  contactId: string,
+  channel: string,
+  channelId?: string
+): Promise<Conversation> {
   const supabase = await createClient();
-  const { data: existing } = await supabase
+  
+  // Buscar conversación existente
+  let query = supabase
     .from('mkt_conversations')
     .select('*')
     .eq('contact_id', contactId)
     .eq('channel', channel)
-    .eq('status', 'open')
-    .single();
+    .eq('status', 'open');
+
+  if (channelId) {
+    query = query.eq('channel_id', channelId);
+  }
+
+  const { data: existing } = await query.single();
 
   if (existing) {
     return existing;
   }
 
+  // Crear nueva conversación
+  const insertData: any = {
+    contact_id: contactId,
+    channel: channel,
+  };
+
+  if (channelId) {
+    insertData.channel_id = channelId;
+  }
+
   const { data: newConversation, error } = await supabase
     .from('mkt_conversations')
-    .insert({
-      contact_id: contactId,
-      channel: channel,
-    })
+    .insert(insertData)
     .select('*')
     .single();
 
@@ -141,6 +159,37 @@ export async function updateConversationContact(
   }
 
   return data;
+}
+
+export async function updateConversationStatus(
+  conversationId: string,
+  status: 'open' | 'closed' | 'pending' | 'snoozed'
+): Promise<Conversation> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('mkt_conversations')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', conversationId)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteConversation(conversationId: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('mkt_conversations')
+    .delete()
+    .eq('id', conversationId);
+
+  if (error) {
+    throw error;
+  }
 }
 
 /**
