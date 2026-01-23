@@ -18,9 +18,7 @@ function normalizePhoneNumber(raw: string): string {
 
 function isValidPhoneNumber(value: string): boolean {
   return (
-    /^\d+$/.test(value) &&
-    value.length >= MIN_PHONE_LENGTH &&
-    value.length <= MAX_PHONE_LENGTH
+    /^\d+$/.test(value) && value.length >= MIN_PHONE_LENGTH && value.length <= MAX_PHONE_LENGTH
   );
 }
 
@@ -138,11 +136,7 @@ export async function sendFirstMessageWithTemplate(params: {
       };
     }
 
-    const template = await getTemplateByName(
-      activeChannel.id,
-      template_name,
-      'whatsapp'
-    );
+    const template = await getTemplateByName(activeChannel.id, template_name, 'whatsapp');
 
     if (!template) {
       return {

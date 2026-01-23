@@ -28,7 +28,7 @@ export function useChatRealtime() {
 
         queryClient.invalidateQueries({ queryKey: ['conversations'] });
 
-        if (!isActive) {
+        if (!isActive && message.sender_type !== 'bot') {
           if (soundEnabled) {
             const audio = new Audio('/sounds/chat-notification.mp3');
             audio.play().catch(() => {});
@@ -46,6 +46,17 @@ export function useChatRealtime() {
       }
     );
 
+    // 💬 NUEVA CONVERSATION
+    channel.on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'mkt_conversations' },
+      (payload) => {
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        queryClient.invalidateQueries({ queryKey: ['conversation-counts'] });
+      }
+    );
+
+    // 💬 UPDATE CONVERSATION
     channel.on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'mkt_conversations' },
