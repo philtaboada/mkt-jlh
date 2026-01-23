@@ -91,7 +91,6 @@ export function TemplateSelector({
       
       if (result.success) {
         toast.success(`Sincronización completada: ${result.synced} plantillas sincronizadas`);
-        // Invalidar cache de templates
         queryClient.invalidateQueries({ queryKey: ['templates', channelId, 'whatsapp'] });
         if (onSyncComplete) {
           onSyncComplete();
