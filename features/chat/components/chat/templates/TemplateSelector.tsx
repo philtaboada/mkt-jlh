@@ -272,6 +272,35 @@ export function TemplateSelector({
                 </div>
               );
             })}
+            {/* Preview del mensaje con parámetros reemplazados y mejor UI */}
+            {selectedTemplate && (
+              <div className="mt-6 p-4 border rounded bg-muted space-y-2">
+                <Label className="mb-2 block text-base font-semibold text-primary">Preview del mensaje</Label>
+                {['HEADER', 'BODY', 'FOOTER'].map((section) => {
+                  const comp = selectedTemplate.components.find((c) => c.type === section);
+                  if (!comp?.text) return null;
+                  let preview = comp.text;
+                  selectedTemplatePlaceholders.forEach((p) => {
+                    if (p.component === section) {
+                      const value = templateParams[`param_${p.index}`] || `{{${p.index}}}`;
+                      preview = preview.replace(new RegExp(`\\{\\{${p.index}\\}\\}`, 'g'), value);
+                    }
+                  });
+                  return (
+                    <div key={section} className={
+                      section === 'HEADER' ? 'text-sm font-bold text-primary' :
+                      section === 'BODY' ? 'text-sm text-foreground' :
+                      'text-xs text-muted-foreground italic'
+                    }>
+                      {section === 'HEADER' && <span className="block mb-1 text-xs text-muted-foreground">Encabezado</span>}
+                      {section === 'BODY' && <span className="block mb-1 text-xs text-muted-foreground">Cuerpo</span>}
+                      {section === 'FOOTER' && <span className="block mb-1 text-xs text-muted-foreground">Pie</span>}
+                      <span className="whitespace-pre-line">{preview}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <DialogFooter>

@@ -16,7 +16,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useActiveChannels } from '../../../hooks/useChannels';
 import { useContacts } from '../../../hooks/useContacts';
 import { toast } from 'sonner';
-import { findOrCreateByEmail, findOrCreateByWhatsApp, getContactById } from '../../../api/contact.api';
+import {
+  findOrCreateByEmail,
+  findOrCreateByWhatsApp,
+  getContactById,
+} from '../../../api/contact.api';
 import { findOrCreate } from '../../../api/conversation.api';
 import { useRouter } from 'next/navigation';
 import { SelectOptions } from '@/components/shared/select-options';
@@ -35,7 +39,8 @@ export function CreateConversationDialog({
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: channels = [] } = useActiveChannels();
-  const { data: contacts = [] } = useContacts();
+  const { data: contactsData } = useContacts();
+  const contacts = contactsData?.pages.flatMap((page) => page.data) || [];
   const [contactMode, setContactMode] = useState<'existing' | 'new'>('existing');
   const [selectedChannelId, setSelectedChannelId] = useState<string>('');
   const [selectedContactId, setSelectedContactId] = useState<string>('');
@@ -94,7 +99,7 @@ export function CreateConversationDialog({
     setIsLoading(true);
     try {
       let contact;
-      
+
       if (contactMode === 'existing') {
         contact = await getContactById(selectedContactId);
         if (!contact) {
@@ -105,7 +110,10 @@ export function CreateConversationDialog({
       } else {
         if (isWhatsApp) {
           const normalizedPhone = contactPhone.replace(/[^\d]/g, '');
-          contact = await findOrCreateByWhatsApp(normalizedPhone, contactName || `Contacto ${normalizedPhone}`);
+          contact = await findOrCreateByWhatsApp(
+            normalizedPhone,
+            contactName || `Contacto ${normalizedPhone}`
+          );
         } else {
           contact = await findOrCreateByEmail(
             contactEmail,
@@ -125,7 +133,7 @@ export function CreateConversationDialog({
 
       toast.success('Conversación creada');
       onOpenChange(false);
-      
+
       // Reset form
       setContactMode('existing');
       setSelectedChannelId('');
@@ -275,7 +283,10 @@ export function CreateConversationDialog({
               ) : (
                 <>
                   <div className="space-y-2.5">
-                    <Label htmlFor="email" className="text-sm font-semibold flex items-center gap-2">
+                    <Label
+                      htmlFor="email"
+                      className="text-sm font-semibold flex items-center gap-2"
+                    >
                       <Mail className="w-4 h-4 text-muted-foreground" />
                       Correo Electrónico *
                     </Label>
@@ -289,7 +300,10 @@ export function CreateConversationDialog({
                     />
                   </div>
                   <div className="space-y-2.5">
-                    <Label htmlFor="phone-optional" className="text-sm font-semibold flex items-center gap-2">
+                    <Label
+                      htmlFor="phone-optional"
+                      className="text-sm font-semibold flex items-center gap-2"
+                    >
                       <Phone className="w-4 h-4 text-muted-foreground" />
                       Teléfono (opcional)
                     </Label>

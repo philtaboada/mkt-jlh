@@ -16,8 +16,8 @@ interface ConversationHeaderProps {
   totalUnread: number;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  sortBy: string;
-  setSortBy: (sort: string) => void;
+  sortBy: 'newest' | 'oldest' | 'unread_first';
+  setSortBy: (sort: 'newest' | 'oldest' | 'unread_first') => void;
   onCreateConversation?: () => void;
 }
 
@@ -33,11 +33,9 @@ export function ConversationHeader({
     <div className="p-4 border-b border-border bg-background/50 backdrop-blur-sm">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5">
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
-            Chats
-          </h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Chats</h1>
           {totalUnread > 0 && (
-            <Badge className="h-5 min-w-[20px] px-1.5 text-[10px] bg-primary font-black rounded-full flex items-center justify-center">
+            <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary font-black rounded-full flex items-center justify-center">
               {totalUnread}
             </Badge>
           )}
@@ -55,46 +53,43 @@ export function ConversationHeader({
           )}
           {/* Ordenar */}
           <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-9 w-9 rounded-xl hover:bg-muted transition-colors"
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-9 w-9 rounded-xl hover:bg-muted transition-colors"
+              >
+                <SlidersHorizontal className="h-4.5 w-4.5 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-56 p-1 rounded-xl shadow-xl border-border/50"
             >
-              <SlidersHorizontal className="h-4.5 w-4.5 text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 p-1 rounded-xl shadow-xl border-border/50">
-            <DropdownMenuItem
-              onClick={() => setSortBy('newest')}
-              className="rounded-lg py-2 cursor-pointer"
-            >
-              Más recientes
-              {sortBy === 'newest' && (
-                <Check className="ml-auto w-4 h-4 text-primary" />
-              )}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => setSortBy('oldest')}
-              className="rounded-lg py-2 cursor-pointer"
-            >
-              Más antiguos
-              {sortBy === 'oldest' && (
-                <Check className="ml-auto w-4 h-4 text-primary" />
-              )}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="my-1" />
-            <DropdownMenuItem
-              onClick={() => setSortBy('unread_first')}
-              className="rounded-lg py-2 cursor-pointer"
-            >
-              No leídos primero
-              {sortBy === 'unread_first' && (
-                <Check className="ml-auto w-4 h-4 text-primary" />
-              )}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuItem
+                onClick={() => setSortBy('newest')}
+                className="rounded-lg py-2 cursor-pointer"
+              >
+                Más recientes
+                {sortBy === 'newest' && <Check className="ml-auto w-4 h-4 text-primary" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('oldest')}
+                className="rounded-lg py-2 cursor-pointer"
+              >
+                Más antiguos
+                {sortBy === 'oldest' && <Check className="ml-auto w-4 h-4 text-primary" />}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-1" />
+              <DropdownMenuItem
+                onClick={() => setSortBy('unread_first')}
+                className="rounded-lg py-2 cursor-pointer"
+              >
+                No leídos primero
+                {sortBy === 'unread_first' && <Check className="ml-auto w-4 h-4 text-primary" />}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,11 +14,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { useContacts, useCreateContact } from '@/features/chat/hooks/useContacts';
+import { useContacts, useCreateContact, useDeleteContact } from '@/features/chat/hooks/useContacts';
 import { ContactDetails } from '@/features/chat/components/ContactDetail';
 import { ContactCard } from './ContactCard';
 import { Contact } from '@/features/chat/types/contact';
 import { ContactFormDialog } from '@/features/chat/components/dialogs/ContactFormDialog';
+import { DeleteContactDialog } from '@/features/chat/components/dialogs/DeleteContactDialog';
 
 const statusColors: Record<string, { bg: string; text: string; label: string }> = {
   lead: { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Lead' },
@@ -36,20 +37,41 @@ export function ContactsView() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
 
-  const { data: contacts = [], isLoading, refetch } = useContacts();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useContacts(
+    20,
+    { searchQuery, status: statusFilter }
+  );
   const createContactMutation = useCreateContact();
 
-  const filteredContacts = contacts.filter((contact) => {
-    const matchesSearch =
-      contact.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.phone?.includes(searchQuery);
+  const contacts = data?.pages.flatMap((page) => page.data) || [];
 
-    const matchesStatus = statusFilter === 'all' || contact.status === statusFilter;
+  // Infinite scroll logic
+  const handleScroll = useCallback(
+    (event: Event) => {
+      const el = event.target as HTMLDivElement;
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
 
-    return matchesSearch && matchesStatus;
-  });
+      if (nearBottom && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    },
+    [hasNextPage, isFetchingNextPage, fetchNextPage]
+  );
+
+  useEffect(() => {
+    const root = scrollAreaRef.current;
+    if (!root) return;
+
+    const viewport = root.querySelector('[data-radix-scroll-area-viewport]');
+    if (!viewport) return;
+
+    viewport.addEventListener('scroll', handleScroll, { passive: true });
+    return () => viewport.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
 
   const handleCreateContact = (newContact: {
     name: string;
@@ -83,7 +105,7 @@ export function ContactsView() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <ContactsHeader
-          contactsCount={contacts.length}
+          contactsCount={data?.pages[0]?.pagination.total || 0}
           onCreateClick={() => setIsCreateDialogOpen(true)}
         />
 
@@ -124,25 +146,41 @@ export function ContactsView() {
         </div>
 
         {/* Contacts Grid */}
-        <ScrollArea className="flex-1">
+        <ScrollArea ref={scrollAreaRef} className="h-full">
           <div className="p-6">
             {isLoading ? (
               <ContactsGridSkeleton />
-            ) : filteredContacts.length === 0 ? (
+            ) : contacts.length === 0 ? (
               <ContactsEmptyState
                 searchQuery={searchQuery}
                 onCreateClick={() => setIsCreateDialogOpen(true)}
               />
             ) : (
               <div className="flex flex-col gap-3">
-                {filteredContacts.map((contact) => (
+                {contacts.map((contact) => (
                   <ContactCard
                     key={contact.id}
                     contact={contact}
                     isSelected={selectedContact?.id === contact.id}
                     onClick={() => setSelectedContact(contact)}
+                    onEdit={(contact) => {
+                      // TODO: Implement edit functionality
+                      console.log('Edit contact:', contact);
+                    }}
+                    onDelete={(contactId) => {
+                      const contact = contacts.find((c) => c.id === contactId);
+                      if (contact) {
+                        setContactToDelete(contact);
+                      }
+                    }}
                   />
                 ))}
+
+                {isFetchingNextPage && (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    Cargando más contactos...
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -167,6 +205,18 @@ export function ContactsView() {
         onOpenChange={setIsCreateDialogOpen}
         onSubmit={handleCreateContact}
         isLoading={createContactMutation.isPending}
+      />
+
+      {/* Delete Contact Dialog */}
+      <DeleteContactDialog
+        contact={contactToDelete}
+        open={!!contactToDelete}
+        onOpenChange={(open) => !open && setContactToDelete(null)}
+        onContactDeleted={() => {
+          if (selectedContact?.id === contactToDelete?.id) {
+            setSelectedContact(null);
+          }
+        }}
       />
     </div>
   );

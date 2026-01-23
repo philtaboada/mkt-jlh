@@ -1,112 +1,57 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 
-interface Conversation {
-  id: string;
-  contact_id: string;
-  channel: string;
-  status: string;
-  assigned_to?: string;
-  last_message_at?: string;
-  contact?: {
-    id: string;
-    name: string;
-    wa_id: string;
-    avatar_url?: string;
-  };
+type FilterType = 'all' | 'open' | 'pending' | 'resolved' | 'snoozed';
+type SortType = 'newest' | 'oldest' | 'unread_first';
+type ChannelFilter = 'all' | string;
+
+interface ChatFilters {
+  status: FilterType;
+  channel: ChannelFilter;
+  sortBy: SortType;
+  searchQuery: string;
+  pageIndex?: number;
+  pageSize?: number;
 }
 
-interface Message {
-  id: string;
-  conversation_id: string;
-  sender_type: 'user' | 'agent' | 'system';
-  sender_id: string;
-  type: 'text' | 'image' | 'audio' | 'video' | 'file';
-  body?: string;
-  media_url?: string;
-  media_mime?: string;
-  media_size?: number;
-  media_name?: string;
-  metadata?: any;
-  created_at: string;
+interface ChatUIState {
+  activeConversationId: string | null;
+  filters: ChatFilters;
+  activeChannels: any[];
+  soundEnabled: boolean;
+
+  setActiveConversationId: (id: string | null) => void;
+  setFilters: (filters: Partial<ChatFilters>) => void;
+  setActiveChannels: (channels: any[]) => void;
+  toggleSound: () => void;
 }
 
-interface ChatState {
-  conversations: Conversation[];
-  currentConversation: Conversation | null;
-  messages: Message[];
-  loading: boolean;
-  error: string | null;
-
-  // Actions
-  fetchConversations: () => Promise<void>;
-  selectConversation: (conversation: Conversation) => void;
-  fetchMessages: (conversationId: string) => Promise<void>;
-  sendMessage: (conversationId: string, data: any) => Promise<void>;
-  markAsRead: (conversationId: string) => Promise<void>;
-}
-
-export const useChatStore = create<ChatState>()(
+export const useChatStore = create<ChatUIState>()(
   devtools(
-    (set, get) => ({
-      conversations: [],
-      currentConversation: null,
-      messages: [],
-      loading: false,
-      error: null,
+    (set) => ({
+      activeConversationId: null,
 
-      fetchConversations: async () => {
-        set({ loading: true, error: null });
-        try {
-          // TODO: Implement API call
-          const response = await fetch('/api/conversations');
-          const conversations = await response.json();
-          set({ conversations, loading: false });
-        } catch (error) {
-          set({ error: 'Failed to fetch conversations', loading: false });
-        }
+      filters: {
+        status: 'all',
+        channel: 'all',
+        sortBy: 'newest',
+        searchQuery: '',
       },
 
-      selectConversation: (conversation) => {
-        set({ currentConversation: conversation });
-        get().fetchMessages(conversation.id);
-      },
+      activeChannels: [],
+      soundEnabled: true,
 
-      fetchMessages: async (conversationId) => {
-        set({ loading: true, error: null });
-        try {
-          // TODO: Implement API call
-          const response = await fetch(`/api/conversations/${conversationId}/messages`);
-          const messages = await response.json();
-          set({ messages, loading: false });
-        } catch (error) {
-          set({ error: 'Failed to fetch messages', loading: false });
-        }
-      },
+      setActiveConversationId: (id) => set({ activeConversationId: id }),
 
-      sendMessage: async (conversationId, data) => {
-        try {
-          // TODO: Implement API call
-          await fetch(`/api/conversations/${conversationId}/messages`, {
-            method: 'POST',
-            body: JSON.stringify(data),
-          });
-          // Refresh messages
-          get().fetchMessages(conversationId);
-        } catch (error) {
-          set({ error: 'Failed to send message' });
-        }
-      },
+      setFilters: (filters) =>
+        set((state) => ({
+          filters: { ...state.filters, ...filters },
+        })),
 
-      markAsRead: async (conversationId) => {
-        try {
-          // TODO: Implement API call
-          await fetch(`/api/conversations/${conversationId}/read`, { method: 'POST' });
-        } catch (error) {
-          console.error('Failed to mark as read');
-        }
-      },
+      setActiveChannels: (channels) => set({ activeChannels: channels }),
+
+      toggleSound: () => set((state) => ({ soundEnabled: !state.soundEnabled })),
     }),
-    { name: 'chat-store' }
+    { name: 'chat-ui-store' }
   )
 );

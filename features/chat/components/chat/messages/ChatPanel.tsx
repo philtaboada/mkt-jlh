@@ -52,13 +52,40 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
   const handleSendMessage = async (content: string, attachments?: File[]): Promise<void> => {
     if ((!content.trim() && (!attachments || attachments.length === 0)) || !conversation.id) return;
 
-    // Enviar primer mensaje con template si aplica
     if (
       isFirstMessage &&
       selectedTemplate &&
       conversation.channel === 'whatsapp' &&
       contact.wa_id
     ) {
+      const bodyComponent = selectedTemplate.components.find((c) => c.type === 'BODY');
+      let preview = bodyComponent?.text || '';
+      if (bodyComponent) {
+        const placeholders = selectedTemplate.components
+          .filter((c) => c.type === 'BODY' || c.type === 'HEADER')
+          .flatMap((comp) => {
+            const matches = comp.text?.match(/\{\{(\d+)\}\}/g) || [];
+            return matches.map((match) => {
+              const index = parseInt(match.replace(/\{\{|\}\}/g, ''), 10);
+              return { index, component: comp.type };
+            });
+          });
+        placeholders.forEach((p) => {
+          const value = templateParams[`param_${p.index}`] || `{{${p.index}}}`;
+          preview = preview.replace(new RegExp(`\\{\\{${p.index}\\}\\}`, 'g'), value);
+        });
+      }
+      // Guardar mensaje en la base de datos local
+      await createMessageMutation.mutateAsync({
+        conversationId: conversation.id,
+        data: {
+          sender_type: 'agent' as const,
+          sender_id: 'agent-current',
+          type: 'text' as const,
+          body: preview,
+        },
+      });
+      // Enviar a WhatsApp
       const result = await sendFirstMessageWithTemplate({
         to: contact.wa_id,
         templateName: selectedTemplate.name,
