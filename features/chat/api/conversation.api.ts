@@ -28,7 +28,7 @@ export async function getConversations(
   let query = supabase.from('mkt_conversations').select(
     `
         *,
-        mkt_contacts!inner (
+        mkt_contacts (
           id,
           name,
           wa_id,
@@ -52,7 +52,9 @@ export async function getConversations(
   }
 
   if (filters.searchQuery?.trim()) {
-    query = query.filter('mkt_contacts.name', 'ilike', `%${filters.searchQuery}%`);
+    query = query.or(
+      `mkt_contacts.name.ilike.%${filters.searchQuery}%,metadata->visitor_info->>name.ilike.%${filters.searchQuery}%`
+    );
   }
   switch (filters.sortBy) {
     case 'oldest':

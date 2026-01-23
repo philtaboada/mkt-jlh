@@ -1404,14 +1404,6 @@
           this.conversationId = data.conversation_id;
           localStorage.setItem(`mkt_conversation_${this.token}`, this.conversationId);
           this.connectToStream();
-          
-          if (data.reply) {
-            this.addMessage({
-              type: 'bot',
-              text: data.reply,
-              timestamp: new Date()
-            });
-          }
         }
       } catch (error) {
         console.error('MktChat: Error sending message', error);

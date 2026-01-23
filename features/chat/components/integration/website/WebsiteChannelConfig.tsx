@@ -45,7 +45,18 @@ export function WebsiteChannelConfig({ channelId }: WebsiteChannelConfigProps) {
   }, [channel]);
 
   const widgetConfig = config as WebsiteWidgetConfig;
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tu-dominio.com';
+
+  // Regenerar script cuando cambie la URL del sitio web
+  useEffect(() => {
+    // Forzar re-render del script cuando cambie website_url
+    if (widgetConfig?.website_url) {
+      // El script se regenera automáticamente porque baseUrl depende de widgetConfig.website_url
+    }
+  }, [widgetConfig?.website_url]);
+
+  const baseUrl =
+    widgetConfig?.website_url ||
+    (typeof window !== 'undefined' ? window.location.origin : 'https://tu-dominio.com');
 
   const scriptCode = widgetConfig?.widget_token
     ? generateWidgetScript({

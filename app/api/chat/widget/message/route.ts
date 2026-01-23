@@ -57,19 +57,30 @@ export async function POST(request: NextRequest) {
 
     // Verificar si hay un agente activo ANTES de guardar el mensaje del usuario
     const channelConfig = channel.config as WebsiteWidgetConfig;
+    console.log('AI: Configuración del canal:', {
+      ai_enabled: channelConfig.ai_enabled,
+      has_ai_config: !!channelConfig.ai_config,
+      response_mode: channelConfig.ai_config?.response_mode,
+    });
+
     let shouldProcessWithAI = false;
-    
+
     if (isAIEnabledForChannel(channelConfig)) {
+      console.log('AI: IA habilitada para este canal');
       const lastMessage = await getLastMessage(conversationId);
-      
-      if (!lastMessage || 
-          lastMessage.sender_type === 'bot' || 
-          lastMessage.sender_type === 'user') {
+
+      if (!lastMessage) {
+        console.log('AI: No hay mensajes previos, procesando con IA');
+        shouldProcessWithAI = true;
+      } else if (lastMessage.sender_type === 'bot' || lastMessage.sender_type === 'user') {
+        console.log('AI: Último mensaje es de bot/usuario, procesando con IA');
         shouldProcessWithAI = true;
       } else if (lastMessage.sender_type === 'agent') {
         console.log('AI: Último mensaje es de un agente, no procesando con IA');
         shouldProcessWithAI = false;
       }
+    } else {
+      console.log('AI: IA no habilitada para este canal');
     }
 
     // Guardar mensaje del usuario (visitor)
@@ -80,27 +91,28 @@ export async function POST(request: NextRequest) {
       senderType: 'user',
     });
 
-    // Procesar respuesta de IA solo si corresponde
-    let handoffToHuman = false;
-
+    // Procesar respuesta de IA en background (no esperar)
     if (shouldProcessWithAI) {
-      const result = await processIncomingMessage({
+      console.log('AI: Procesando mensaje con IA para conversación:', conversationId);
+      // No esperar la respuesta, procesar en background
+      processIncomingMessage({
         conversationId,
         userMessage: message,
         channelConfig,
         contactName: visitor_info?.name,
         channel: 'website',
-        autoSaveReply: true, 
+        autoSaveReply: true,
+      }).catch((error) => {
+        console.error('Error processing AI message:', error);
       });
-
-      handoffToHuman = result.handoffToHuman || false;
+    } else {
+      console.log('AI: No se procesará con IA para conversación:', conversationId);
     }
-
     return NextResponse.json(
       {
         success: true,
         conversation_id: conversationId,
-        handoff_to_human: handoffToHuman,
+        handoff_to_human: false,
       },
       { headers: corsHeaders }
     );
