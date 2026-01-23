@@ -2,10 +2,20 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest } from 'next/server';
 import { getChannelByWidgetToken } from '@/features/chat/api/channels.api';
 import { getConversationById } from '@/features/chat/api/conversation.api';
+import { getCorsHeaders } from '@/lib/utils/cors';
 
 export const dynamic = 'force-dynamic';
 
+// Manejar preflight requests
+export async function OPTIONS(request: NextRequest) {
+  return new Response(null, {
+    status: 204,
+    headers: getCorsHeaders(request, 'GET, OPTIONS'),
+  });
+}
+
 export async function GET(request: NextRequest) {
+  const corsHeaders = getCorsHeaders(request, 'GET, OPTIONS');
   const searchParams = request.nextUrl.searchParams;
   const token = searchParams.get('token');
   const conversationId = searchParams.get('conversation_id');
@@ -91,12 +101,10 @@ export async function GET(request: NextRequest) {
 
   return new Response(stream, {
     headers: {
+      ...corsHeaders,
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET',
-      'Access-Control-Allow-Headers': 'Content-Type',
     },
   });
 }

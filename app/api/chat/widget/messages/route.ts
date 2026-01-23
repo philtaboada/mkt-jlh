@@ -7,21 +7,19 @@ import {
   createAutoReplyMessage,
 } from '@/features/chat/api/message.api';
 import type { WebsiteWidgetConfig } from '@/features/chat/types/settings';
-
-// Headers CORS para el widget
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+import { getCorsHeaders } from '@/lib/utils/cors';
 
 // Manejar preflight requests
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: getCorsHeaders(request, 'GET, POST, OPTIONS'),
+  });
 }
 
 // GET - Obtener mensajes de una conversación
 export async function GET(request: NextRequest) {
+  const corsHeaders = getCorsHeaders(request, 'GET, POST, OPTIONS');
   const { searchParams } = new URL(request.url);
   const conversationId = searchParams.get('conversation_id');
   const token = searchParams.get('token');
@@ -61,6 +59,7 @@ export async function GET(request: NextRequest) {
 
 // POST - Enviar un nuevo mensaje
 export async function POST(request: NextRequest) {
+  const corsHeaders = getCorsHeaders(request, 'GET, POST, OPTIONS');
   try {
     const body = await request.json();
     const { token, conversation_id, content, visitor_info, visitor_id } = body;
@@ -106,7 +105,6 @@ export async function POST(request: NextRequest) {
     let aiResponse = null;
 
     if (channelConfig.ai_enabled && channelConfig.ai_config?.auto_reply) {
-      // TODO: Implementar respuesta de AI con Vercel AI SDK
       const autoReply = await createAutoReplyMessage(
         activeConversationId,
         '¡Gracias por tu mensaje! Un agente te responderá pronto.'
