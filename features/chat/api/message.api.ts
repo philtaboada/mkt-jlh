@@ -53,13 +53,15 @@ export async function getMessagesByConversation(conversationId: string): Promise
     .from('mkt_messages')
     .select('*')
     .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false })
+    .limit(50);
 
   if (error) {
     throw error;
   }
 
-  return data;
+  // Reverse to show oldest first
+  return data.reverse();
 }
 
 /**

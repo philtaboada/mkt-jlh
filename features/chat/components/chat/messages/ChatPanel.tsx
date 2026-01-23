@@ -50,6 +50,13 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
   };
 
   const handleSendMessage = async (content: string, attachments?: File[]): Promise<void> => {
+    console.log('[ChatPanel] handleSendMessage called:', {
+      content: content.trim(),
+      attachmentsCount: attachments?.length,
+      conversationId: conversation.id,
+      channel: conversation.channel,
+      wa_id: contact.wa_id,
+    });
     if ((!content.trim() && (!attachments || attachments.length === 0)) || !conversation.id) return;
 
     if (
@@ -58,6 +65,12 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
       conversation.channel === 'whatsapp' &&
       contact.wa_id
     ) {
+      console.log('[Debug] Enviando primer mensaje con plantilla - condiciones:', {
+        isFirstMessage,
+        selectedTemplate: !!selectedTemplate,
+        channel: conversation.channel,
+        wa_id: contact.wa_id,
+      });
       const bodyComponent = selectedTemplate.components.find((c) => c.type === 'BODY');
       let preview = bodyComponent?.text || '';
       if (bodyComponent) {
@@ -160,12 +173,18 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
 
           if (conversation.channel === 'whatsapp' && contact.wa_id) {
             const whatsappType = resolveWhatsAppType({ type });
+            console.log('[WhatsApp] Enviando medio:', {
+              to: contact.wa_id,
+              type: whatsappType,
+              mediaUrl: uploadResult.url,
+            });
             const result = await sendWhatsAppMediaMessage({
               to: contact.wa_id,
               type: whatsappType,
               mediaUrl: uploadResult.url,
               caption: file.name,
             });
+            console.log('[WhatsApp] Resultado del envío de medio:', result);
             if (!result.success) {
               console.error('[whatsapp-send] media error:', result.error);
             }

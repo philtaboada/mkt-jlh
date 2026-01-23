@@ -8,13 +8,21 @@ export function createContactFromData(
   if (selectedContact) {
     return {
       id: selectedContact.id,
+      wa_id: selectedContact.wa_id,
+      fb_id: selectedContact.fb_id,
+      ig_id: selectedContact.ig_id,
       name: selectedContact.name || 'Contacto',
       email: selectedContact.email,
       phone: selectedContact.phone,
       avatar_url: selectedContact.avatar_url,
+      custom_fields: selectedContact.custom_fields,
+      status: selectedContact.status,
       source: selectedContact.source || 'unknown',
+      assigned_to: selectedContact.assigned_to,
+      last_interaction: selectedContact.last_interaction,
       created_at: selectedContact.created_at,
       updated_at: selectedContact.updated_at,
+      visitor_id: selectedContact.visitor_id,
     };
   }
 
