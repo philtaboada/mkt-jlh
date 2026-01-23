@@ -36,6 +36,7 @@ export function ConversationsList({
   const { data: conversationsResult, isLoading } = useConversations();
   const { data: activeChannels = [] } = useActiveChannels();
   const conversations = conversationsResult?.data || [];
+  console.log('Conversations loaded:', conversationsResult);
 
   // Crear mapa de canales por ID para acceso rápido
   const channelsMap = useMemo(() => {
