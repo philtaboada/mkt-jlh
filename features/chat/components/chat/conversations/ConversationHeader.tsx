@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Search, SlidersHorizontal, Check } from 'lucide-react';
+import { Search, SlidersHorizontal, Check, Plus } from 'lucide-react';
 
 interface ConversationHeaderProps {
   totalUnread: number;
@@ -18,6 +18,7 @@ interface ConversationHeaderProps {
   onSearchChange: (query: string) => void;
   sortBy: string;
   setSortBy: (sort: string) => void;
+  onCreateConversation?: () => void;
 }
 
 export function ConversationHeader({
@@ -26,6 +27,7 @@ export function ConversationHeader({
   onSearchChange,
   sortBy,
   setSortBy,
+  onCreateConversation,
 }: ConversationHeaderProps) {
   return (
     <div className="p-4 border-b border-border bg-background/50 backdrop-blur-sm">
@@ -40,8 +42,19 @@ export function ConversationHeader({
             </Badge>
           )}
         </div>
-        {/* Ordenar */}
-        <DropdownMenu>
+        <div className="flex items-center gap-1">
+          {onCreateConversation && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onCreateConversation}
+              className="h-9 w-9 rounded-xl hover:bg-muted transition-colors"
+            >
+              <Plus className="h-4.5 w-4.5 text-muted-foreground" />
+            </Button>
+          )}
+          {/* Ordenar */}
+          <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               size="icon"
@@ -82,6 +95,7 @@ export function ConversationHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
 
       {/* Search */}

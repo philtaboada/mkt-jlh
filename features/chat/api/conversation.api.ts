@@ -14,26 +14,44 @@ import { findOrCreateByEmail } from './contact.api';
 // Core Conversation Functions
 // ============================================================================
 
-export async function findOrCreate(contactId: string, channel: string): Promise<Conversation> {
+export async function findOrCreate(
+  contactId: string,
+  channel: string,
+  channelId?: string
+): Promise<Conversation> {
   const supabase = await createClient();
-  const { data: existing } = await supabase
+  
+  // Buscar conversación existente
+  let query = supabase
     .from('mkt_conversations')
     .select('*')
     .eq('contact_id', contactId)
     .eq('channel', channel)
-    .eq('status', 'open')
-    .single();
+    .eq('status', 'open');
+
+  if (channelId) {
+    query = query.eq('channel_id', channelId);
+  }
+
+  const { data: existing } = await query.single();
 
   if (existing) {
     return existing;
   }
 
+  // Crear nueva conversación
+  const insertData: any = {
+    contact_id: contactId,
+    channel: channel,
+  };
+
+  if (channelId) {
+    insertData.channel_id = channelId;
+  }
+
   const { data: newConversation, error } = await supabase
     .from('mkt_conversations')
-    .insert({
-      contact_id: contactId,
-      channel: channel,
-    })
+    .insert(insertData)
     .select('*')
     .single();
 
@@ -143,6 +161,83 @@ export async function updateConversationContact(
   return data;
 }
 
+export async function updateConversationStatus(
+  conversationId: string,
+  status: 'open' | 'closed' | 'pending' | 'snoozed'
+): Promise<Conversation> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('mkt_conversations')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', conversationId)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteConversation(conversationId: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('mkt_conversations')
+    .delete()
+    .eq('id', conversationId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+/**
+ * Marca una conversación como transferida a agente humano
+ * Actualiza el metadata de la conversación con información del handoff
+ */
+export async function markConversationAsHandoff(conversationId: string): Promise<void> {
+  const supabase = await createClient();
+  
+  // Obtener el metadata actual
+  const { data: conversation, error: fetchError } = await supabase
+    .from('mkt_conversations')
+    .select('metadata')
+    .eq('id', conversationId)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching conversation for handoff:', fetchError);
+    throw fetchError;
+  }
+
+  if (!conversation) {
+    console.warn(`Conversation ${conversationId} not found for handoff marking`);
+    return;
+  }
+
+  const currentMetadata = (conversation.metadata as Record<string, unknown>) || {};
+  
+  // Actualizar metadata con información del handoff
+  const { error: updateError } = await supabase
+    .from('mkt_conversations')
+    .update({
+      metadata: {
+        ...currentMetadata,
+        ai_handoff: true,
+        ai_handoff_at: new Date().toISOString(),
+      },
+    })
+    .eq('id', conversationId);
+
+  if (updateError) {
+    console.error('Error marking conversation as handoff:', updateError);
+    throw updateError;
+  }
+
+  console.log(`✅ Conversación ${conversationId} marcada como transferida a agente`);
+}
+
 // ============================================================================
 // Conversation Counts
 // ============================================================================
@@ -220,7 +315,6 @@ export async function createWidgetConversation(
 ): Promise<Conversation> {
   const supabase = await createClient();
 
-  // Si hay email, buscar o crear contacto usando la función reutilizable
   let contactId: string | null = null;
 
   if (params.visitorInfo?.email) {
@@ -239,7 +333,7 @@ export async function createWidgetConversation(
       channel_id: params.channelId,
       channel: 'website',
       contact_id: contactId,
-      status: 'open',
+      status: params.status || 'open',
       // priority: 'medium',
       metadata: {
         visitor_id: params.visitorId,

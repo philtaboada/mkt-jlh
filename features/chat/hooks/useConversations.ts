@@ -90,7 +90,10 @@ export const useConversation = (id: string) => {
     queryKey: ['conversation', id],
     queryFn: () => getConversationById(id),
     enabled: isValidUUID,
-    staleTime: 30000,
+    staleTime: 5 * 60 * 1000, // 5 minutos - evitar refetches innecesarios
+    gcTime: 10 * 60 * 1000, // 10 minutos - mantener en cache más tiempo
+    refetchOnMount: false, // No refetch al montar si ya tenemos datos
+    refetchOnWindowFocus: false, // No refetch al cambiar de ventana
   });
 };
 

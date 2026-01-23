@@ -126,14 +126,33 @@ export async function updateChannel(id: string, input: UpdateChannelInput): Prom
   if (input.name !== undefined) updateData.name = input.name;
   if (input.status !== undefined) updateData.status = input.status;
   if (input.config !== undefined) {
-    // Merge config with existing config
     const { data: existing } = await supabase
       .from('mkt_channels')
       .select('config')
       .eq('id', id)
       .single();
 
-    updateData.config = { ...existing?.config, ...input.config };
+    const existingConfig = (existing?.config || {}) as Record<string, unknown>;
+    const newConfig = input.config as Record<string, unknown>;
+
+    // Deep merge function for nested objects
+    const deepMerge = (target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> => {
+      const output = { ...target };
+      for (const key in source) {
+        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key]) && source[key] !== null) {
+          output[key] = deepMerge(
+            (target[key] as Record<string, unknown>) || {},
+            source[key] as Record<string, unknown>
+          );
+        } else {
+          output[key] = source[key];
+        }
+      }
+      return output;
+    };
+
+    updateData.config = deepMerge(existingConfig, newConfig);
+
   }
 
   const { data, error } = await supabase

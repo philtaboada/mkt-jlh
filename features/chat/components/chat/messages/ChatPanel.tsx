@@ -1,43 +1,19 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import type { Contact } from '../../../types/contact';
 import type { Conversation } from '../../../types/conversation';
 import { MessageList } from './MessageList';
 import { ChatHeader } from '../header';
 import { MessageInput } from '../input';
-import { useMessages, useCreateMessage } from '../../../hooks';
-
+import { TemplateSelector } from '../templates/TemplateSelector';
+import { useMessages, useCreateMessage, useTemplates } from '../../../hooks';
 import { uploadChatAttachment } from '@/features/chat/actions/chat-storage';
 import { toast } from 'sonner';
-
-const SUPPORTED_WHATSAPP_IMAGE_MIMES = ['image/jpeg', 'image/png'] as const;
-const SUPPORTED_WHATSAPP_AUDIO_MIMES = ['audio/mpeg', 'audio/ogg', 'audio/aac'] as const;
-const SUPPORTED_WHATSAPP_VIDEO_MIMES = ['video/mp4', 'video/3gpp'] as const;
-
-function resolveMediaType(params: { mime: string }): 'image' | 'video' | 'audio' | 'file' {
-  if (params.mime.startsWith('image/')) {
-    return SUPPORTED_WHATSAPP_IMAGE_MIMES.includes(params.mime as (typeof SUPPORTED_WHATSAPP_IMAGE_MIMES)[number])
-      ? 'image'
-      : 'file';
-  }
-  if (params.mime.startsWith('video/')) {
-    return SUPPORTED_WHATSAPP_VIDEO_MIMES.includes(params.mime as (typeof SUPPORTED_WHATSAPP_VIDEO_MIMES)[number])
-      ? 'video'
-      : 'file';
-  }
-  if (params.mime.startsWith('audio/')) {
-    return SUPPORTED_WHATSAPP_AUDIO_MIMES.includes(params.mime as (typeof SUPPORTED_WHATSAPP_AUDIO_MIMES)[number])
-      ? 'audio'
-      : 'file';
-  }
-  return 'file';
-}
-
-function resolveWhatsAppType(params: { type: 'image' | 'video' | 'audio' | 'file' }): 'image' | 'video' | 'audio' | 'document' {
-  if (params.type === 'file') return 'document';
-  return params.type;
-}
+import type { MessageTemplate } from '../../../types/template';
+import { sendFirstMessageWithTemplate } from '../../../api/whatsapp-message.api';
+import { sendWhatsAppTextMessage, sendWhatsAppMediaMessage } from '../../../api/send-message.api';
+import { resolveMediaType, resolveWhatsAppType } from '../../../utils/media-utils';
 
 interface ChatPanelProps {
   contact: Contact;
@@ -48,10 +24,25 @@ interface ChatPanelProps {
 export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
+  const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
 
   // Use React Query hooks
   const { data: messages = [], isLoading } = useMessages(conversation.id || '');
   const createMessageMutation = useCreateMessage();
+  
+  // Detectar si es el primer mensaje (no hay mensajes del agente)
+  const isFirstMessage = useMemo(() => {
+    if (!messages || messages.length === 0) return true;
+    return !messages.some((msg) => msg.sender_type === 'agent');
+  }, [messages]);
+
+  // Cargar templates solo si es WhatsApp y es primer mensaje
+  const shouldLoadTemplates = conversation.channel === 'whatsapp' && isFirstMessage && !!conversation.channel_id;
+  const { data: templates = [], isLoading: isLoadingTemplates } = useTemplates(
+    conversation.channel_id || undefined,
+    shouldLoadTemplates ? 'whatsapp' : undefined
+  );
 
   const handleFileDrop = (files: File[]): void => {
     setDroppedFiles((prev) => [...prev, ...files]);
@@ -60,7 +51,26 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
   const handleSendMessage = async (content: string, attachments?: File[]): Promise<void> => {
     if ((!content.trim() && (!attachments || attachments.length === 0)) || !conversation.id) return;
 
-    // 1. Enviar mensaje de texto si existe
+    // Enviar primer mensaje con template si aplica
+    if (isFirstMessage && selectedTemplate && conversation.channel === 'whatsapp' && contact.wa_id) {
+      const result = await sendFirstMessageWithTemplate({
+        to: contact.wa_id,
+        templateName: selectedTemplate.name,
+        channelId: conversation.channel_id || undefined,
+        templateParams: Object.keys(templateParams).length > 0 ? templateParams : undefined,
+      });
+
+      if (result.success) {
+        toast.success('Mensaje con plantilla enviado');
+        setSelectedTemplate(null);
+        setTemplateParams({});
+      } else {
+        toast.error(result.error || 'Error al enviar plantilla');
+      }
+      return;
+    }
+
+    // Enviar mensaje de texto
     if (content.trim()) {
       await createMessageMutation.mutateAsync({
         conversationId: conversation.id,
@@ -72,38 +82,31 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         },
       });
 
-      // Lógica existente de WhatsApp para texto
-      if (conversation.channel === 'whatsapp') {
-        const recipient = contact.wa_id;
-        if (recipient) {
-          try {
-            await fetch('/api/whatsapp/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ to: recipient, message: content }),
-            });
-          } catch (error) {
-            console.error('[whatsapp-send] request error', error);
-          }
+      if (conversation.channel === 'whatsapp' && contact.wa_id) {
+        const result = await sendWhatsAppTextMessage({
+          to: contact.wa_id,
+          message: content,
+        });
+        if (!result.success) {
+          console.error('[whatsapp-send] error:', result.error);
         }
       }
     }
 
-    // 2. Procesar adjuntos
+    // Procesar adjuntos
     if (attachments && attachments.length > 0) {
       const uploadPromises = attachments.map(async (file) => {
         try {
-          // Subir a GCS
           const formData = new FormData();
           formData.append('file', file);
           const uploadResult = await uploadChatAttachment(formData);
           const mime = uploadResult.mime || file.type || 'application/octet-stream';
           const type = resolveMediaType({ mime });
+
           if ((file.type.startsWith('image/') || file.type.startsWith('audio/') || file.type.startsWith('video/')) && type === 'file') {
             toast.warning(`WhatsApp no soporta ${file.type}, se enviará como documento`);
           }
 
-          // Crear mensaje en DB con referencia al archivo
           await createMessageMutation.mutateAsync({
             conversationId: conversation.id,
             data: {
@@ -117,29 +120,18 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
             },
           });
 
-          // Aquí se podría agregar la lógica para enviar el archivo a WhatsApp
-          // usando uploadResult.url que es pública.
-          if (conversation.channel === 'whatsapp') {
-            const recipient = contact.wa_id;
-            if (recipient) {
-              try {
-                const whatsappType = resolveWhatsAppType({ type });
-                await fetch('/api/whatsapp/send', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    to: recipient,
-                    type: whatsappType,
-                    mediaUrl: uploadResult.url,
-                    caption: file.name,
-                  }),
-                });
-              } catch (error) {
-                console.error('[whatsapp-send] media request error', error);
-              }
+          if (conversation.channel === 'whatsapp' && contact.wa_id) {
+            const whatsappType = resolveWhatsAppType({ type });
+            const result = await sendWhatsAppMediaMessage({
+              to: contact.wa_id,
+              type: whatsappType,
+              mediaUrl: uploadResult.url,
+              caption: file.name,
+            });
+            if (!result.success) {
+              console.error('[whatsapp-send] media error:', result.error);
             }
           }
-
         } catch (error) {
           console.error('Error uploading file:', error);
           toast.error(`Error al enviar archivo ${file.name}`);
@@ -169,6 +161,22 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         scrollRef={scrollRef}
         onFileDrop={handleFileDrop}
       />
+
+      {/* Template Selector - Solo mostrar si es primer mensaje y WhatsApp */}
+      {shouldLoadTemplates && (
+        <div className="px-4 py-2 border-b bg-muted/30">
+          <TemplateSelector
+            templates={templates}
+            onSelect={(template, params) => {
+              setSelectedTemplate(template);
+              setTemplateParams(params || {});
+            }}
+            isLoading={isLoadingTemplates}
+            disabled={createMessageMutation.isPending}
+            channelId={conversation.channel_id || undefined}
+          />
+        </div>
+      )}
 
       <MessageInput
         onSendMessage={handleSendMessage}

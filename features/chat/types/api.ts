@@ -53,6 +53,7 @@ export interface CreateWidgetConversationParams {
   visitorInfo?: WidgetVisitorInfo;
   userAgent?: string | null;
   origin?: string | null;
+  status?: 'open' | 'closed'|'blocked'|'bot'|'agent'
 }
 
 export interface CreateWidgetMessageParams {

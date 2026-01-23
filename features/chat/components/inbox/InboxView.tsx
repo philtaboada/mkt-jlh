@@ -56,7 +56,8 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
     if (
       resolvedConversationId &&
       selectedConversation?.unread_count &&
-      selectedConversation.unread_count > 0
+      selectedConversation.unread_count > 0 &&
+      !markAsReadMutation.isPending
     ) {
       // Pequeño delay para asegurar que el usuario realmente está viendo la conversación
       const timer = setTimeout(() => {
@@ -65,6 +66,7 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
       return () => clearTimeout(timer);
     }
   }, [resolvedConversationId, selectedConversation?.unread_count, markAsReadMutation]);
+  
   useEffect(() => {
     setShowContactPanel(false);
   }, [resolvedConversationId]);
@@ -130,7 +132,6 @@ export function InboxView({ initialConversationId }: InboxViewProps) {
       <div className="flex-1 flex overflow-hidden">
         {selectedConversation && contact && conversation ? (
           <div
-            key={resolvedConversationId || 'conversation-empty'}
             className="flex w-full overflow-hidden"
           >
             {/* Chat Panel */}

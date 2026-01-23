@@ -4,3 +4,4 @@ export * from './useMessages';
 export * from './useTags';
 export * from './useChannels';
 export * from './useTeams';
+export * from './useTemplates';

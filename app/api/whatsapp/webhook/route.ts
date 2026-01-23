@@ -94,12 +94,20 @@ export async function POST(req: Request) {
     }
 
     if (value?.messages?.length > 0) {
+      // Obtener el canal activo para asociar la conversación
+      const whatsappChannels = await getChannelsByType('whatsapp');
+      const activeChannel = whatsappChannels.find((ch) => ch.status === 'active');
+      
       for (const msg of value.messages) {
         const waId = msg.from;
         const name = value.contacts?.[0]?.profile?.name || null;
 
         const contact = await findOrCreateByWhatsApp(waId, name);
-        const conversation = await findOrCreate(contact.id, 'whatsapp');
+        const conversation = await findOrCreate(
+          contact.id,
+          'whatsapp',
+          activeChannel?.id
+        );
 
         let text = msg.text?.body ?? msg[msg.type]?.caption ?? null;
         let mediaInfo = null;
@@ -117,9 +125,14 @@ export async function POST(req: Request) {
             messageType: msg.type,
             mediaId,
             hasCaption: Boolean(caption),
+            caption: caption?.substring(0, 100), // Log del caption para debugging
+            rawImage: JSON.stringify(msg[msg.type] || {}).substring(0, 200),
           });
 
-          if (caption) text = caption;
+          // Extraer caption ANTES de procesar el media para preservarlo
+          if (caption) {
+            text = caption;
+          }
 
           if (mediaId) {
             try {
@@ -130,7 +143,15 @@ export async function POST(req: Request) {
                 mediaId,
                 mediaType: msg.type,
                 url: mediaInfo?.url,
+                hasCaption: Boolean(caption),
               });
+              
+              // Solo establecer messageType como media si la descarga fue exitosa
+              if (msg.type === 'image') messageType = 'image';
+              else if (msg.type === 'audio') messageType = 'audio';
+              else if (msg.type === 'video') messageType = 'video';
+              else if (msg.type === 'document') messageType = 'file';
+              else if (msg.type === 'sticker') messageType = 'image';
             } catch (mediaError) {
               const errorMessage = mediaError instanceof Error ? mediaError.message : String(mediaError);
               console.error('[whatsapp-webhook] media download/upload error', {
@@ -138,18 +159,29 @@ export async function POST(req: Request) {
                 mediaId,
                 mediaType: msg.type,
                 error: errorMessage,
+                hasCaption: Boolean(caption),
+                stack: mediaError instanceof Error ? mediaError.stack : undefined,
               });
-              // Guardamos el error específico en el body para debugging
-              text = `[Error: ${errorMessage}] ${text || ''}`;
+              // Si falla la descarga, guardamos como texto con el error
+              // PERO preservamos el caption si existe
+              const errorText = `[Error al procesar ${msg.type}: ${errorMessage}]`;
+              text = caption ? `${errorText}\n\n${caption}` : errorText;
+              // Mantener como texto si falló
+              messageType = 'text';
             }
+          } else {
+            console.warn('[whatsapp-webhook] media detected but no mediaId', {
+              waId,
+              messageType: msg.type,
+              msgKeys: Object.keys(msg),
+              imageObject: msg.image,
+              hasCaption: Boolean(caption),
+            });
+            // Si no hay mediaId, guardamos como texto pero preservamos el caption
+            const errorText = `[${msg.type} sin ID de media]`;
+            text = caption ? `${errorText}\n\n${caption}` : errorText;
+            messageType = 'text';
           }
-
-          // Map WhatsApp media types to MessageType
-          if (msg.type === 'image') messageType = 'image';
-          else if (msg.type === 'audio') messageType = 'audio';
-          else if (msg.type === 'video') messageType = 'video';
-          else if (msg.type === 'document') messageType = 'file';
-          else if (msg.type === 'sticker') messageType = 'image';
         }
 
         const messageData = {
