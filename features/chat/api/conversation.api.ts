@@ -10,9 +10,88 @@ import {
 } from '../types/api';
 import { findOrCreateByEmail } from './contact.api';
 
-// ============================================================================
-// Core Conversation Functions
-// ============================================================================
+export interface ConversationFilters {
+  status?: 'all' | 'open' | 'pending' | 'resolved' | 'snoozed';
+  channel?: 'all' | string;
+  sortBy?: 'newest' | 'oldest' | 'unread_first';
+  searchQuery?: string;
+}
+export async function getConversations(
+  pageIndex = 0,
+  pageSize = 10,
+  filters: ConversationFilters = {}
+): Promise<PaginatedResponse<Conversation>> {
+  const supabase = await createClient();
+
+  const from = pageIndex * pageSize;
+  const to = from + pageSize - 1;
+  let query = supabase.from('mkt_conversations').select(
+    `
+        *,
+        mkt_contacts!inner (
+          id,
+          name,
+          wa_id,
+          last_interaction,
+          avatar_url
+        ),
+        mkt_channels (
+          id,
+          name,
+          type
+        )
+      `,
+    { count: 'exact' }
+  );
+
+  if (filters.status && filters.status !== 'all') {
+    query = query.eq('status', filters.status);
+  }
+  if (filters.channel && filters.channel !== 'all') {
+    query = query.eq('channel_id', filters.channel);
+  }
+
+  if (filters.searchQuery?.trim()) {
+    query = query.filter('mkt_contacts.name', 'ilike', `%${filters.searchQuery}%`);
+  }
+  switch (filters.sortBy) {
+    case 'oldest':
+      query = query.order('last_message_at', { ascending: true });
+      break;
+
+    case 'unread_first':
+      query = query
+        .order('unread_count', { ascending: false })
+        .order('last_message_at', { ascending: false });
+      break;
+
+    case 'newest':
+    default:
+      query = query.order('last_message_at', {
+        ascending: false,
+        nullsFirst: false,
+      });
+  }
+
+  const { data, error, count } = await query.range(from, to);
+
+  if (error) {
+    throw error;
+  }
+
+  const total = count ?? 0;
+  const totalPages = Math.ceil(total / pageSize);
+
+  return {
+    data: data ?? [],
+    pagination: {
+      pageIndex,
+      pageSize,
+      total,
+      totalPages,
+    },
+  };
+}
 
 export async function findOrCreate(
   contactId: string,
@@ -20,8 +99,7 @@ export async function findOrCreate(
   channelId?: string
 ): Promise<Conversation> {
   const supabase = await createClient();
-  
-  // Buscar conversación existente
+
   let query = supabase
     .from('mkt_conversations')
     .select('*')
@@ -39,7 +117,6 @@ export async function findOrCreate(
     return existing;
   }
 
-  // Crear nueva conversación
   const insertData: any = {
     contact_id: contactId,
     channel: channel,
@@ -60,61 +137,6 @@ export async function findOrCreate(
   }
 
   return newConversation;
-}
-
-export async function getConversations(
-  pageIndex = 0,
-  pageSize = 10
-): Promise<PaginatedResponse<Conversation>> {
-  const supabase = await createClient();
-
-  // Get total count
-  const { count } = await supabase
-    .from('mkt_conversations')
-    .select('*', { count: 'exact', head: true });
-
-  // Get paginated data
-  const from = pageIndex * pageSize;
-  const to = from + pageSize - 1;
-
-  const { data, error } = await supabase
-    .from('mkt_conversations')
-    .select(
-      `
-        *,
-        mkt_contacts (
-          id,
-          name,
-          wa_id,
-          last_interaction,
-          avatar_url
-        ),
-        mkt_channels (
-          id,
-          name,
-          type
-        )
-      `
-    )
-    .order('last_message_at', { ascending: false, nullsFirst: false })
-    .range(from, to);
-
-  if (error) {
-    throw error;
-  }
-
-  const total = count || 0;
-  const totalPages = Math.ceil(total / pageSize);
-
-  return {
-    data: data || [],
-    pagination: {
-      pageIndex,
-      pageSize,
-      total,
-      totalPages,
-    },
-  };
 }
 
 export async function getConversationById(id: string): Promise<Conversation> {
@@ -182,10 +204,7 @@ export async function updateConversationStatus(
 
 export async function deleteConversation(conversationId: string): Promise<void> {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from('mkt_conversations')
-    .delete()
-    .eq('id', conversationId);
+  const { error } = await supabase.from('mkt_conversations').delete().eq('id', conversationId);
 
   if (error) {
     throw error;
@@ -198,7 +217,7 @@ export async function deleteConversation(conversationId: string): Promise<void> 
  */
 export async function markConversationAsHandoff(conversationId: string): Promise<void> {
   const supabase = await createClient();
-  
+
   // Obtener el metadata actual
   const { data: conversation, error: fetchError } = await supabase
     .from('mkt_conversations')
@@ -217,8 +236,7 @@ export async function markConversationAsHandoff(conversationId: string): Promise
   }
 
   const currentMetadata = (conversation.metadata as Record<string, unknown>) || {};
-  
-  // Actualizar metadata con información del handoff
+
   const { error: updateError } = await supabase
     .from('mkt_conversations')
     .update({

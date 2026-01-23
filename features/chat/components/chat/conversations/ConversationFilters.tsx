@@ -3,7 +3,6 @@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { channelTypeIcons } from './constants';
-import { Dispatch, SetStateAction } from 'react';
 import { MessageSquare, Clock, CheckCircle2, AlertCircle, Inbox, Link, Filter } from 'lucide-react';
 import {
   Select,
@@ -26,9 +25,9 @@ interface ConversationFiltersProps {
   activeChannels: ActiveChannel[];
   channelFilter: ChannelFilter;
   setChannelFilter: (filter: ChannelFilter) => void;
-  channelStats: Record<string, number>;
+  channelStats?: Record<string, number>;
   filter: FilterType;
-  setFilter: Dispatch<SetStateAction<FilterType>>;
+  setFilter: (filter: FilterType) => void;
   conversationCounts: Record<string, number>;
 }
 
@@ -41,7 +40,6 @@ export function ConversationFilters({
   setFilter,
   conversationCounts,
 }: ConversationFiltersProps) {
-  
   const getStatusInfo = (type: FilterType) => {
     switch (type) {
       case 'open':
@@ -74,9 +72,12 @@ export function ConversationFilters({
               <div className="flex items-center gap-2 w-full min-w-0">
                 <Inbox className="w-3.5 h-3.5 text-primary shrink-0" />
                 <span className="truncate">Todos</span>
-                {channelStats.all > 0 && (
-                  <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1 min-w-[16px] justify-center shrink-0">
-                    {channelStats.all}
+                {(channelStats?.all || 0) > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="ml-auto text-[9px] h-4 px-1 min-w-4 justify-center shrink-0"
+                  >
+                    {channelStats?.all}
                   </Badge>
                 )}
               </div>
@@ -91,9 +92,12 @@ export function ConversationFilters({
                   <div className="flex items-center gap-2 w-full min-w-0">
                     <IconComponent className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     <span className="truncate">{channel.name}</span>
-                    {(channelStats[channel.id] || 0) > 0 && (
-                      <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1 min-w-[16px] justify-center shrink-0">
-                        {channelStats[channel.id]}
+                    {(channelStats?.[channel.id] || 0) > 0 && (
+                      <Badge
+                        variant="secondary"
+                        className="ml-auto text-[9px] h-4 px-1 min-w-4 justify-center shrink-0"
+                      >
+                        {channelStats?.[channel.id]}
                       </Badge>
                     )}
                   </div>
@@ -110,23 +114,26 @@ export function ConversationFilters({
           </SelectTrigger>
           <SelectContent>
             {(['all', 'open', 'pending', 'resolved', 'snoozed'] as const).map((filterType) => {
-               if (filterType === 'snoozed' && !conversationCounts['snoozed']) return null;
+              if (filterType === 'snoozed' && !conversationCounts['snoozed']) return null;
 
-               const info = getStatusInfo(filterType);
-               const StatusIcon = info.icon;
-               return (
+              const info = getStatusInfo(filterType);
+              const StatusIcon = info.icon;
+              return (
                 <SelectItem key={filterType} value={filterType} className="text-xs">
                   <div className="flex items-center gap-2 w-full min-w-0">
-                    <StatusIcon className={cn("w-3.5 h-3.5 shrink-0", info.color)} />
+                    <StatusIcon className={cn('w-3.5 h-3.5 shrink-0', info.color)} />
                     <span>{info.label}</span>
                     {conversationCounts[filterType] > 0 && (
-                      <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1 min-w-[16px] justify-center shrink-0">
+                      <Badge
+                        variant="secondary"
+                        className="ml-auto text-[9px] h-4 px-1 min-w-4 justify-center shrink-0"
+                      >
                         {conversationCounts[filterType]}
                       </Badge>
                     )}
                   </div>
                 </SelectItem>
-               );
+              );
             })}
           </SelectContent>
         </Select>

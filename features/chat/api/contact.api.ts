@@ -1,6 +1,7 @@
 'use server';
 import { createClient } from '@/lib/supabase/server';
 import { Contact } from '../types/contact';
+import { PaginatedResponse } from '../types/api';
 
 export async function findOrCreateByWhatsApp(waId: string, name: string): Promise<Contact> {
   const supabase = await createClient();
@@ -93,19 +94,64 @@ export async function findOrCreateByInstagram(igId: string, name?: string): Prom
   return newContact;
 }
 
-export async function getContacts(): Promise<Contact[]> {
+export async function getContacts(
+  pageIndex = 0,
+  pageSize = 20,
+  filters: { searchQuery?: string; status?: string } = {}
+): Promise<PaginatedResponse<Contact>> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+
+  const from = pageIndex * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
     .from('mkt_contacts')
-    .select('*')
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
     .order('last_interaction', { ascending: false, nullsFirst: false });
+
+  if (filters.status && filters.status !== 'all') {
+    query = query.eq('status', filters.status);
+  }
+
+  if (filters.searchQuery?.trim()) {
+    query = query.or(
+      `name.ilike.%${filters.searchQuery}%,email.ilike.%${filters.searchQuery}%,phone.ilike.%${filters.searchQuery}%`
+    );
+  }
+
+  const { data, error, count } = await query.range(from, to);
+
+  console.log(
+    'getContacts - pageIndex:',
+    pageIndex,
+    'pageSize:',
+    pageSize,
+    'from:',
+    from,
+    'to:',
+    to
+  );
+  console.log('getContacts - count:', count, 'data length:', data?.length);
 
   if (error) {
     throw error;
   }
 
-  return data;
+  const total = count || 0;
+  const totalPages = Math.ceil(total / pageSize);
+
+  console.log('getContacts - total:', total, 'totalPages:', totalPages);
+
+  return {
+    data: data || [],
+    pagination: {
+      pageIndex,
+      pageSize,
+      total,
+      totalPages,
+    },
+  };
 }
 
 export async function getContactById(id: string): Promise<Contact | null> {

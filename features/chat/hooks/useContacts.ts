@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   getContacts,
@@ -19,10 +19,20 @@ import {
 import { updateConversationContact } from '../api/conversation.api';
 import { Contact } from '../types/contact';
 
-export const useContacts = () => {
-  return useQuery({
-    queryKey: ['contacts'],
-    queryFn: getContacts,
+export const useContacts = (
+  pageSize = 20,
+  filters: { searchQuery?: string; status?: string } = {}
+) => {
+  return useInfiniteQuery({
+    queryKey: ['contacts', filters],
+    queryFn: ({ pageParam = 0 }) => getContacts(pageParam, pageSize, filters),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const { pageIndex, totalPages } = lastPage.pagination;
+      return pageIndex + 1 < totalPages ? pageIndex + 1 : undefined;
+    },
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -31,6 +41,7 @@ export const useContact = (id: string) => {
     queryKey: ['contact', id],
     queryFn: () => getContactById(id),
     enabled: !!id,
+    staleTime: 30_000,
   });
 };
 
