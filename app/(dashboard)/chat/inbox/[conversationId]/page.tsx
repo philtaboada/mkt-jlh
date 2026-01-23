@@ -4,7 +4,6 @@ import { use, useState, useEffect } from 'react';
 import { ChatPanel } from '@/features/chat/components/chat/messages';
 import { ContactDetails } from '@/features/chat/components/ContactDetail';
 import { useConversation } from '@/features/chat/hooks/useConversations';
-import { useContact } from '@/features/chat/hooks/useContacts';
 import { useMarkMessagesAsRead } from '@/features/chat/hooks/useMessages';
 import { Button } from '@/components/ui/button';
 import { PanelRightClose, PanelRight } from 'lucide-react';
@@ -31,9 +30,7 @@ export default function ConversationPage({
   }, [conversationId, setActiveConversationId]);
 
   const { data: selectedConversation } = useConversation(conversationId);
-  const selectedContactId: string =
-    selectedConversation?.mkt_contacts?.id || selectedConversation?.contact_id || '';
-  const { data: selectedContact } = useContact(selectedContactId);
+  const selectedContact = selectedConversation?.mkt_contacts || null;
   const markAsReadMutation = useMarkMessagesAsRead();
 
   useEffect(() => {
