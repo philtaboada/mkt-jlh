@@ -1,12 +1,11 @@
 (function() {
   'use strict';
 
-  // MktChat Widget SDK
   class MktChatSDK {
     constructor(token, options = {}) {
       this.token = token;
-      this.options = options; // Opciones locales (pueden sobrescribir servidor)
-      this.settings = {}; // Configuración del servidor
+      this.options = options;
+      this.settings = {};
       this.isOpen = false;
       this.messages = [];
       this.container = null;
@@ -16,46 +15,37 @@
       this.configLoaded = false;
       this.conversationId = null;
       this.lastMessageId = null;
-      this.eventSource = null; // SSE connection
+      this.eventSource = null;
+      this.connectionStatus = 'checking';
+      this.connectionCheckInterval = null;
     }
 
     async run() {
-      // Primero cargamos la configuración del servidor
+      await this.checkConnection();
       await this.loadConfig();
-      
-      // Luego creamos el widget con la configuración
       this.injectStyles();
       this.createLauncher();
       this.createChatWindow();
       this.setupEventListeners();
-      
-      // Restaurar conversación existente (verificando que aún exista)
+      this.updateConnectionStatus();
+      this.startConnectionMonitoring();
       await this.restoreConversation();
-      
-      // No iniciar polling aquí - se iniciará al abrir el chat o enviar mensaje
-      // Esto evita llamadas innecesarias cuando el widget está cerrado
     }
 
-    // Restaurar conversación del usuario desde localStorage o servidor
     async restoreConversation() {
-      // Primero intentar con conversation_id guardado
       const savedConversationId = localStorage.getItem(`mkt_conversation_${this.token}`);
       
       if (savedConversationId) {
-        // Verificar si la conversación aún existe y cargar mensajes
         const valid = await this.validateAndLoadConversation(savedConversationId);
         if (valid) {
           this.conversationId = savedConversationId;
-          // Conectar al stream SSE para recibir mensajes en tiempo real
           this.connectToStream();
           return;
         } else {
-          // Conversación no válida, limpiar localStorage
           localStorage.removeItem(`mkt_conversation_${this.token}`);
         }
       }
 
-      // Si no hay conversación guardada, buscar por visitor_id
       const visitorId = this.getVisitorId();
       const existingConversation = await this.findConversationByVisitor(visitorId);
       
@@ -63,10 +53,8 @@
         this.conversationId = existingConversation;
         localStorage.setItem(`mkt_conversation_${this.token}`, this.conversationId);
         await this.loadMessages();
-        // Conectar al stream SSE para recibir mensajes en tiempo real
         this.connectToStream();
       } else if (this.settings.welcome_message) {
-        // No hay conversación, mostrar mensaje de bienvenida
         this.addMessage({
           type: 'bot',
           text: this.settings.welcome_message,
@@ -75,80 +63,115 @@
       }
     }
 
-    // Verificar si una conversación existe y cargar sus mensajes
     async validateAndLoadConversation(conversationId) {
       try {
         const response = await fetch(
-          `${this.getBaseUrl()}/api/chat/widget/messages?token=${this.token}&conversation_id=${conversationId}`
+          `${this.getBaseUrl()}/api/chat/widget/messages?token=${this.token}&conversation_id=${conversationId}`,
+          { cache: 'no-cache' }
         );
         
         if (response.ok) {
           const data = await response.json();
-          // Si no hay error y hay mensajes (o es un array vacío), la conversación existe
+          this.connectionStatus = 'online';
           if (data.messages !== undefined) {
-            // Cargar mensajes existentes
-            const messagesContainer = this.container.querySelector('#mkt-messages');
-            messagesContainer.innerHTML = '';
-            
-            if (data.messages && data.messages.length > 0) {
-              data.messages.forEach(msg => {
-                // 'user' = cliente, 'agent' o 'bot' = respuestas nuestras
-                const isResponse = msg.sender_type === 'agent' || msg.sender_type === 'bot';
-                this.addMessage({
-                  id: msg.id,
-                  type: isResponse ? 'bot' : 'user',
-                  text: msg.body,
-                  timestamp: this.parseServerDate(msg.created_at),
-                  senderType: msg.sender_type // guardar el tipo original
-                }, false);
-                this.lastMessageId = msg.id;
-              });
-              // Scroll to bottom after loading all messages (instant)
-              this.scrollToBottom(false);
+            const messagesContainer = this.container ? this.container.querySelector('#mkt-messages') : null;
+            if (messagesContainer) {
+              messagesContainer.innerHTML = '';
+              
+              if (data.messages && data.messages.length > 0) {
+                data.messages.forEach(msg => {
+                  const isResponse = msg.sender_type === 'agent' || msg.sender_type === 'bot';
+                  this.addMessage({
+                    id: msg.id,
+                    type: isResponse ? 'bot' : 'user',
+                    text: msg.body,
+                    timestamp: this.parseServerDate(msg.created_at),
+                    senderType: msg.sender_type
+                  }, false);
+                  this.lastMessageId = msg.id;
+                });
+                this.scrollToBottom(false);
+              }
             }
             return true;
           }
         }
+        
+        if (response.status === 404) {
+          this.connectionStatus = 'online';
+          return false;
+        }
+        
+        this.connectionStatus = response.status >= 500 ? 'error' : 'online';
         return false;
       } catch (error) {
-        console.error('MktChat: Error validating conversation', error);
+        const isNetworkError = error instanceof TypeError && error.message.includes('fetch');
+        if (isNetworkError) {
+          this.connectionStatus = 'offline';
+          if (this.container) {
+            this.updateConnectionStatus();
+          }
+        } else {
+          this.connectionStatus = 'online';
+        }
         return false;
       }
     }
 
-    // Buscar conversación existente por visitor_id
     async findConversationByVisitor(visitorId) {
       try {
         const response = await fetch(
-          `${this.getBaseUrl()}/api/chat/widget/conversation?token=${this.token}&visitor_id=${visitorId}`
+          `${this.getBaseUrl()}/api/chat/widget/conversation?token=${this.token}&visitor_id=${visitorId}`,
+          { cache: 'no-cache' }
         );
         
         if (response.ok) {
           const data = await response.json();
+          this.connectionStatus = 'online';
           return data.conversation_id || null;
         }
+        
+        if (response.status === 404) {
+          this.connectionStatus = 'online';
+          return null;
+        }
+        
+        this.connectionStatus = response.status >= 500 ? 'error' : 'online';
         return null;
       } catch (error) {
-        console.error('MktChat: Error finding conversation', error);
+        const isNetworkError = error instanceof TypeError && error.message.includes('fetch');
+        if (isNetworkError) {
+          this.connectionStatus = 'offline';
+          if (this.container) {
+            this.updateConnectionStatus();
+          }
+        } else {
+          this.connectionStatus = 'online';
+        }
         return null;
       }
     }
 
     async loadConfig() {
       try {
-        const response = await fetch(`${this.getBaseUrl()}/api/chat/widget/config?token=${this.token}`);
+        const response = await fetch(`${this.getBaseUrl()}/api/chat/widget/config?token=${this.token}`, {
+          cache: 'no-cache'
+        });
         if (response.ok) {
           const serverConfig = await response.json();
           console.log('MktChat: Config loaded', serverConfig);
           this.settings = { ...serverConfig, ...this.options };
           this.configLoaded = true;
+          this.connectionStatus = 'online';
         } else {
           console.warn('MktChat: Could not load config, using defaults');
           this.settings = this.getDefaultSettings();
+          this.connectionStatus = response.status >= 500 ? 'error' : 'online';
         }
       } catch (error) {
         console.warn('MktChat: Could not load config', error);
         this.settings = this.getDefaultSettings();
+        this.connectionStatus = 'offline';
       }
     }
 
@@ -194,6 +217,91 @@
         }
       }
       return window.location.origin;
+    }
+
+    async checkConnection() {
+      try {
+        this.connectionStatus = 'checking';
+        const baseUrl = this.getBaseUrl();
+        const testUrl = `${baseUrl}/api/chat/widget/config?token=${this.token}`;
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(testUrl, {
+          method: 'GET',
+          signal: controller.signal,
+          cache: 'no-cache'
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.status >= 200 && response.status < 600) {
+          this.connectionStatus = response.status >= 500 ? 'error' : 'online';
+          return this.connectionStatus === 'online';
+        } else {
+          this.connectionStatus = 'error';
+          return false;
+        }
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          console.warn('MktChat: Connection check timeout');
+          this.connectionStatus = 'offline';
+        } else {
+          console.warn('MktChat: Connection check failed', error);
+          this.connectionStatus = 'offline';
+        }
+        return false;
+      }
+    }
+
+    startConnectionMonitoring() {
+      this.connectionCheckInterval = setInterval(async () => {
+        const wasOnline = this.connectionStatus === 'online';
+        await this.checkConnection();
+        const isOnline = this.connectionStatus === 'online';
+        
+        if (wasOnline !== isOnline && this.container) {
+          this.updateConnectionStatus();
+        }
+      }, 30000);
+    }
+
+    stopConnectionMonitoring() {
+      if (this.connectionCheckInterval) {
+        clearInterval(this.connectionCheckInterval);
+        this.connectionCheckInterval = null;
+      }
+    }
+
+    updateConnectionStatus() {
+      if (!this.container) return;
+      
+      const statusElement = this.container.querySelector('.mkt-chat-header-status');
+      if (!statusElement) return;
+      
+      const statusText = this.getOnlineStatusText();
+      const replyTimeText = this.getReplyTimeText();
+      const connectionIndicator = this.getConnectionIndicator();
+      
+      statusElement.innerHTML = `
+        <span class="mkt-connection-indicator ${this.connectionStatus}" title="${connectionIndicator}"></span>
+        ${connectionIndicator} · ${statusText} · ${replyTimeText}
+      `;
+    }
+
+    getConnectionIndicator() {
+      switch (this.connectionStatus) {
+        case 'online':
+          return 'Conectado';
+        case 'offline':
+          return 'Sin conexión';
+        case 'error':
+          return 'Error de conexión';
+        case 'checking':
+        default:
+          return 'Verificando...';
+      }
     }
 
     injectStyles() {
@@ -404,6 +512,47 @@
           border-radius: 50%;
           box-shadow: ${this.isOnline() ? '0 0 8px #4ade80' : 'none'};
           animation: ${this.isOnline() ? 'mkt-pulse-online 2s infinite' : 'none'};
+        }
+
+        .mkt-connection-indicator {
+          display: inline-block;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          margin-right: 4px;
+          vertical-align: middle;
+        }
+
+        .mkt-connection-indicator.online {
+          background: #4ade80;
+          box-shadow: 0 0 6px #4ade80;
+          animation: mkt-pulse-online 2s infinite;
+        }
+
+        .mkt-connection-indicator.offline {
+          background: #ef4444;
+          box-shadow: 0 0 6px #ef4444;
+        }
+
+        .mkt-connection-indicator.error {
+          background: #f59e0b;
+          box-shadow: 0 0 6px #f59e0b;
+          animation: mkt-pulse-error 2s infinite;
+        }
+
+        .mkt-connection-indicator.checking {
+          background: #94a3b8;
+          animation: mkt-pulse-checking 1.5s infinite;
+        }
+
+        @keyframes mkt-pulse-error {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+
+        @keyframes mkt-pulse-checking {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
         }
 
         @keyframes mkt-pulse-online {
@@ -1031,7 +1180,6 @@
       document.head.appendChild(styleEl);
     }
 
-    // Función para oscurecer un color hex
     darkenColor(hex, percent) {
       const num = parseInt(hex.replace('#', ''), 16);
       const amt = Math.round(2.55 * percent);
@@ -1041,7 +1189,6 @@
       return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
     }
 
-    // Función para aclarar un color hex
     lightenColor(hex, percent) {
       const num = parseInt(hex.replace('#', ''), 16);
       const amt = Math.round(2.55 * percent);
@@ -1122,14 +1269,11 @@
     }
 
     setupEventListeners() {
-      // Launcher click
       this.launcher.addEventListener('click', () => this.toggle());
 
-      // Close button
       const closeBtn = this.container.querySelector('.mkt-chat-close');
       closeBtn.addEventListener('click', () => this.close());
 
-      // Send message
       const input = this.container.querySelector('.mkt-chat-input');
       const sendBtn = this.container.querySelector('.mkt-chat-send');
       const emojiBtn = this.container.querySelector('.mkt-chat-emoji');
@@ -1143,10 +1287,8 @@
         }
       });
 
-      // Emoji button (placeholder functionality)
       if (emojiBtn) {
         emojiBtn.addEventListener('click', () => {
-          // Por ahora solo insertamos un emoji común
           const emojis = ['😊', '👍', '❤️', '🙏', '👋', '🎉', '✨', '🔥'];
           const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
           input.value += randomEmoji;
@@ -1154,7 +1296,6 @@
         });
       }
 
-      // Close on escape
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && this.isOpen) {
           this.close();
@@ -1182,7 +1323,6 @@
       this.unreadCount = 0;
       this.updateBadge();
       
-      // Scroll to bottom and focus input
       setTimeout(() => {
         this.scrollToBottom();
         const input = this.container.querySelector('.mkt-chat-input');
@@ -1207,17 +1347,32 @@
       const input = this.container.querySelector('.mkt-chat-input');
       input.value = '';
 
-      // Add user message
       this.addMessage({
         type: 'user',
         text: text,
         timestamp: new Date()
       });
 
-      // Show typing indicator
       this.showTyping();
 
-      // Send to API
+      if (this.connectionStatus === 'offline' || this.connectionStatus === 'error') {
+        const wasOffline = this.connectionStatus === 'offline';
+        const connectionOk = await this.checkConnection();
+        
+        if (!connectionOk) {
+          this.hideTyping();
+          this.addMessage({
+            type: 'bot',
+            text: 'No hay conexión con el servidor. Por favor verifica tu conexión a internet e intenta de nuevo.',
+            timestamp: new Date()
+          });
+          if (this.container) {
+            this.updateConnectionStatus();
+          }
+          return;
+        }
+      }
+
       try {
         const response = await fetch(`${this.getBaseUrl()}/api/chat/widget/message`, {
           method: 'POST',
@@ -1229,22 +1384,27 @@
             message: text,
             visitor_id: this.getVisitorId(),
             conversation_id: this.conversationId
-          })
+          }),
+          cache: 'no-cache'
         });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const data = await response.json();
         
         this.hideTyping();
+        this.connectionStatus = 'online';
+        if (this.container) {
+          this.updateConnectionStatus();
+        }
         
-        // Guardar conversation_id para futuros mensajes
         if (data.conversation_id && !this.conversationId) {
           this.conversationId = data.conversation_id;
           localStorage.setItem(`mkt_conversation_${this.token}`, this.conversationId);
-          // Conectar al stream SSE para recibir mensajes en tiempo real
           this.connectToStream();
           
-          // Si hay reply y acabamos de conectar SSE, mostrarlo directamente
-          // (el SSE aún no está listo para recibirlo)
           if (data.reply) {
             this.addMessage({
               type: 'bot',
@@ -1253,36 +1413,46 @@
             });
           }
         }
-        // Si ya teníamos SSE conectado, el reply llegará por el stream
-        // No lo mostramos aquí para evitar duplicados
       } catch (error) {
         console.error('MktChat: Error sending message', error);
         this.hideTyping();
+        this.connectionStatus = error.name === 'TypeError' && error.message.includes('fetch') ? 'offline' : 'error';
+        if (this.container) {
+          this.updateConnectionStatus();
+        }
+        
+        let errorMessage = 'Lo siento, hubo un error al procesar tu mensaje.';
+        if (this.connectionStatus === 'offline') {
+          errorMessage = 'No hay conexión con el servidor. Por favor verifica tu conexión a internet e intenta de nuevo.';
+        } else if (this.connectionStatus === 'error') {
+          errorMessage = 'Error de conexión con el servidor. Por favor intenta de nuevo en unos momentos.';
+        }
+        
         this.addMessage({
           type: 'bot',
-          text: 'Lo siento, hubo un error al procesar tu mensaje. Por favor intenta de nuevo.',
+          text: errorMessage,
           timestamp: new Date()
         });
       }
     }
 
-    // Cargar mensajes existentes de la conversación
     async loadMessages() {
       if (!this.conversationId) return;
 
       try {
         const response = await fetch(
-          `${this.getBaseUrl()}/api/chat/widget/messages?token=${this.token}&conversation_id=${this.conversationId}`
+          `${this.getBaseUrl()}/api/chat/widget/messages?token=${this.token}&conversation_id=${this.conversationId}`,
+          { cache: 'no-cache' }
         );
         
         if (response.ok) {
           const data = await response.json();
+          this.connectionStatus = 'online';
           const messagesContainer = this.container.querySelector('#mkt-messages');
-          messagesContainer.innerHTML = ''; // Limpiar mensajes
+          messagesContainer.innerHTML = '';
           
           if (data.messages && data.messages.length > 0) {
             data.messages.forEach(msg => {
-              // 'user' = cliente, 'agent' o 'bot' = respuestas nuestras
               const isResponse = msg.sender_type === 'agent' || msg.sender_type === 'bot';
               this.addMessage({
                 id: msg.id,
@@ -1290,10 +1460,9 @@
                 text: msg.body,
                 timestamp: this.parseServerDate(msg.created_at),
                 senderType: msg.sender_type
-              }, false); // false = no actualizar badge
+              }, false);
               this.lastMessageId = msg.id;
             });
-            // Scroll to bottom after loading all messages (instant, no animation)
             this.scrollToBottom(false);
           } else if (this.settings.welcome_message) {
             this.addMessage({
@@ -1302,17 +1471,27 @@
               timestamp: new Date()
             });
           }
+          if (this.container) {
+            this.updateConnectionStatus();
+          }
+        } else {
+          this.connectionStatus = response.status >= 500 ? 'error' : 'online';
+          if (this.container) {
+            this.updateConnectionStatus();
+          }
         }
       } catch (error) {
         console.error('MktChat: Error loading messages', error);
+        this.connectionStatus = 'offline';
+        if (this.container) {
+          this.updateConnectionStatus();
+        }
       }
     }
 
-    // Conectar al stream SSE para recibir mensajes en tiempo real
     connectToStream() {
       if (!this.conversationId) return;
       
-      // Cerrar conexión anterior si existe
       this.disconnectFromStream();
       
       const url = `${this.getBaseUrl()}/api/chat/widget/stream?token=${this.token}&conversation_id=${this.conversationId}`;
@@ -1324,7 +1503,6 @@
           const data = JSON.parse(event.data);
           
           if (data.type === 'message') {
-            // Verificar que el mensaje no existe ya en el DOM
             const existingMsg = this.container.querySelector(`[data-message-id="${data.message.id}"]`);
             if (!existingMsg) {
               this.addMessage({
@@ -1345,7 +1523,6 @@
       
       this.eventSource.onerror = (error) => {
         console.error('MktChat: SSE connection error', error);
-        // Reconectar después de 5 segundos
         setTimeout(() => {
           if (this.conversationId) {
             this.connectToStream();
@@ -1370,7 +1547,6 @@
         messageEl.dataset.messageId = message.id;
       }
       
-      // Detectar si es markdown (solo para mensajes del bot/IA)
       const isMarkdownContent = message.type === 'bot' && this.isMarkdown(message.text);
       const messageContent = isMarkdownContent 
         ? this.renderMarkdown(message.text)
@@ -1385,12 +1561,10 @@
       
       messagesContainer.appendChild(messageEl);
       
-      // Scroll to bottom with a small delay to ensure DOM is updated
       requestAnimationFrame(() => {
         this.scrollToBottom();
       });
 
-      // Update unread count if chat is closed and it's a bot message
       if (updateBadge && !this.isOpen && message.type === 'bot') {
         this.unreadCount++;
         this.updateBadge();
@@ -1458,35 +1632,31 @@
       return div.innerHTML;
     }
 
-    // Detectar si el texto contiene markdown
     isMarkdown(text) {
       if (!text || typeof text !== 'string') return false;
       
-      // Patrones comunes de markdown
       const markdownPatterns = [
-        /#{1,6}\s+.+/,           // Headers (# ## ###)
-        /\*\*.*?\*\*/,           // Bold (**text**)
-        /\*.*?\*/,               // Italic (*text*)
-        /_.*?_/,                 // Italic (_text_)
-        /`.*?`/,                 // Inline code (`code`)
-        /```[\s\S]*?```/,        // Code blocks (```code```)
-        /\[.*?\]\(.*?\)/,        // Links [text](url)
-        /^\s*[-*+]\s+/,          // Unordered lists
-        /^\s*\d+\.\s+/,          // Ordered lists
-        />\s+/,                  // Blockquotes (> text)
-        /\n\n/,                  // Multiple line breaks
+        /#{1,6}\s+.+/,
+        /\*\*.*?\*\*/,
+        /\*.*?\*/,
+        /_.*?_/,
+        /`.*?`/,
+        /```[\s\S]*?```/,
+        /\[.*?\]\(.*?\)/,
+        /^\s*[-*+]\s+/,
+        /^\s*\d+\.\s+/,
+        />\s+/,
+        /\n\n/,
       ];
       
       return markdownPatterns.some(pattern => pattern.test(text));
     }
 
-    // Renderizar markdown a HTML (versión mejorada con mejor soporte de listas)
     renderMarkdown(text) {
       if (!text) return '';
       
       let html = text;
       
-      // Proteger bloques de código primero
       const codeBlockPlaceholders = [];
       html = html.replace(/```[\s\S]*?```/g, (match) => {
         const idx = codeBlockPlaceholders.length;
@@ -1494,7 +1664,6 @@
         return `__CODEBLOCK${idx}__`;
       });
       
-      // Proteger código inline
       const inlineCodePlaceholders = [];
       html = html.replace(/`[^`\n]+`/g, (match) => {
         const idx = inlineCodePlaceholders.length;
@@ -1502,21 +1671,16 @@
         return `__INLINECODE${idx}__`;
       });
       
-      // Función auxiliar para procesar markdown inline (negrita, cursiva, links)
       const processInlineMarkdown = (text) => {
         let result = text;
-        // Bold (**texto** o __texto__) - antes de italic
         result = result.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
         result = result.replace(/__([^_]+?)__/g, '<strong>$1</strong>');
-        // Italic (*texto* o _texto_) - solo si no es parte de negrita
         result = result.replace(/(?<!\*)\*([^*\s][^*]*?[^*\s])\*(?!\*)/g, '<em>$1</em>');
         result = result.replace(/(?<!_)_([^_\s][^_]*?[^_\s])_(?!_)/g, '<em>$1</em>');
-        // Links
         result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
         return result;
       };
       
-      // Procesar línea por línea para manejar listas correctamente
       const lines = html.split('\n');
       const processed = [];
       let inUl = false, inOl = false;
@@ -1525,7 +1689,6 @@
         const line = lines[i];
         const trimmed = line.trim();
         
-        // Headers
         if (trimmed.match(/^###\s+/)) {
           if (inUl) { processed.push('</ul>'); inUl = false; }
           if (inOl) { processed.push('</ol>'); inOl = false; }
@@ -1548,7 +1711,6 @@
           continue;
         }
         
-        // Blockquotes
         if (trimmed.match(/^>\s+/)) {
           if (inUl) { processed.push('</ul>'); inUl = false; }
           if (inOl) { processed.push('</ol>'); inOl = false; }
@@ -1557,7 +1719,6 @@
           continue;
         }
         
-        // Listas no ordenadas (-, *, +)
         const ulMatch = line.match(/^[\s]*[-*+]\s+(.+)$/);
         if (ulMatch) {
           if (!inUl) {
@@ -1570,7 +1731,6 @@
           continue;
         }
         
-        // Listas ordenadas (1., 2., etc)
         const olMatch = line.match(/^\s*(\d+)\.\s+(.+)$/);
         if (olMatch) {
           if (!inOl) {
@@ -1583,69 +1743,54 @@
           continue;
         }
         
-        // Línea normal - cerrar listas si están abiertas
         if (inUl) { processed.push('</ul>'); inUl = false; }
         if (inOl) { processed.push('</ol>'); inOl = false; }
         
-        // Si la línea está vacía, mantenerla para párrafos
         if (trimmed === '') {
           processed.push('');
         } else {
-          // Procesar markdown inline en la línea
           processed.push(processInlineMarkdown(line));
         }
       }
       
-      // Cerrar listas si quedaron abiertas
       if (inUl) processed.push('</ul>');
       if (inOl) processed.push('</ol>');
       
       html = processed.join('\n');
       
-      // Restaurar código inline
       inlineCodePlaceholders.forEach((code, idx) => {
         const content = code.replace(/`/g, '');
         html = html.replace(`__INLINECODE${idx}__`, `<code>${this.escapeHtml(content)}</code>`);
       });
       
-      // Restaurar bloques de código
       codeBlockPlaceholders.forEach((block, idx) => {
         const content = block.replace(/```/g, '').trim();
         html = html.replace(`__CODEBLOCK${idx}__`, `<pre><code>${this.escapeHtml(content)}</code></pre>`);
       });
       
-      // Escapar HTML en contenido de texto (pero no en tags que creamos)
-      // Solo escapar texto que no está dentro de tags HTML
       html = html.replace(/(<[^>]+>)([^<]*)(<\/[^>]+>)/g, (match, openTag, content, closeTag) => {
-        // Si el contenido tiene tags HTML anidados, no procesar
         if (content.includes('<')) return match;
         return openTag + this.escapeHtml(content) + closeTag;
       });
       
-      // Escapar texto suelto que no está en tags
       html = html.split(/(<[^>]+>)/g).map((part, idx) => {
         if (part.startsWith('<') && part.endsWith('>')) {
-          return part; // Es un tag, no escapar
+          return part;
         }
-        // Es texto, escapar HTML peligroso pero mantener estructura
         return part.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       }).join('');
       
-      // Normalizar saltos de línea múltiples
       html = html.replace(/\n{3,}/g, '\n\n');
       
-      // Procesar párrafos
       const paragraphs = html.split(/\n\n+/);
       html = paragraphs.map(p => {
         p = p.trim();
         if (!p) return '';
         
-        // Si ya es un tag HTML, no envolver
         if (p.match(/^<(h[1-6]|ul|ol|pre|blockquote|p)/)) {
           return p;
         }
         
-        // Convertir saltos de línea simples a <br>
         p = p.replace(/\n/g, '<br>');
         
         return p ? `<p>${p}</p>` : '';
@@ -1655,24 +1800,20 @@
     }
 
     formatTime(date) {
-      // Asegurarse de que date sea un objeto Date válido
       if (!(date instanceof Date) || isNaN(date)) {
         return '--:--';
       }
       
-      // toLocaleTimeString ya convierte automáticamente a la zona horaria local del usuario
       return date.toLocaleTimeString(this.settings.locale || 'es', {
         hour: '2-digit',
         minute: '2-digit',
-        hour12: false // Usar formato 24 horas
+        hour12: false
       });
     }
 
-    // Parsear fecha del servidor asegurando que se interprete como UTC
     parseServerDate(dateString) {
       if (!dateString) return new Date();
       
-      // Si la fecha no tiene 'Z' al final ni offset de timezone, asumimos que es UTC
       let isoString = dateString;
       if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.match(/[-+]\d{2}:\d{2}$/)) {
         isoString = dateString + 'Z';
@@ -1682,6 +1823,5 @@
     }
   }
 
-  // Expose to window
   window.MktChatSDK = MktChatSDK;
 })();
