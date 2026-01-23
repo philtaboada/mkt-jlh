@@ -1,9 +1,5 @@
 'use client';
 
-/**
- * Funciones client-side para enviar mensajes a WhatsApp
- * Nota: sendFirstMessageWithTemplate está en whatsapp-message.api.ts como server action
- */
 
 /**
  * Envía un mensaje de texto a WhatsApp
@@ -11,7 +7,7 @@
 export async function sendWhatsAppTextMessage(params: {
   to: string;
   message: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const response = await fetch('/api/whatsapp/send', {
       method: 'POST',
@@ -27,7 +23,8 @@ export async function sendWhatsAppTextMessage(params: {
       throw new Error(error.error || 'Error al enviar mensaje');
     }
 
-    return { success: true };
+    const data = await response.json();
+    return { success: true, messageId: data.messageId };
   } catch (error) {
     return {
       success: false,
@@ -44,7 +41,8 @@ export async function sendWhatsAppMediaMessage(params: {
   type: 'image' | 'video' | 'audio' | 'document';
   mediaUrl: string;
   caption?: string;
-}): Promise<{ success: boolean; error?: string }> {
+  filename?: string;
+}): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const response = await fetch('/api/whatsapp/send', {
       method: 'POST',
@@ -54,6 +52,7 @@ export async function sendWhatsAppMediaMessage(params: {
         type: params.type,
         mediaUrl: params.mediaUrl,
         caption: params.caption,
+        filename: params.filename,
       }),
     });
 
@@ -62,7 +61,8 @@ export async function sendWhatsAppMediaMessage(params: {
       throw new Error(error.error || 'Error al enviar archivo');
     }
 
-    return { success: true };
+    const data = await response.json();
+    return { success: true, messageId: data.messageId };
   } catch (error) {
     return {
       success: false,

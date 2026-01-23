@@ -165,7 +165,47 @@ export function MessageInput({
                     src={URL.createObjectURL(file)}
                     alt={file.name}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Si falla cargar la imagen (ej: webp no soportado), mostrar placeholder
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent) {
+                        parent.innerHTML = `
+                          <div class="w-full h-full flex items-center justify-center bg-muted">
+                            <span class="text-xs text-muted-foreground">${file.name}</span>
+                          </div>
+                        `;
+                      }
+                    }}
                   />
+                  <button
+                    onClick={() => removeFile(index)}
+                    className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : file.type.startsWith('video/') ? (
+                <div className="relative w-32 h-20 rounded-lg overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow">
+                  <video
+                    src={URL.createObjectURL(file)}
+                    className="w-full h-full object-cover"
+                    muted
+                    playsInline
+                    onLoadedMetadata={(e) => {
+                      // Pausar automáticamente después de cargar metadata
+                      const video = e.target as HTMLVideoElement;
+                      video.currentTime = 0.1; // Mostrar primer frame
+                    }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                    <div className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                      </svg>
+                    </div>
+                  </div>
                   <button
                     onClick={() => removeFile(index)}
                     className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"

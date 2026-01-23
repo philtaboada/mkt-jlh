@@ -3,7 +3,6 @@ import crypto from 'crypto';
 
 import { downloadAndUploadMedia } from '@/lib/storage/media';
 
-// Forzar runtime nodejs para asegurar que los logs aparezcan
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 import { findOrCreateByWhatsApp, updateLastInteraction } from '@/features/chat/api/contact.api';
@@ -94,7 +93,6 @@ export async function POST(req: Request) {
     }
 
     if (value?.messages?.length > 0) {
-      // Obtener el canal activo para asociar la conversación
       const whatsappChannels = await getChannelsByType('whatsapp');
       const activeChannel = whatsappChannels.find((ch) => ch.status === 'active');
       
@@ -125,18 +123,16 @@ export async function POST(req: Request) {
             messageType: msg.type,
             mediaId,
             hasCaption: Boolean(caption),
-            caption: caption?.substring(0, 100), // Log del caption para debugging
+            caption: caption?.substring(0, 100),
             rawImage: JSON.stringify(msg[msg.type] || {}).substring(0, 200),
           });
 
-          // Extraer caption ANTES de procesar el media para preservarlo
           if (caption) {
             text = caption;
           }
 
           if (mediaId) {
             try {
-              // Pasar el tipo de canal 'whatsapp' en lugar del tipo de media
               mediaInfo = await downloadAndUploadMedia(mediaId, msg.type, 'whatsapp');
               console.info('[whatsapp-webhook] media upload success', {
                 waId,
@@ -162,11 +158,8 @@ export async function POST(req: Request) {
                 hasCaption: Boolean(caption),
                 stack: mediaError instanceof Error ? mediaError.stack : undefined,
               });
-              // Si falla la descarga, guardamos como texto con el error
-              // PERO preservamos el caption si existe
               const errorText = `[Error al procesar ${msg.type}: ${errorMessage}]`;
               text = caption ? `${errorText}\n\n${caption}` : errorText;
-              // Mantener como texto si falló
               messageType = 'text';
             }
           } else {
@@ -177,7 +170,6 @@ export async function POST(req: Request) {
               imageObject: msg.image,
               hasCaption: Boolean(caption),
             });
-            // Si no hay mediaId, guardamos como texto pero preservamos el caption
             const errorText = `[${msg.type} sin ID de media]`;
             text = caption ? `${errorText}\n\n${caption}` : errorText;
             messageType = 'text';

@@ -28,6 +28,7 @@ interface WhatsAppSendRequest {
   type?: 'text' | 'image' | 'audio' | 'video' | 'document' | 'sticker';
   mediaUrl?: string;
   caption?: string;
+  filename?: string;
   template?: WhatsAppTemplateRequest;
 }
 
@@ -68,7 +69,7 @@ function logWhatsAppEnv(params: { config: WhatsAppConfig; channel: Channel }): v
 export async function POST(req: Request): Promise<Response> {
   try {
     const body: WhatsAppSendRequest = (await req.json()) as WhatsAppSendRequest;
-    const { to, message, type = 'text', mediaUrl, caption, template } = body;
+    const { to, message, type = 'text', mediaUrl, caption, filename, template } = body;
     
     // Validación básica: se requiere 'to' y alguno de los contenidos (message, template, o mediaUrl)
     if (!to || (!message && !template && !mediaUrl)) {
@@ -136,6 +137,7 @@ export async function POST(req: Request): Promise<Response> {
         type,
         mediaUrl,
         caption: caption || message, // Usar message como caption si caption no está explícito
+        filename, // Nombre del archivo para documentos
         accessToken,
         phoneNumberId,
       });

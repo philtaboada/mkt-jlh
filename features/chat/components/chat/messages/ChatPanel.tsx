@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import type { MessageTemplate } from '../../../types/template';
 import { sendFirstMessageWithTemplate } from '../../../api/whatsapp-message.api';
 import { sendWhatsAppTextMessage, sendWhatsAppMediaMessage } from '../../../api/send-message.api';
-import { resolveMediaType, resolveWhatsAppType } from '../../../utils/media-utils';
+import { resolveMediaType, resolveWhatsAppType } from '@/features/chat/utils/media-utils';
 
 interface ChatPanelProps {
   contact: Contact;
@@ -30,7 +30,7 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
   // Use React Query hooks
   const { data: messages = [], isLoading } = useMessages(conversation.id || '');
   const createMessageMutation = useCreateMessage();
-  
+
   // Detectar si es el primer mensaje (no hay mensajes del agente)
   const isFirstMessage = useMemo(() => {
     if (!messages || messages.length === 0) return true;
@@ -38,7 +38,8 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
   }, [messages]);
 
   // Cargar templates solo si es WhatsApp y es primer mensaje
-  const shouldLoadTemplates = conversation.channel === 'whatsapp' && isFirstMessage && !!conversation.channel_id;
+  const shouldLoadTemplates =
+    conversation.channel === 'whatsapp' && isFirstMessage && !!conversation.channel_id;
   const { data: templates = [], isLoading: isLoadingTemplates } = useTemplates(
     conversation.channel_id || undefined,
     shouldLoadTemplates ? 'whatsapp' : undefined
@@ -52,7 +53,12 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
     if ((!content.trim() && (!attachments || attachments.length === 0)) || !conversation.id) return;
 
     // Enviar primer mensaje con template si aplica
-    if (isFirstMessage && selectedTemplate && conversation.channel === 'whatsapp' && contact.wa_id) {
+    if (
+      isFirstMessage &&
+      selectedTemplate &&
+      conversation.channel === 'whatsapp' &&
+      contact.wa_id
+    ) {
       const result = await sendFirstMessageWithTemplate({
         to: contact.wa_id,
         templateName: selectedTemplate.name,
@@ -103,7 +109,12 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
           const mime = uploadResult.mime || file.type || 'application/octet-stream';
           const type = resolveMediaType({ mime });
 
-          if ((file.type.startsWith('image/') || file.type.startsWith('audio/') || file.type.startsWith('video/')) && type === 'file') {
+          if (
+            (file.type.startsWith('image/') ||
+              file.type.startsWith('audio/') ||
+              file.type.startsWith('video/')) &&
+            type === 'file'
+          ) {
             toast.warning(`WhatsApp no soporta ${file.type}, se enviará como documento`);
           }
 

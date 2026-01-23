@@ -4,23 +4,21 @@ import { findOrCreateWidgetConversation } from '@/features/chat/api/conversation
 import { createWidgetMessage, createAutoReplyMessage, getMessagesByConversation } from '@/features/chat/api/message.api';
 import { AIService } from '@/lib/services/ai';
 import type { WebsiteWidgetConfig } from '@/features/chat/types/settings';
-
-// Headers CORS para el widget
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+import { getCorsHeaders } from '@/lib/utils/cors';
 
 // Manejar preflight requests
-export async function OPTIONS() {
-  return new Response(null, { headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return new Response(null, {
+    status: 204,
+    headers: getCorsHeaders(request, 'POST, OPTIONS'),
+  });
 }
 
 /**
  * POST - Enviar mensaje y recibir respuesta de IA en streaming
  */
 export async function POST(request: NextRequest) {
+  const corsHeaders = getCorsHeaders(request, 'POST, OPTIONS');
   try {
     const body = await request.json();
     const {

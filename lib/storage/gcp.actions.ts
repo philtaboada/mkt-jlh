@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { bucket } from './gcp';
+import { getStorage } from './gcp';
 
 function getBaseMimeType(params: { mime: string }): string {
   return params.mime.split(';')[0].trim();
@@ -70,27 +70,45 @@ function resolveExtension(params: { mime: string }): string {
 }
 
 export async function uploadFile(buffer: Buffer, mime: string, folder = 'marketing/uploads') {
-  const safeMime = getBaseMimeType({ mime });
-  const ext = resolveExtension({ mime: safeMime });
-  const filename = `${folder}/${randomUUID()}.${ext}`;
+  try {
+    const { bucket } = getStorage();
+    
+    if (!bucket) {
+      throw new Error('GCP bucket no está configurado. Verifica las variables de entorno GCP_BUCKET_NAME y las credenciales.');
+    }
 
-  const file = bucket.file(filename);
+    const safeMime = getBaseMimeType({ mime });
+    const ext = resolveExtension({ mime: safeMime });
+    const filename = `${folder}/${randomUUID()}.${ext}`;
 
-  await file.save(buffer, {
-    metadata: { contentType: safeMime },
-    public: true,
-    gzip: true,
-    resumable: false,
-  });
+    const file = bucket.file(filename);
 
-  return {
-    filename,
-    url: `https://storage.googleapis.com/${bucket.name}/${filename}`,
-  };
+    await file.save(buffer, {
+      metadata: { contentType: safeMime },
+      public: true,
+      gzip: true,
+      resumable: false,
+    });
+
+    return {
+      filename,
+      url: `https://storage.googleapis.com/${bucket.name}/${filename}`,
+    };
+  } catch (error) {
+    console.error('[uploadFile] Error:', error);
+    if (error instanceof Error) {
+      throw new Error(`Error al subir archivo a GCP: ${error.message}`);
+    }
+    throw error;
+  }
 }
 
 export async function deleteFile(filename: string) {
   try {
+    const { bucket } = getStorage();
+    if (!bucket) {
+      throw new Error('GCP bucket no está configurado');
+    }
     await bucket.file(filename).delete();
     return true;
   } catch (err: any) {
@@ -100,5 +118,14 @@ export async function deleteFile(filename: string) {
 }
 
 export function getPublicUrl(filename: string) {
-  return `https://storage.googleapis.com/${bucket.name}/${filename}`;
+  try {
+    const { bucket } = getStorage();
+    if (!bucket) {
+      throw new Error('GCP bucket no está configurado');
+    }
+    return `https://storage.googleapis.com/${bucket.name}/${filename}`;
+  } catch (error) {
+    console.error('[getPublicUrl] Error:', error);
+    throw error;
+  }
 }

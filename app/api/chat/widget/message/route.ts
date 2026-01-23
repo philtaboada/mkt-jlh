@@ -4,21 +4,19 @@ import { findOrCreateWidgetConversation } from '@/features/chat/api/conversation
 import { createWidgetMessage, getLastMessage } from '@/features/chat/api/message.api';
 import { processIncomingMessage, isAIEnabledForChannel } from '@/lib/services/ai';
 import type { WebsiteWidgetConfig } from '@/features/chat/types/settings';
-
-// Headers CORS para el widget
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+import { getCorsHeaders } from '@/lib/utils/cors';
 
 // Manejar preflight requests
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: getCorsHeaders(request, 'POST, OPTIONS'),
+  });
 }
 
 // POST - Enviar un nuevo mensaje y obtener respuesta
 export async function POST(request: NextRequest) {
+  const corsHeaders = getCorsHeaders(request, 'POST, OPTIONS');
   try {
     const body = await request.json();
     const {
@@ -62,14 +60,8 @@ export async function POST(request: NextRequest) {
     let shouldProcessWithAI = false;
     
     if (isAIEnabledForChannel(channelConfig)) {
-      // Verificar el último mensaje antes de guardar el nuevo
       const lastMessage = await getLastMessage(conversationId);
       
-      // Solo procesar con IA si:
-      // 1. No hay mensajes (conversación nueva)
-      // 2. El último mensaje es del bot (sender_type: 'bot')
-      // 3. El último mensaje es del usuario (continuación de conversación con bot)
-      // NO procesar si el último mensaje es de un agente
       if (!lastMessage || 
           lastMessage.sender_type === 'bot' || 
           lastMessage.sender_type === 'user') {
@@ -98,13 +90,12 @@ export async function POST(request: NextRequest) {
         channelConfig,
         contactName: visitor_info?.name,
         channel: 'website',
-        autoSaveReply: true, // Guarda en BD, Realtime lo propagará
+        autoSaveReply: true, 
       });
 
       handoffToHuman = result.handoffToHuman || false;
     }
 
-    // No devolvemos reply aquí - Realtime se encarga de mostrar el mensaje
     return NextResponse.json(
       {
         success: true,

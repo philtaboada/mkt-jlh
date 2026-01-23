@@ -62,6 +62,7 @@ export interface SendWhatsAppMessageParams {
   type?: 'text' | 'image' | 'audio' | 'video' | 'document' | 'sticker';
   mediaUrl?: string;
   caption?: string;
+  filename?: string;
   accessToken: string;
   phoneNumberId: string;
 }
@@ -123,7 +124,7 @@ function buildWhatsAppErrorMessage(params: { status: number; error?: WhatsAppApi
 export async function sendWhatsAppMessage(
   params: SendWhatsAppMessageParams
 ): Promise<SendWhatsAppMessageResult> {
-  const { to, message, type = 'text', mediaUrl, caption, accessToken, phoneNumberId } = params;
+  const { to, message, type = 'text', mediaUrl, caption, filename, accessToken, phoneNumberId } = params;
   
   if (!accessToken || !phoneNumberId) {
     console.error('WhatsApp credentials not provided');
@@ -183,16 +184,30 @@ export async function sendWhatsAppMessage(
         });
         // Enviar como documento si el tipo original no es soportado
         payload.type = 'document';
+        // Usar filename si está disponible, sino usar caption, sino 'archivo'
+        const docFilename = filename || caption || 'archivo';
         payload.document = {
           link: mediaUrl,
-          ...(caption ? { caption, filename: caption } : {}),
+          caption: caption || undefined,
+          filename: docFilename,
         };
       } else {
         // Tipo soportado o ya es documento
-        payload[type] = {
-          link: mediaUrl,
-          ...(caption && canHaveCaption ? { caption } : {}),
-        };
+        if (type === 'document') {
+          // Para documentos, usar filename
+          const docFilename = filename || caption || 'archivo';
+          payload.document = {
+            link: mediaUrl,
+            caption: caption || undefined,
+            filename: docFilename,
+          };
+        } else {
+          // Para imágenes, videos y audio, usar caption (que puede incluir el nombre del archivo)
+          payload[type] = {
+            link: mediaUrl,
+            ...(caption && canHaveCaption ? { caption } : {}),
+          };
+        }
       }
     }
 

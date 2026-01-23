@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getChannelByWidgetToken } from '@/features/chat/api/channels.api';
 import { findWidgetConversation } from '@/features/chat/api/conversation.api';
-
-// Headers CORS para el widget
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+import { getCorsHeaders } from '@/lib/utils/cors';
 
 // Manejar preflight requests
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: getCorsHeaders(request, 'GET, OPTIONS'),
+  });
 }
 
 // GET - Buscar conversación existente por visitor_id
 export async function GET(request: NextRequest) {
+  const corsHeaders = getCorsHeaders(request, 'GET, OPTIONS');
   const { searchParams } = new URL(request.url);
   const token = searchParams.get('token');
   const visitorId = searchParams.get('visitor_id');
