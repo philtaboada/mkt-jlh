@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import type { MessageTemplate } from '../../../types/template';
 import { sendFirstMessageWithTemplate } from '../../../api/whatsapp-message.api';
 import { sendWhatsAppTextMessage, sendWhatsAppMediaMessage } from '../../../api/send-message.api';
-import { resolveMediaType, resolveWhatsAppType } from '../../../utils/media-utils';
+import { resolveMediaType, resolveWhatsAppType } from '@/features/chat/utils/media-utils';
 
 interface ChatPanelProps {
   contact: Contact;
