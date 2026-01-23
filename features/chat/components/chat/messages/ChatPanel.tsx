@@ -13,7 +13,6 @@ import { toast } from 'sonner';
 import type { MessageTemplate } from '../../../types/template';
 import { sendFirstMessageWithTemplate } from '../../../api/whatsapp-message.api';
 import { sendWhatsAppTextMessage, sendWhatsAppMediaMessage } from '../../../api/send-message.api';
-import { updateMessageWhatsAppId } from '../../../api/message.api';
 import { resolveMediaType, resolveWhatsAppType } from '../../../utils/media-utils';
 
 interface ChatPanelProps {
@@ -31,7 +30,7 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
   // Use React Query hooks
   const { data: messages = [], isLoading } = useMessages(conversation.id || '');
   const createMessageMutation = useCreateMessage();
-  
+
   // Detectar si es el primer mensaje (no hay mensajes del agente)
   const isFirstMessage = useMemo(() => {
     if (!messages || messages.length === 0) return true;
@@ -39,7 +38,8 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
   }, [messages]);
 
   // Cargar templates solo si es WhatsApp y es primer mensaje
-  const shouldLoadTemplates = conversation.channel === 'whatsapp' && isFirstMessage && !!conversation.channel_id;
+  const shouldLoadTemplates =
+    conversation.channel === 'whatsapp' && isFirstMessage && !!conversation.channel_id;
   const { data: templates = [], isLoading: isLoadingTemplates } = useTemplates(
     conversation.channel_id || undefined,
     shouldLoadTemplates ? 'whatsapp' : undefined
@@ -53,7 +53,12 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
     if ((!content.trim() && (!attachments || attachments.length === 0)) || !conversation.id) return;
 
     // Enviar primer mensaje con template si aplica
-    if (isFirstMessage && selectedTemplate && conversation.channel === 'whatsapp' && contact.wa_id) {
+    if (
+      isFirstMessage &&
+      selectedTemplate &&
+      conversation.channel === 'whatsapp' &&
+      contact.wa_id
+    ) {
       const result = await sendFirstMessageWithTemplate({
         to: contact.wa_id,
         templateName: selectedTemplate.name,
@@ -73,7 +78,7 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
 
     // Enviar mensaje de texto
     if (content.trim()) {
-      const createdMessage = await createMessageMutation.mutateAsync({
+      await createMessageMutation.mutateAsync({
         conversationId: conversation.id,
         data: {
           sender_type: 'agent' as const,
@@ -90,9 +95,6 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         });
         if (!result.success) {
           console.error('[whatsapp-send] error:', result.error);
-        } else if (result.messageId && createdMessage?.id) {
-          // Guardar el wamid en el metadata del mensaje
-          await updateMessageWhatsAppId(createdMessage.id, result.messageId);
         }
       }
     }
@@ -107,11 +109,16 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
           const mime = uploadResult.mime || file.type || 'application/octet-stream';
           const type = resolveMediaType({ mime });
 
-          if ((file.type.startsWith('image/') || file.type.startsWith('audio/') || file.type.startsWith('video/')) && type === 'file') {
+          if (
+            (file.type.startsWith('image/') ||
+              file.type.startsWith('audio/') ||
+              file.type.startsWith('video/')) &&
+            type === 'file'
+          ) {
             toast.warning(`WhatsApp no soporta ${file.type}, se enviará como documento`);
           }
 
-          const createdMessage = await createMessageMutation.mutateAsync({
+          await createMessageMutation.mutateAsync({
             conversationId: conversation.id,
             data: {
               sender_type: 'agent' as const,
@@ -126,21 +133,14 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
 
           if (conversation.channel === 'whatsapp' && contact.wa_id) {
             const whatsappType = resolveWhatsAppType({ type });
-            // Para imágenes y videos, usar el nombre del archivo como caption
-            // Para documentos, usar filename
-            const isDocument = whatsappType === 'document';
             const result = await sendWhatsAppMediaMessage({
               to: contact.wa_id,
               type: whatsappType,
               mediaUrl: uploadResult.url,
-              caption: isDocument ? undefined : file.name, // Caption solo para imágenes/videos
-              filename: isDocument ? file.name : undefined, // Filename solo para documentos
+              caption: file.name,
             });
             if (!result.success) {
               console.error('[whatsapp-send] media error:', result.error);
-            } else if (result.messageId && createdMessage?.id) {
-              // Guardar el wamid en el metadata del mensaje
-              await updateMessageWhatsAppId(createdMessage.id, result.messageId);
             }
           }
         } catch (error) {
