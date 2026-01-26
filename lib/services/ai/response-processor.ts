@@ -6,7 +6,7 @@ import { getConversationById } from '@/features/chat/api/conversation.api';
 import { sendWhatsAppTextMessage } from '@/features/chat/api/send-message.api';
 import { CONTACT_KEYWORDS } from './ai-utils';
 
-const AGENT_WA_ID = '51918506768';
+const AGENT_WA_ID = process.env.WA_AGENT_ID || '51918506768';
 
 export interface ProcessMessageParams {
   conversationId: string;
