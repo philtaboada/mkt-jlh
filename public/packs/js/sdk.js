@@ -1495,8 +1495,10 @@
           const data = JSON.parse(event.data);
           
           if (data.type === 'message') {
+            console.log('MktChat: Received message via SSE:', data);
             const existingMsg = this.container.querySelector(`[data-message-id="${data.message.id}"]`);
             if (!existingMsg) {
+              console.log('MktChat: Adding new message to UI');
               this.addMessage({
                 id: data.message.id,
                 type: 'bot',
@@ -1504,12 +1506,18 @@
                 timestamp: this.parseServerDate(data.message.created_at),
                 senderType: data.message.sender_type
               });
+            } else {
+              console.log('MktChat: Message already exists, skipping');
             }
           } else if (data.type === 'connected') {
             console.log('MktChat: Connected to realtime stream');
+          } else if (data.type === 'ping') {
+            // Heartbeat, ignore
+          } else {
+            console.log('MktChat: Unknown SSE event type:', data.type);
           }
         } catch (error) {
-          console.error('MktChat: Error parsing SSE message', error);
+          console.error('MktChat: Error parsing SSE message', error, 'Raw data:', event.data);
         }
       };
       

@@ -187,7 +187,7 @@ export async function updateConversationContact(
 
 export async function updateConversationStatus(
   conversationId: string,
-  status: 'open' | 'closed' | 'pending' | 'snoozed'
+  status: 'open' | 'closed' | 'pending' | 'snoozed' | 'bot' | 'agent'
 ): Promise<Conversation> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -384,6 +384,23 @@ export async function findOrCreateWidgetConversation(
   if (existing) return existing;
 
   return createWidgetConversation(params);
+}
+
+export async function enableIAForConversation(conversationId: string): Promise<Conversation> {
+  const supabase = await createClient();
+  const conversation = await getConversationById(conversationId);
+  const { data, error } = await supabase
+    .from('mkt_conversations')
+    .update({
+      ia_enabled: conversation.ia_enabled ? false : true,
+    })
+    .eq('id', conversationId)
+    .select('*')
+    .single();
+  if (error) {
+    throw error;
+  }
+  return data;
 }
 
 // Re-exportar tipos para conveniencia

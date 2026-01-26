@@ -12,10 +12,11 @@ export type Conversation = {
   contact_id?: string | null;
   channel_id?: string | null;
   channel: 'whatsapp' | 'facebook' | 'instagram' | 'website';
-  status?: 'open' | 'closed';
+  status?: 'open' | 'closed' | 'bot' | 'pending' | 'hand_off' | 'agent';
   assigned_to?: string | null;
   last_message_at?: Date | null;
   last_message_body?: string | null;
+  ia_enabled?: boolean;
   unread_count?: number;
   is_starred?: boolean;
   created_at?: Date;

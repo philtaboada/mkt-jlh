@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
   // Crear el stream SSE
   const encoder = new TextEncoder();
-  
+
   const stream = new ReadableStream({
     async start(controller) {
       // Enviar heartbeat inicial
@@ -64,7 +64,6 @@ export async function GET(request: NextRequest) {
           },
           (payload) => {
             const message = payload.new;
-            // Solo enviar mensajes de agente o bot al widget
             if (message.sender_type === 'agent' || message.sender_type === 'bot') {
               const data = JSON.stringify({
                 type: 'message',
@@ -76,10 +75,22 @@ export async function GET(request: NextRequest) {
                 },
               });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+            } else {
+              console.log(
+                '[Widget Stream] Ignoring message from sender_type:',
+                message.sender_type
+              );
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log(
+            '[Widget Stream] Subscription status:',
+            status,
+            'for conversation:',
+            conversationId
+          );
+        });
 
       // Heartbeat cada 30 segundos para mantener la conexión
       const heartbeat = setInterval(() => {
@@ -104,7 +115,7 @@ export async function GET(request: NextRequest) {
       ...corsHeaders,
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
     },
   });
 }

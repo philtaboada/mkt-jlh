@@ -1,5 +1,3 @@
-
-
 import { generateText, streamText, type ModelMessage } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
@@ -51,15 +49,17 @@ function formatMessages(context?: ConversationContext): ModelMessage[] {
     return [];
   }
 
-  // Tomar los últimos 10 mensajes para contexto
-  const recentMessages = context.messages.slice(-10);
+  // Tomar los últimos 5 mensajes para contexto (reducido para velocidad)
+  const recentMessages = context.messages.slice(-5);
 
   return recentMessages
     .filter((msg) => msg.body) // Solo mensajes con contenido
-    .map((msg): ModelMessage => ({
-      role: msg.sender_type === 'user' ? 'user' : 'assistant',
-      content: msg.body || '',
-    }));
+    .map(
+      (msg): ModelMessage => ({
+        role: msg.sender_type === 'user' ? 'user' : 'assistant',
+        content: msg.body || '',
+      })
+    );
 }
 
 /**
@@ -108,15 +108,16 @@ export class AIService {
     }
 
     try {
-      const contents: string[] = [];
-      
-      for (const url of this.config.knowledge_base_urls) {
+      // Limitar a las primeras 3 URLs para velocidad
+      const urlsToFetch = this.config.knowledge_base_urls.slice(0, 3);
+
+      const fetchPromises = urlsToFetch.map(async (url) => {
         try {
           const response = await fetch(url, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (compatible; JLH-ChatBot/1.0)',
             },
-            signal: AbortSignal.timeout(5000), 
+            signal: AbortSignal.timeout(3000), // Reducido a 3s
           });
 
           if (response.ok) {
@@ -127,18 +128,22 @@ export class AIService {
               .replace(/<[^>]+>/g, ' ')
               .replace(/\s+/g, ' ')
               .trim()
-              .substring(0, 5000); 
-            
-            if (textContent) {
-              contents.push(`Contenido de ${url}:\n${textContent}`);
-            }
+              .substring(0, 2000); // Reducido a 2000 chars
+
+            return textContent ? `Contenido de ${url}:\n${textContent}` : '';
           }
         } catch (error) {
           console.warn(`Error fetching knowledge base URL ${url}:`, error);
         }
-      }
+        return '';
+      });
 
-      return contents.length > 0 ? `\n\nInformación adicional de la base de conocimientos:\n${contents.join('\n\n')}` : '';
+      const contents = await Promise.all(fetchPromises);
+      const validContents = contents.filter((content) => content.length > 0);
+
+      return validContents.length > 0
+        ? `\n\nInformación adicional de la base de conocimientos:\n${validContents.join('\n\n')}`
+        : '';
     } catch (error) {
       console.error('Error fetching knowledge base:', error);
       return '';
@@ -148,10 +153,7 @@ export class AIService {
   /**
    * Genera una respuesta de IA (sin streaming)
    */
-  async generateResponse(
-    userMessage: string,
-    context?: ConversationContext
-  ): Promise<AIResponse> {
+  async generateResponse(userMessage: string, context?: ConversationContext): Promise<AIResponse> {
     try {
       let knowledgeBaseContent = '';
       if (this.config.knowledge_base_enabled && this.config.knowledge_base_urls?.length) {
@@ -235,7 +237,10 @@ export class AIService {
    * Obtiene el mensaje de fallback configurado
    */
   getFallbackMessage(): string {
-    return this.config.fallback_message || 'Lo siento, no pude procesar tu mensaje. Un agente te atenderá pronto.';
+    return (
+      this.config.fallback_message ||
+      'Lo siento, no pude procesar tu mensaje. Un agente te atenderá pronto.'
+    );
   }
 
   /**

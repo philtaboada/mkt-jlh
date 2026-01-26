@@ -24,7 +24,16 @@ import {
 import { cn } from '@/lib/utils';
 import { channelTypeIcons, statusConfig } from './constants';
 import { formatTime } from './utils';
-import { MessageSquare, MoreVertical, Trash2, Archive, CheckCircle, Clock } from 'lucide-react';
+import {
+  MessageSquare,
+  MoreVertical,
+  Trash2,
+  Archive,
+  CheckCircle,
+  Clock,
+  Bot,
+  User,
+} from 'lucide-react';
 import { updateConversationStatus, deleteConversation } from '../../../api/conversation.api';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -49,7 +58,9 @@ export function ConversationItem({
   const [isDeleting, setIsDeleting] = useState(false);
   const status = statusConfig[conversation.status] || statusConfig.open;
 
-  const handleStatusChange = async (newStatus: 'open' | 'closed' | 'pending' | 'snoozed') => {
+  const handleStatusChange = async (
+    newStatus: 'open' | 'closed' | 'pending' | 'snoozed' | 'bot' | 'agent'
+  ) => {
     try {
       await updateConversationStatus(conversation.id, newStatus);
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
@@ -111,87 +122,86 @@ export function ConversationItem({
           hasUnread && !isSelected && 'bg-primary/2'
         )}
       >
-        <button
-          onClick={onClick}
-          className="flex-1 flex items-start gap-3 text-left"
-        >
+        <button onClick={onClick} className="flex-1 flex items-start gap-3 text-left">
           {/* Avatar with channel indicator */}
           <div className="relative shrink-0">
-          <Avatar className="h-12 w-12 border border-border/50 shadow-sm group-hover:shadow transition-shadow">
-            <AvatarImage src={avatarUrl} alt={contactName} className="object-cover" />
-            <AvatarFallback
+            <Avatar className="h-12 w-12 border border-border/50 shadow-sm group-hover:shadow transition-shadow">
+              <AvatarImage src={avatarUrl} alt={contactName} className="object-cover" />
+              <AvatarFallback
+                className={cn(
+                  'text-sm font-semibold',
+                  hasUnread ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                )}
+              >
+                {avatarInitial}
+              </AvatarFallback>
+            </Avatar>
+            <div
               className={cn(
-                'text-sm font-semibold',
-                hasUnread ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                'absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-background flex items-center justify-center shadow-sm text-white',
+                typeConfig.bgColor
               )}
+              title={channelInfo?.name || channelType}
             >
-              {avatarInitial}
-            </AvatarFallback>
-          </Avatar>
-          <div
-            className={cn(
-              'absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-background flex items-center justify-center shadow-sm text-white',
-              typeConfig.bgColor
-            )}
-            title={channelInfo?.name || channelType}
-          >
-            <IconComponent className="w-2.5 h-2.5" />
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0 flex flex-col gap-1">
-          {/* Header: Name and timestamp */}
-          <div className="flex items-center justify-between gap-2">
-            <h3
-              className={cn(
-                'text-sm font-semibold truncate',
-                hasUnread ? 'text-foreground' : 'text-foreground/90 font-medium'
-              )}
-            >
-              {contactName}
-            </h3>
-            <time
-              className={cn(
-                'text-[11px] shrink-0 font-medium',
-                hasUnread ? 'text-primary' : 'text-muted-foreground/70'
-              )}
-            >
-              {conversation.last_message_at && formatTime(new Date(conversation.last_message_at))}
-            </time>
+              <IconComponent className="w-2.5 h-2.5" />
+            </div>
           </div>
 
-          {/* Last message preview */}
-          <p
-            className={cn(
-              'text-xs leading-normal line-clamp-1',
-              hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground/80'
-            )}
-          >
-            {conversation.last_message_body || 'Sin mensajes'}
-          </p>
-
-          {/* Footer: Status, channel and unread badge */}
-          <div className="flex items-center justify-between mt-1">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <div className={cn('w-2 h-2 rounded-full shrink-0 animate-pulse', status.color)} />
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
-                  {status.label}
-                </span>
-              </div>
+          {/* Content */}
+          <div className="flex-1 min-w-0 flex flex-col gap-1">
+            {/* Header: Name and timestamp */}
+            <div className="flex items-center justify-between gap-2">
+              <h3
+                className={cn(
+                  'text-sm font-semibold truncate',
+                  hasUnread ? 'text-foreground' : 'text-foreground/90 font-medium'
+                )}
+              >
+                {contactName}
+              </h3>
+              <time
+                className={cn(
+                  'text-[11px] shrink-0 font-medium',
+                  hasUnread ? 'text-primary' : 'text-muted-foreground/70'
+                )}
+              >
+                {conversation.last_message_at && formatTime(new Date(conversation.last_message_at))}
+              </time>
             </div>
 
-            {hasUnread && (
-              <Badge
-                variant="default"
-                className="h-5 min-w-5 px-1 text-[10px] bg-primary hover:bg-primary font-black rounded-full shadow-sm flex items-center justify-center animate-in zoom-in duration-300"
-              >
-                {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
-              </Badge>
-            )}
+            {/* Last message preview */}
+            <p
+              className={cn(
+                'text-xs leading-normal line-clamp-1',
+                hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground/80'
+              )}
+            >
+              {conversation.last_message_body || 'Sin mensajes'}
+            </p>
+
+            {/* Footer: Status, channel and unread badge */}
+            <div className="flex items-center justify-between mt-1">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <div
+                    className={cn('w-2 h-2 rounded-full shrink-0 animate-pulse', status.color)}
+                  />
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                    {status.label}
+                  </span>
+                </div>
+              </div>
+
+              {hasUnread && (
+                <Badge
+                  variant="default"
+                  className="h-5 min-w-5 px-1 text-[10px] bg-primary hover:bg-primary font-black rounded-full shadow-sm flex items-center justify-center animate-in zoom-in duration-300"
+                >
+                  {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
+                </Badge>
+              )}
+            </div>
           </div>
-        </div>
         </button>
 
         {/* Actions Menu */}
@@ -241,6 +251,27 @@ export function ConversationItem({
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();
+                handleStatusChange('bot');
+              }}
+              className="cursor-pointer"
+            >
+              <Bot className="w-4 h-4 mr-2" />
+              Asignar a Bot
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStatusChange('agent');
+              }}
+              className="cursor-pointer"
+            >
+              <User className="w-4 h-4 mr-2" />
+              Asignar a Agente
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
                 setShowDeleteDialog(true);
               }}
               className="cursor-pointer text-destructive focus:text-destructive"
@@ -257,7 +288,8 @@ export function ConversationItem({
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar conversación?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente esta conversación y todos sus mensajes.
+              Esta acción no se puede deshacer. Se eliminará permanentemente esta conversación y
+              todos sus mensajes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

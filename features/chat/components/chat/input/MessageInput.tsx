@@ -18,6 +18,7 @@ interface MessageInputProps {
   initialValue?: string;
   additionalFiles?: File[];
   onFilesCleared?: () => void;
+  enableAIAssist?: boolean;
 }
 
 export function MessageInput({
@@ -30,6 +31,7 @@ export function MessageInput({
   initialValue = '',
   additionalFiles = [],
   onFilesCleared,
+  enableAIAssist = false,
 }: MessageInputProps) {
   const [message, setMessage] = useState(initialValue);
   const [isDragging, setIsDragging] = useState(false);
@@ -247,7 +249,7 @@ export function MessageInput({
             size="icon"
             className="text-muted-foreground hover:text-primary hover:bg-primary/10 w-9 h-9 rounded-xl transition-all hover:scale-105"
             onClick={() => fileInputRef.current?.click()}
-            disabled={disabled || isLoading}
+            disabled={disabled || isLoading || enableAIAssist}
           >
             <Paperclip className="w-4 h-4" />
           </Button>
@@ -256,7 +258,7 @@ export function MessageInput({
             type="file"
             className="hidden"
             onChange={handleFileSelect}
-            disabled={disabled || isLoading}
+            disabled={disabled || isLoading || enableAIAssist}
           />
 
           <Button
@@ -264,7 +266,7 @@ export function MessageInput({
             size="icon"
             className="text-muted-foreground hover:text-primary hover:bg-primary/10 w-9 h-9 rounded-xl transition-all hover:scale-105"
             onClick={() => imageInputRef.current?.click()}
-            disabled={disabled || isLoading}
+            disabled={disabled || isLoading || enableAIAssist}
           >
             <ImageIcon className="w-4 h-4" />
           </Button>
@@ -274,19 +276,23 @@ export function MessageInput({
             accept="image/*"
             className="hidden"
             onChange={handleImageSelect}
-            disabled={disabled || isLoading}
+            disabled={disabled || isLoading || enableAIAssist}
           />
         </div>
 
         <Textarea
           ref={textareaRef}
-          placeholder="Escribe tu mensaje..."
+          placeholder={
+            enableAIAssist
+              ? 'Modo IA activo - Solo respuestas automáticas'
+              : 'Escribe tu mensaje...'
+          }
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           className="flex-1 border-0 bg-transparent p-0 px-1 resize-none min-h-8 max-h-32 overflow-y-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base placeholder:text-muted-foreground/70"
-          disabled={disabled || isLoading}
+          disabled={disabled || isLoading || enableAIAssist}
           rows={1}
         />
 
@@ -294,16 +300,28 @@ export function MessageInput({
           <Button
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-amber-500 hover:bg-amber-50 w-9 h-9 rounded-xl transition-all hover:scale-105"
+            className={cn(
+              'w-9 h-9 rounded-xl transition-all hover:scale-105',
+              enableAIAssist
+                ? 'text-amber-500 bg-amber-50 border border-amber-200'
+                : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-50'
+            )}
             onClick={onAIAssist}
             disabled={disabled || isLoading}
-            title="Asistente IA"
+            title={
+              enableAIAssist ? 'Modo IA activo - Click para desactivar' : 'Activar Asistente IA'
+            }
           >
             <Sparkles className="w-4 h-4" />
           </Button>
           <Button
             onClick={handleSendMessage}
-            disabled={(!message.trim() && selectedFiles.length === 0) || disabled || isLoading}
+            disabled={
+              (!message.trim() && selectedFiles.length === 0) ||
+              disabled ||
+              isLoading ||
+              enableAIAssist
+            }
             className="bg-primary hover:bg-primary/90 hover:scale-105 w-10 h-10 rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             size="icon"
           >

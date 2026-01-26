@@ -1,4 +1,17 @@
-import { MessageCircle, Clock, CheckCheck, AlertCircle, MessageSquare, Users, Instagram, Globe, Mail, Link } from 'lucide-react';
+import {
+  MessageCircle,
+  Clock,
+  CheckCheck,
+  AlertCircle,
+  Bot,
+  User,
+  MessageSquare,
+  Users,
+  Instagram,
+  Globe,
+  Mail,
+  Link,
+} from 'lucide-react';
 
 // Iconos por tipo de canal
 export const channelTypeIcons: Record<string, { icon: React.ElementType; bgColor: string }> = {
@@ -19,4 +32,6 @@ export const statusConfig: Record<
   pending: { label: 'Pendiente', color: 'bg-amber-500', icon: Clock },
   resolved: { label: 'Resuelto', color: 'bg-muted-foreground', icon: CheckCheck },
   snoozed: { label: 'Pospuesto', color: 'bg-blue-500', icon: AlertCircle },
+  bot: { label: 'Bot', color: 'bg-purple-500', icon: Bot },
+  agent: { label: 'Agente', color: 'bg-green-500', icon: User },
 };

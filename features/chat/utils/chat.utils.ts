@@ -57,5 +57,10 @@ export function createConversationFromData(selectedConversation: any): Conversat
     last_message_at: selectedConversation.last_message_at,
     created_at: selectedConversation.created_at,
     updated_at: selectedConversation.updated_at,
+    ia_enabled: selectedConversation.ia_enabled,
+    unread_count: selectedConversation.unread_count,
+    is_starred: selectedConversation.is_starred,
+    last_message_body: selectedConversation.last_message_body,
+    metadata: selectedConversation.metadata,
   };
 }
