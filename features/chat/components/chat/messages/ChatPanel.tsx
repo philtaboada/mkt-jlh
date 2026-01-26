@@ -14,6 +14,7 @@ import type { MessageTemplate } from '../../../types/template';
 import { sendFirstMessageWithTemplate } from '../../../api/whatsapp-message.api';
 import { sendWhatsAppTextMessage, sendWhatsAppMediaMessage } from '../../../api/send-message.api';
 import { resolveMediaType, resolveWhatsAppType } from '@/features/chat/utils/media-utils';
+import { useUser } from '@/features/auth/hooks/useAuth';
 
 interface ChatPanelProps {
   contact: Contact;
@@ -27,6 +28,8 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
   const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
 
+  //userSession
+  const { data: user } = useUser();
   // Use React Query hooks
   const { data: messages = [], isLoading } = useMessages(conversation.id || '');
   const createMessageMutation = useCreateMessage();
@@ -50,13 +53,6 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
   };
 
   const handleSendMessage = async (content: string, attachments?: File[]): Promise<void> => {
-    console.log('[ChatPanel] handleSendMessage called:', {
-      content: content.trim(),
-      attachmentsCount: attachments?.length,
-      conversationId: conversation.id,
-      channel: conversation.channel,
-      wa_id: contact.wa_id,
-    });
     if ((!content.trim() && (!attachments || attachments.length === 0)) || !conversation.id) return;
 
     if (
@@ -65,12 +61,6 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
       conversation.channel === 'whatsapp' &&
       contact.wa_id
     ) {
-      console.log('[Debug] Enviando primer mensaje con plantilla - condiciones:', {
-        isFirstMessage,
-        selectedTemplate: !!selectedTemplate,
-        channel: conversation.channel,
-        wa_id: contact.wa_id,
-      });
       const bodyComponent = selectedTemplate.components.find((c) => c.type === 'BODY');
       let preview = bodyComponent?.text || '';
       if (bodyComponent) {
@@ -93,7 +83,7 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         conversationId: conversation.id,
         data: {
           sender_type: 'agent' as const,
-          sender_id: 'agent-current',
+          sender_id: user?.id ?? 'agent-current',
           type: 'text' as const,
           body: preview,
         },
@@ -122,7 +112,7 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         conversationId: conversation.id,
         data: {
           sender_type: 'agent' as const,
-          sender_id: 'agent-current',
+          sender_id: user?.id ?? 'agent-current',
           type: 'text' as const,
           body: content,
         },
@@ -162,7 +152,7 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
             conversationId: conversation.id,
             data: {
               sender_type: 'agent' as const,
-              sender_id: 'agent-current',
+              sender_id: user?.id ?? 'agent-current',
               type,
               media_url: uploadResult.url,
               media_mime: uploadResult.mime,
@@ -173,11 +163,6 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
 
           if (conversation.channel === 'whatsapp' && contact.wa_id) {
             const whatsappType = resolveWhatsAppType({ type });
-            console.log('[WhatsApp] Enviando medio:', {
-              to: contact.wa_id,
-              type: whatsappType,
-              mediaUrl: uploadResult.url,
-            });
             const result = await sendWhatsAppMediaMessage({
               to: contact.wa_id,
               type: whatsappType,
@@ -190,7 +175,6 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
             }
           }
         } catch (error) {
-          console.error('Error uploading file:', error);
           toast.error(`Error al enviar archivo ${file.name}`);
         }
       });

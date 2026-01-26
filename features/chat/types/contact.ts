@@ -15,4 +15,5 @@ export type Contact = {
   created_at?: Date;
   updated_at?: Date;
   visitor_id?: string;
+  is_converted_lead?: boolean;
 };

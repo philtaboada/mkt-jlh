@@ -1,7 +1,5 @@
 'use client';
 
-import type React from 'react';
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,21 +29,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { contactSchema } from '../../schemas/contactSchema';
+import { ContactFormData, contactFormSchema } from '../../schemas/contactSchema';
 import { useCreateContactByWhatsApp } from '../../hooks/useContacts';
 import { Plus } from 'lucide-react';
-import { z } from 'zod';
-
-// Create a form-specific schema with only the fields we need
-const contactFormSchema = z.object({
-  name: z.string().min(1, 'El nombre es requerido'),
-  email: z.string().email('Email inválido').optional().or(z.literal('')),
-  phone: z.string().optional(),
-  source: z.enum(['web', 'whatsapp', 'facebook', 'instagram']),
-  status: z.enum(['lead', 'open', 'customer', 'closed']),
-});
-
-type ContactFormData = z.infer<typeof contactFormSchema>;
 
 interface AddContactDialogProps {
   onContactAdded: () => void;
