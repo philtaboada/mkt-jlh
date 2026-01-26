@@ -3,6 +3,10 @@ import { AIConfig, WebsiteWidgetConfig } from '@/features/chat/types/settings';
 import { createAutoReplyMessage, getMessagesByConversation } from '@/features/chat/api/message.api';
 import { markConversationAsHandoff } from '@/features/chat/api/conversation.api';
 import { getConversationById } from '@/features/chat/api/conversation.api';
+import { sendWhatsAppTextMessage } from '@/features/chat/api/send-message.api';
+import { CONTACT_KEYWORDS } from './ai-utils';
+
+const AGENT_WA_ID = '51918506768';
 
 export interface ProcessMessageParams {
   conversationId: string;
@@ -67,6 +71,13 @@ export async function processIncomingMessage(
       await markConversationAsHandoff(conversationId);
     }
 
+    // Send WhatsApp notification to agent
+    await sendAgentNotification(
+      conversationId,
+      userMessage,
+      'Usuario solicita hablar con un agente'
+    );
+
     return {
       shouldReply: true,
       reply: handoffMessage,
@@ -104,6 +115,18 @@ export async function processIncomingMessage(
 
     if (autoSaveReply) {
       await saveAndNotifyReply(conversationId, response.content, aiConfig);
+    }
+
+    const needsHandoff = CONTACT_KEYWORDS.some((keyword) =>
+      response.content.toLowerCase().includes(keyword.toLowerCase())
+    );
+
+    if (needsHandoff) {
+      await sendAgentNotification(
+        conversationId,
+        response.content,
+        'La IA ha respondido indicando contacto con asesor'
+      );
     }
 
     return {
@@ -155,6 +178,20 @@ async function saveAndNotifyReply(
   } catch (error) {
     console.error('Error saving AI reply:', error);
     throw error;
+  }
+}
+
+async function sendAgentNotification(
+  conversationId: string,
+  message: string,
+  reason: string
+): Promise<void> {
+  try {
+    const notificationMessage = `${reason} en conversación ${conversationId}. Mensaje: "${message}". Revisa el dashboard.`;
+    await sendWhatsAppTextMessage({ to: AGENT_WA_ID, message: notificationMessage });
+    console.log(`AI: Notificación enviada al agente via WhatsApp: ${reason}`);
+  } catch (error) {
+    console.error('AI: Error enviando notificación al agente:', error);
   }
 }
 
