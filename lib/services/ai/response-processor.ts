@@ -1,7 +1,8 @@
 import { AIService, ConversationContext } from './ai-service';
 import { AIConfig, WebsiteWidgetConfig } from '@/features/chat/types/settings';
-import { createAutoReplyMessage, getMessagesByConversation, getLastMessage } from '@/features/chat/api/message.api';
+import { createAutoReplyMessage, getMessagesByConversation } from '@/features/chat/api/message.api';
 import { markConversationAsHandoff } from '@/features/chat/api/conversation.api';
+import { getConversationById } from '@/features/chat/api/conversation.api';
 
 export interface ProcessMessageParams {
   conversationId: string;
@@ -22,13 +23,13 @@ export interface ProcessMessageResult {
 export async function processIncomingMessage(
   params: ProcessMessageParams
 ): Promise<ProcessMessageResult> {
-  const { 
-    conversationId, 
-    userMessage, 
-    channelConfig, 
-    contactName, 
+  const {
+    conversationId,
+    userMessage,
+    channelConfig,
+    contactName,
     channel,
-    autoSaveReply = channel === 'website'
+    autoSaveReply = channel === 'website',
   } = params;
 
   if (!channelConfig.ai_enabled || !channelConfig.ai_config) {
@@ -41,18 +42,15 @@ export async function processIncomingMessage(
     return { shouldReply: false };
   }
 
-  // Verificar si hay un agente activo: si el último mensaje es de un agente, no procesar con IA
-  const messages = await getMessagesByConversation(conversationId);
-  const messagesBeforeUser = messages.slice(0, -1);
-  
-  if (messagesBeforeUser.length > 0) {
-    const lastMessageBeforeUser = messagesBeforeUser[messagesBeforeUser.length - 1];
-    
-    if (lastMessageBeforeUser.sender_type === 'agent') {
-      console.log('AI: Un agente ya está atendiendo esta conversación, no procesando con IA');
-      return { shouldReply: false };
-    }
+  const conversation = await getConversationById(conversationId);
+  const { status: conversationStatus, ia_enabled } = conversation;
+
+  if (!ia_enabled) {
+    console.log('AI: IA no habilitada para esta conversación');
+    return { shouldReply: false };
   }
+
+  console.log('AI: IA habilitada, procesando conversación');
 
   const aiService = await AIService.create(aiConfig);
 
@@ -60,15 +58,15 @@ export async function processIncomingMessage(
     return { shouldReply: false };
   }
 
-  // Verificar handoff a humano
   if (aiService.shouldHandoffToHuman(userMessage)) {
-    const handoffMessage = 'Entiendo que prefieres hablar con un agente humano. Transfiriendo tu conversación...';
-    
+    const handoffMessage =
+      'Entiendo que prefieres hablar con un agente humano. Transfiriendo tu conversación...';
+
     if (autoSaveReply) {
       await saveAndNotifyReply(conversationId, handoffMessage, aiConfig);
       await markConversationAsHandoff(conversationId);
     }
-    
+
     return {
       shouldReply: true,
       reply: handoffMessage,
@@ -92,11 +90,11 @@ export async function processIncomingMessage(
 
     if (response.error || !response.content) {
       const fallback = aiService.getFallbackMessage();
-      
+
       if (autoSaveReply) {
         await saveAndNotifyReply(conversationId, fallback, aiConfig);
       }
-      
+
       return {
         shouldReply: true,
         reply: fallback,
@@ -114,13 +112,13 @@ export async function processIncomingMessage(
     };
   } catch (error) {
     console.error('Error generating AI response:', error);
-    
+
     const fallback = aiService.getFallbackMessage();
-    
+
     if (autoSaveReply) {
       await saveAndNotifyReply(conversationId, fallback, aiConfig);
     }
-    
+
     return {
       shouldReply: true,
       reply: fallback,
@@ -163,8 +161,8 @@ async function saveAndNotifyReply(
 export function isAIEnabledForChannel(channelConfig: WebsiteWidgetConfig): boolean {
   return Boolean(
     channelConfig.ai_enabled &&
-    channelConfig.ai_config &&
-    channelConfig.ai_config.api_key_encrypted &&
-    channelConfig.ai_config.response_mode !== 'agent_only'
+      channelConfig.ai_config &&
+      channelConfig.ai_config.api_key_encrypted &&
+      channelConfig.ai_config.response_mode !== 'agent_only'
   );
 }
