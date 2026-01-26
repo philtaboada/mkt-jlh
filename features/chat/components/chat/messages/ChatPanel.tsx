@@ -15,6 +15,11 @@ import { sendFirstMessageWithTemplate } from '../../../api/whatsapp-message.api'
 import { sendWhatsAppTextMessage, sendWhatsAppMediaMessage } from '../../../api/send-message.api';
 import { resolveMediaType, resolveWhatsAppType } from '@/features/chat/utils/media-utils';
 import { useUser } from '@/features/auth/hooks/useAuth';
+import {
+  useActivateIAForConversation,
+  useUpdateStatusConversation,
+  useConversation,
+} from '@/features/chat/hooks/useConversations';
 
 interface ChatPanelProps {
   contact: Contact;
@@ -28,19 +33,16 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
   const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
 
-  //userSession
   const { data: user } = useUser();
-  // Use React Query hooks
   const { data: messages = [], isLoading } = useMessages(conversation.id || '');
   const createMessageMutation = useCreateMessage();
-
-  // Detectar si es el primer mensaje (no hay mensajes del agente)
+  const enableIaMutation = useActivateIAForConversation();
+  const { data: updatedConversation } = useConversation(conversation.id || '');
   const isFirstMessage = useMemo(() => {
     if (!messages || messages.length === 0) return true;
     return !messages.some((msg) => msg.sender_type === 'agent');
   }, [messages]);
 
-  // Cargar templates solo si es WhatsApp y es primer mensaje
   const shouldLoadTemplates =
     conversation.channel === 'whatsapp' && isFirstMessage && !!conversation.channel_id;
   const { data: templates = [], isLoading: isLoadingTemplates } = useTemplates(
@@ -52,8 +54,21 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
     setDroppedFiles((prev) => [...prev, ...files]);
   };
 
+  const handleAIAssist = async () => {
+    await enableIaMutation.mutateAsync(conversation.id);
+  };
   const handleSendMessage = async (content: string, attachments?: File[]): Promise<void> => {
     if ((!content.trim() && (!attachments || attachments.length === 0)) || !conversation.id) return;
+
+    console.log('[ChatPanel] Enviando mensaje:', {
+      conversationId: conversation.id,
+      channel: conversation.channel,
+      channelId: conversation.channel_id,
+      contactWaId: contact.wa_id,
+      isFirstMessage,
+      content: content.trim(),
+      attachmentsCount: attachments?.length || 0,
+    });
 
     if (
       isFirstMessage &&
@@ -61,6 +76,13 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
       conversation.channel === 'whatsapp' &&
       contact.wa_id
     ) {
+      console.log('[ChatPanel] Enviando primer mensaje con plantilla:', {
+        templateName: selectedTemplate.name,
+        templateParams,
+        to: contact.wa_id,
+        channelId: conversation.channel_id,
+      });
+
       const bodyComponent = selectedTemplate.components.find((c) => c.type === 'BODY');
       let preview = bodyComponent?.text || '';
       if (bodyComponent) {
@@ -96,6 +118,8 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         templateParams: Object.keys(templateParams).length > 0 ? templateParams : undefined,
       });
 
+      console.log('[ChatPanel] Resultado envío plantilla:', result);
+
       if (result.success) {
         toast.success('Mensaje con plantilla enviado');
         setSelectedTemplate(null);
@@ -108,21 +132,34 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
 
     // Enviar mensaje de texto
     if (content.trim()) {
-      await createMessageMutation.mutateAsync({
-        conversationId: conversation.id,
-        data: {
-          sender_type: 'agent' as const,
-          sender_id: user?.id ?? 'agent-current',
-          type: 'text' as const,
-          body: content,
-        },
+      console.log('[ChatPanel] Enviando mensaje de texto:', {
+        to: contact.wa_id,
+        message: content,
+        channel: conversation.channel,
       });
+
+      try {
+        await createMessageMutation.mutateAsync({
+          conversationId: conversation.id,
+          data: {
+            sender_type: 'agent' as const,
+            sender_id: user?.id ?? 'agent-current',
+            type: 'text' as const,
+            body: content,
+          },
+        });
+
+        console.log('[ChatPanel] Message saved to DB successfully for website channel');
+      } catch (error) {
+        console.error('[ChatPanel] Error saving message to DB:', error);
+      }
 
       if (conversation.channel === 'whatsapp' && contact.wa_id) {
         const result = await sendWhatsAppTextMessage({
           to: contact.wa_id,
           message: content,
         });
+        console.log('[ChatPanel] Resultado envío texto WhatsApp:', result);
         if (!result.success) {
           console.error('[whatsapp-send] error:', result.error);
         }
@@ -131,6 +168,11 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
 
     // Procesar adjuntos
     if (attachments && attachments.length > 0) {
+      console.log(
+        '[ChatPanel] Procesando adjuntos:',
+        attachments.map((f) => ({ name: f.name, type: f.type, size: f.size }))
+      );
+
       const uploadPromises = attachments.map(async (file) => {
         try {
           const formData = new FormData();
@@ -138,6 +180,14 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
           const uploadResult = await uploadChatAttachment(formData);
           const mime = uploadResult.mime || file.type || 'application/octet-stream';
           const type = resolveMediaType({ mime });
+
+          console.log('[ChatPanel] Adjunto subido:', {
+            fileName: file.name,
+            uploadUrl: uploadResult.url,
+            mime,
+            type,
+            whatsappType: resolveWhatsAppType({ type }),
+          });
 
           if (
             (file.type.startsWith('image/') ||
@@ -169,12 +219,13 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
               mediaUrl: uploadResult.url,
               caption: file.name,
             });
-            console.log('[WhatsApp] Resultado del envío de medio:', result);
+            console.log('[ChatPanel] Resultado envío medio WhatsApp:', result);
             if (!result.success) {
               console.error('[whatsapp-send] media error:', result.error);
             }
           }
         } catch (error) {
+          console.error('[ChatPanel] Error al enviar archivo:', file.name, error);
           toast.error(`Error al enviar archivo ${file.name}`);
         }
       });
@@ -225,6 +276,8 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         initialValue={templateMessage}
         additionalFiles={droppedFiles}
         onFilesCleared={() => setDroppedFiles([])}
+        enableAIAssist={updatedConversation?.ia_enabled ?? conversation.ia_enabled}
+        onAIAssist={handleAIAssist}
       />
     </div>
   );

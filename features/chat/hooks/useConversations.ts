@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import {
@@ -6,6 +6,8 @@ import {
   getConversations,
   findOrCreate,
   getConversationCounts,
+  updateConversationStatus,
+  enableIAForConversation,
 } from '../api/conversation.api';
 import { useChatStore } from '../stores/chat.store';
 
@@ -68,5 +70,48 @@ export const useTotalUnread = () => {
       return counts.unread || 0;
     },
     staleTime: 30_000,
+  });
+};
+
+export const useUpdateStatusConversation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      conversationId,
+      status,
+    }: {
+      conversationId: string;
+      status: 'open' | 'closed' | 'pending' | 'snoozed' | 'bot' | 'agent';
+    }) => updateConversationStatus(conversationId, status),
+
+    onSuccess: (_, { conversationId }) => {
+      queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['conversation-counts'] });
+      toast.success('Estado de conversación actualizado');
+    },
+
+    onError: (error: any) => {
+      toast.error('Error al actualizar estado: ' + error.message);
+    },
+  });
+};
+
+export const useActivateIAForConversation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (conversationId: string) => enableIAForConversation(conversationId),
+
+    onSuccess: (_, conversationId) => {
+      queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      toast.success('IA activada para la conversación');
+    },
+
+    onError: (error: any) => {
+      toast.error('Error al activar IA: ' + error.message);
+    },
   });
 };

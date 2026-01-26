@@ -38,6 +38,13 @@ export async function create(conversationId: string, data: Partial<Message>): Pr
     throw error;
   }
 
+  console.log('[Message API] Message inserted:', {
+    id: newMessage.id,
+    conversation_id: newMessage.conversation_id,
+    sender_type: newMessage.sender_type,
+    body: newMessage.body,
+  });
+
   // Actualizar last_message_at en la conversación
   await supabase
     .from('mkt_conversations')
