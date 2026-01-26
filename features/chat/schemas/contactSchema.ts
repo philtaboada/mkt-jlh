@@ -22,3 +22,13 @@ export const contactSchema = z.object({
 });
 
 export type Contact = z.infer<typeof contactSchema>;
+// Create a form-specific schema with only the fields we need
+export const contactFormSchema = z.object({
+  name: z.string().min(1, 'El nombre es requerido'),
+  email: z.email('Email inválido').optional().or(z.literal('')),
+  phone: z.string().optional(),
+  source: z.enum(['web', 'whatsapp', 'facebook', 'instagram']),
+  status: z.enum(['lead', 'open', 'customer', 'closed']),
+});
+
+export type ContactFormData = z.infer<typeof contactFormSchema>;
