@@ -92,10 +92,11 @@ export async function processIncomingMessage(
   const context = await getConversationContext(conversationId, contactName, channel);
 
   try {
-    const delay = aiService.getAutoReplyDelay();
-    if (delay > 0) {
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
+    // Removed delay for faster responses
+    // const delay = aiService.getAutoReplyDelay();
+    // if (delay > 0) {
+    //   await new Promise((resolve) => setTimeout(resolve, delay));
+    // }
 
     const response = await aiService.generateResponse(userMessage, context);
 
