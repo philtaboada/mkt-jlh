@@ -36,7 +36,6 @@ import { LeadEntityTypeOptions, LeadSourceOptions, LeadStatusOptions } from '../
 import { PlatformLabels } from '../types/platformLabels';
 import { PartnershipForm } from '@/features/partnerships/components/PartnershipForm';
 import { LeadEntityTypeEnum } from '../types/leadEnums';
-import { de } from 'date-fns/locale';
 
 interface LeadFormProps {
   defaultValues?: LeadFormInput;
