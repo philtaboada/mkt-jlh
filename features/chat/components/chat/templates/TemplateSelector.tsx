@@ -2,11 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Dialog,
   DialogContent,
@@ -19,122 +15,55 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileText, Loader2, Check, RefreshCw } from 'lucide-react';
-import type { MessageTemplate } from '../../../types/template';
 import { cn } from '@/lib/utils';
-import { syncTemplates } from '../../../api/template.api';
-import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
+
+import { syncWhatsappTemplates, useTemplates } from '@/features/chat/hooks';
+import { MessageTemplate } from '@/features/chat/types/template';
+import { extractPlaceholders, getTemplatePreview } from '@/features/chat/utils/templateUtils';
 
 interface TemplateSelectorProps {
-  templates: MessageTemplate[];
   onSelect: (template: MessageTemplate, params?: Record<string, string>) => void;
-  isLoading?: boolean;
   disabled?: boolean;
-  channelId?: string;
+  channelId: string;
   onSyncComplete?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function TemplateSelector({
-  templates,
   onSelect,
-  isLoading = false,
   disabled = false,
   channelId,
   onSyncComplete,
+  open,
+  onOpenChange,
 }: TemplateSelectorProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const currentOpen = isControlled ? open : internalOpen;
+  const setCurrentOpen = isControlled ? onOpenChange || (() => {}) : setInternalOpen;
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [showParamsDialog, setShowParamsDialog] = useState(false);
   const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
-  const queryClient = useQueryClient();
 
-  const approvedTemplates = templates.filter((t) => t.status === 'APPROVED');
+  const { data: templatesData, isLoading: isLoadingTemplates } = useTemplates(
+    channelId,
+    'whatsapp'
+  );
+  const templates = templatesData || [];
 
-  // Extraer placeholders de una plantilla
-  const extractPlaceholders = (template: MessageTemplate): Array<{ index: number; component: 'BODY' | 'HEADER'; label: string }> => {
-    const placeholders: Array<{ index: number; component: 'BODY' | 'HEADER'; label: string }> = [];
-    
-    template.components.forEach((comp) => {
-      if ((comp.type === 'BODY' || comp.type === 'HEADER') && comp.text) {
-        const matches = comp.text.match(/\{\{(\d+)\}\}/g) || [];
-        matches.forEach((match) => {
-          const index = parseInt(match.replace(/\{\{|\}\}/g, ''), 10);
-          if (!placeholders.find((p) => p.index === index && p.component === comp.type)) {
-            placeholders.push({
-              index,
-              component: comp.type as 'BODY' | 'HEADER',
-              label: `${comp.type === 'HEADER' ? 'Encabezado' : 'Cuerpo'} - Parámetro ${index}`,
-            });
-          }
-        });
-      }
-    });
-
-    return placeholders.sort((a, b) => a.index - b.index);
-  };
-
-  // Verificar si una plantilla requiere parámetros
-  const templateRequiresParams = (template: MessageTemplate): boolean => {
-    return extractPlaceholders(template).length > 0;
-  };
-
-  const handleSync = async () => {
-    if (!channelId) {
-      toast.error('No se puede sincronizar: canal no especificado');
-      return;
-    }
-
-    setIsSyncing(true);
-    try {
-      const result = await syncTemplates({ channelId });
-      
-      if (result.success) {
-        toast.success(`Sincronización completada: ${result.synced} plantillas sincronizadas`);
-        queryClient.invalidateQueries({ queryKey: ['templates', channelId, 'whatsapp'] });
-        if (onSyncComplete) {
-          onSyncComplete();
-        }
-      } else {
-        toast.error(result.error || 'Error al sincronizar plantillas');
-      }
-    } catch (error) {
-      console.error('Error syncing templates:', error);
-      toast.error('Error al sincronizar plantillas');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  const syncMutation = syncWhatsappTemplates(channelId);
 
   const handleSelect = (template: MessageTemplate) => {
     setSelectedTemplate(template);
-    
-    // Si la plantilla requiere parámetros, mostrar diálogo
-    if (templateRequiresParams(template)) {
-      setTemplateParams({});
-      setShowParamsDialog(true);
-      setOpen(false);
-    } else {
-      // Si no requiere parámetros, seleccionar directamente
-      onSelect(template);
-      setOpen(false);
-    }
+
+    setTemplateParams({});
+    setShowParamsDialog(true);
+    setCurrentOpen(false);
   };
 
   const handleConfirmParams = () => {
     if (!selectedTemplate) return;
-    
-    // Validar que todos los parámetros requeridos estén llenos
-    const placeholders = extractPlaceholders(selectedTemplate);
-    const missingParams = placeholders.filter(
-      (p) => !templateParams[`param_${p.index}`]?.trim()
-    );
-
-    if (missingParams.length > 0) {
-      toast.error('Por favor completa todos los parámetros requeridos');
-      return;
-    }
-
     onSelect(selectedTemplate, templateParams);
     setShowParamsDialog(false);
     setTemplateParams({});
@@ -145,33 +74,23 @@ export function TemplateSelector({
     return extractPlaceholders(selectedTemplate);
   }, [selectedTemplate]);
 
-  const getTemplatePreview = (template: MessageTemplate): string => {
-    const bodyComponent = template.components.find((c) => c.type === 'BODY');
-    if (bodyComponent?.text) {
-      return bodyComponent.text.substring(0, 60) + (bodyComponent.text.length > 60 ? '...' : '');
-    }
-    return template.name;
-  };
-
-  if (approvedTemplates.length === 0) {
-    return null;
-  }
+  // if (templates.length === 0) {
+  //   return null;
+  // }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={currentOpen} onOpenChange={setCurrentOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           size="sm"
-          disabled={disabled || isLoading}
-          className="gap-2"
+          disabled={disabled || isLoadingTemplates}
+          className={cn('gap-2', isControlled && 'invisible absolute')}
         >
           <FileText className="w-4 h-4" />
           Plantillas
           {selectedTemplate && (
-            <span className="ml-1 text-xs text-muted-foreground">
-              ({selectedTemplate.name})
-            </span>
+            <span className="ml-1 text-xs text-muted-foreground">({selectedTemplate.name})</span>
           )}
         </Button>
       </PopoverTrigger>
@@ -180,30 +99,35 @@ export function TemplateSelector({
           <div>
             <h4 className="font-semibold text-sm">Seleccionar Plantilla</h4>
             <p className="text-xs text-muted-foreground mt-1">
-              {approvedTemplates.length} plantilla{approvedTemplates.length !== 1 ? 's' : ''} disponible{approvedTemplates.length !== 1 ? 's' : ''}
+              {templates.length} plantilla{templates.length !== 1 ? 's' : ''} disponible
+              {templates.length !== 1 ? 's' : ''}
             </p>
           </div>
           {channelId && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleSync}
-              disabled={isSyncing || disabled}
+              onClick={() => syncMutation.mutate(channelId)}
+              disabled={syncMutation.isPending || disabled}
               className="h-8 w-8 p-0"
               title="Sincronizar plantillas"
             >
-              <RefreshCw className={cn('h-4 w-4', isSyncing && 'animate-spin')} />
+              <RefreshCw className={cn('h-4 w-4', syncMutation.isPending && 'animate-spin')} />
             </Button>
           )}
         </div>
         <ScrollArea className="h-[300px]">
           <div className="p-2">
-            {isLoading ? (
+            {isLoadingTemplates ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               </div>
+            ) : templates.length === 0 ? (
+              <div className="flex items-center justify-center py-8 text-muted-foreground">
+                No hay plantillas disponibles
+              </div>
             ) : (
-              approvedTemplates.map((template) => (
+              templates.map((template) => (
                 <button
                   key={template.id}
                   onClick={() => handleSelect(template)}
@@ -225,13 +149,9 @@ export function TemplateSelector({
                         {getTemplatePreview(template)}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-muted-foreground">
-                          {template.category}
-                        </span>
+                        <span className="text-xs text-muted-foreground">{template.category}</span>
                         <span className="text-xs text-muted-foreground">•</span>
-                        <span className="text-xs text-muted-foreground">
-                          {template.language}
-                        </span>
+                        <span className="text-xs text-muted-foreground">{template.language}</span>
                       </div>
                     </div>
                   </div>
@@ -275,7 +195,9 @@ export function TemplateSelector({
             {/* Preview del mensaje con parámetros reemplazados y mejor UI */}
             {selectedTemplate && (
               <div className="mt-6 p-4 border rounded bg-muted space-y-2">
-                <Label className="mb-2 block text-base font-semibold text-primary">Preview del mensaje</Label>
+                <Label className="mb-2 block text-base font-semibold text-primary">
+                  Preview del mensaje
+                </Label>
                 {['HEADER', 'BODY', 'FOOTER'].map((section) => {
                   const comp = selectedTemplate.components.find((c) => c.type === section);
                   if (!comp?.text) return null;
@@ -287,14 +209,25 @@ export function TemplateSelector({
                     }
                   });
                   return (
-                    <div key={section} className={
-                      section === 'HEADER' ? 'text-sm font-bold text-primary' :
-                      section === 'BODY' ? 'text-sm text-foreground' :
-                      'text-xs text-muted-foreground italic'
-                    }>
-                      {section === 'HEADER' && <span className="block mb-1 text-xs text-muted-foreground">Encabezado</span>}
-                      {section === 'BODY' && <span className="block mb-1 text-xs text-muted-foreground">Cuerpo</span>}
-                      {section === 'FOOTER' && <span className="block mb-1 text-xs text-muted-foreground">Pie</span>}
+                    <div
+                      key={section}
+                      className={
+                        section === 'HEADER'
+                          ? 'text-sm font-bold text-primary'
+                          : section === 'BODY'
+                            ? 'text-sm text-foreground'
+                            : 'text-xs text-muted-foreground italic'
+                      }
+                    >
+                      {section === 'HEADER' && (
+                        <span className="block mb-1 text-xs text-muted-foreground">Encabezado</span>
+                      )}
+                      {section === 'BODY' && (
+                        <span className="block mb-1 text-xs text-muted-foreground">Cuerpo</span>
+                      )}
+                      {section === 'FOOTER' && (
+                        <span className="block mb-1 text-xs text-muted-foreground">Pie</span>
+                      )}
                       <span className="whitespace-pre-line">{preview}</span>
                     </div>
                   );
@@ -307,9 +240,7 @@ export function TemplateSelector({
             <Button variant="outline" onClick={() => setShowParamsDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleConfirmParams}>
-              Confirmar
-            </Button>
+            <Button onClick={handleConfirmParams}>Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

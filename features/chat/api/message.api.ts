@@ -1,6 +1,6 @@
 'use server';
 import { createClient } from '@/lib/supabase/server';
-import { Message } from '../types/message';
+import { Message, UpdateStatusMessage } from '../types/message';
 
 export async function create(conversationId: string, data: Partial<Message>): Promise<Message> {
   const supabase = await createClient();
@@ -30,6 +30,7 @@ export async function create(conversationId: string, data: Partial<Message>): Pr
       media_name,
       metadata,
       status: 'sent',
+      provider: data.provider,
     })
     .select('*')
     .single();
@@ -38,14 +39,6 @@ export async function create(conversationId: string, data: Partial<Message>): Pr
     throw error;
   }
 
-  console.log('[Message API] Message inserted:', {
-    id: newMessage.id,
-    conversation_id: newMessage.conversation_id,
-    sender_type: newMessage.sender_type,
-    body: newMessage.body,
-  });
-
-  // Actualizar last_message_at en la conversación
   await supabase
     .from('mkt_conversations')
     .update({ last_message_at: new Date().toISOString() })
@@ -254,4 +247,44 @@ export async function getUnreadCount(conversationId: string): Promise<number> {
   }
 
   return count || 0;
+}
+
+// actualizar el estado de un mensaje
+export async function updateMessageStatus(
+  messageId: string,
+  status: 'sent' | 'delivered' | 'read' | 'failed'
+): Promise<void> {
+  const supabase = await createClient();
+
+  const updateData: Partial<Message> = { status };
+
+  if (status === 'read') {
+    updateData.read_at = new Date();
+  }
+
+  const { error } = await supabase.from('mkt_messages').update(updateData).eq('id', messageId);
+
+  if (error) {
+    console.error('Error updating message status:', error);
+    throw error;
+  }
+}
+
+//actualizar el estado de un mensaje basado en un webhook externo
+export async function updateStatusMessageExternal(data: UpdateStatusMessage): Promise<void> {
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc('update_message_status_from_webhook', {
+    p_event: {
+      provider: data.provider,
+      external_id: data.external_id,
+      status: data.status,
+      read_at: data.read_at ?? new Date().toISOString(),
+    },
+  });
+
+  if (error) {
+    console.error('Error updating message status:', error);
+    throw error;
+  }
 }

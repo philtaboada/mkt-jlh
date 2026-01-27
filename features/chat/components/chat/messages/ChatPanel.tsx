@@ -1,25 +1,29 @@
 'use client';
 
 import { useRef, useState, useMemo } from 'react';
-import type { Contact } from '../../../types/contact';
-import type { Conversation } from '../../../types/conversation';
+import type { Contact } from '@/features/chat/types/contact';
+import type { Conversation } from '@/features/chat/types/conversation';
 import { MessageList } from './MessageList';
 import { ChatHeader } from '../header';
-import { MessageInput } from '../input';
-import { TemplateSelector } from '../templates/TemplateSelector';
-import { useMessages, useCreateMessage, useTemplates } from '../../../hooks';
+import { useMessages, useCreateMessage } from '@/features/chat/hooks';
 import { uploadChatAttachment } from '@/features/chat/actions/chat-storage';
 import { toast } from 'sonner';
-import type { MessageTemplate } from '../../../types/template';
-import { sendFirstMessageWithTemplate } from '../../../api/whatsapp-message.api';
-import { sendWhatsAppTextMessage, sendWhatsAppMediaMessage } from '../../../api/send-message.api';
+
 import { resolveMediaType, resolveWhatsAppType } from '@/features/chat/utils/media-utils';
 import { useUser } from '@/features/auth/hooks/useAuth';
 import {
   useActivateIAForConversation,
-  useUpdateStatusConversation,
   useConversation,
 } from '@/features/chat/hooks/useConversations';
+import { MessageTemplate } from '@/features/chat/types/template';
+import {
+  sendMessageWithTemplate,
+  sendWhatsAppMediaMessage,
+  sendWhatsAppTextMessage,
+} from '@/features/chat/api';
+import { buildTemplatePreview } from '@/features/chat/utils/templateUtils';
+import { MessageInput } from '../input';
+import { TemplateAlert } from '../templates/TemplateAlert';
 
 interface ChatPanelProps {
   contact: Contact;
@@ -43,12 +47,17 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
     return !messages.some((msg) => msg.sender_type === 'agent');
   }, [messages]);
 
-  const shouldLoadTemplates =
-    conversation.channel === 'whatsapp' && isFirstMessage && !!conversation.channel_id;
-  const { data: templates = [], isLoading: isLoadingTemplates } = useTemplates(
-    conversation.channel_id || undefined,
-    shouldLoadTemplates ? 'whatsapp' : undefined
-  );
+  // Calcular si está fuera del horario de envío (más de 24 horas desde el último mensaje inbound)
+  const isOutsideHours = useMemo(() => {
+    if (!conversation.last_inbound_at) return false;
+    const lastInbound = new Date(conversation.last_inbound_at);
+    const now = new Date();
+    const diffHours = (now.getTime() - lastInbound.getTime()) / (1000 * 60 * 60);
+    return diffHours > 24;
+  }, [conversation.last_inbound_at]);
+
+  // Asumir no conectado si el canal no tiene channel_id o status no activo (ajustar según lógica real)
+  const isNotConnected = !conversation.channel_id;
 
   const handleFileDrop = (files: File[]): void => {
     setDroppedFiles((prev) => [...prev, ...files]);
@@ -83,23 +92,7 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         channelId: conversation.channel_id,
       });
 
-      const bodyComponent = selectedTemplate.components.find((c) => c.type === 'BODY');
-      let preview = bodyComponent?.text || '';
-      if (bodyComponent) {
-        const placeholders = selectedTemplate.components
-          .filter((c) => c.type === 'BODY' || c.type === 'HEADER')
-          .flatMap((comp) => {
-            const matches = comp.text?.match(/\{\{(\d+)\}\}/g) || [];
-            return matches.map((match) => {
-              const index = parseInt(match.replace(/\{\{|\}\}/g, ''), 10);
-              return { index, component: comp.type };
-            });
-          });
-        placeholders.forEach((p) => {
-          const value = templateParams[`param_${p.index}`] || `{{${p.index}}}`;
-          preview = preview.replace(new RegExp(`\\{\\{${p.index}\\}\\}`, 'g'), value);
-        });
-      }
+      let preview = buildTemplatePreview(selectedTemplate, templateParams);
       // Guardar mensaje en la base de datos local
       await createMessageMutation.mutateAsync({
         conversationId: conversation.id,
@@ -111,7 +104,7 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         },
       });
       // Enviar a WhatsApp
-      const result = await sendFirstMessageWithTemplate({
+      const result = await sendMessageWithTemplate({
         to: contact.wa_id,
         templateName: selectedTemplate.name,
         channelId: conversation.channel_id || undefined,
@@ -244,7 +237,11 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
     <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
       <ChatHeader contact={contact} conversation={conversation} />
-
+      <TemplateAlert
+        isOutsideHours={isOutsideHours}
+        isNotConnected={isNotConnected}
+        channelId={conversation.channel_id!}
+      />
       {/* Messages */}
       <MessageList
         messages={messages}
@@ -254,22 +251,6 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         onFileDrop={handleFileDrop}
       />
 
-      {/* Template Selector - Solo mostrar si es primer mensaje y WhatsApp */}
-      {shouldLoadTemplates && (
-        <div className="px-4 py-2 border-b bg-muted/30">
-          <TemplateSelector
-            templates={templates}
-            onSelect={(template, params) => {
-              setSelectedTemplate(template);
-              setTemplateParams(params || {});
-            }}
-            isLoading={isLoadingTemplates}
-            disabled={createMessageMutation.isPending}
-            channelId={conversation.channel_id || undefined}
-          />
-        </div>
-      )}
-
       <MessageInput
         onSendMessage={handleSendMessage}
         disabled={createMessageMutation.isPending}
@@ -278,6 +259,7 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
         onFilesCleared={() => setDroppedFiles([])}
         enableAIAssist={updatedConversation?.ia_enabled ?? conversation.ia_enabled}
         onAIAssist={handleAIAssist}
+        channelId={conversation.channel_id!}
       />
     </div>
   );

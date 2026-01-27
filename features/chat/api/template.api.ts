@@ -1,11 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import type {
-  MessageTemplate,
-  CreateTemplateInput,
-  UpdateTemplateInput,
-} from '../types/template';
+import type { MessageTemplate, CreateTemplateInput, UpdateTemplateInput } from '../types/template';
 import type { Channel, WhatsAppConfig } from '../types/settings';
 
 export async function getTemplatesByChannel(
@@ -17,6 +13,7 @@ export async function getTemplatesByChannel(
     .from('mkt_message_templates')
     .select('*')
     .eq('channel_id', channelId)
+    .eq('status', 'approved')
     .order('created_at', { ascending: false });
 
   if (provider) {
@@ -124,11 +121,7 @@ export async function updateTemplate(
 }
 
 export async function upsertTemplate(input: CreateTemplateInput): Promise<MessageTemplate> {
-  const existing = await getTemplateByName(
-    input.channel_id,
-    input.name,
-    input.provider
-  );
+  const existing = await getTemplateByName(input.channel_id, input.name, input.provider);
 
   if (existing) {
     return updateTemplate(existing.id, {
@@ -145,10 +138,7 @@ export async function upsertTemplate(input: CreateTemplateInput): Promise<Messag
 
 export async function deleteTemplate(id: string): Promise<void> {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from('mkt_message_templates')
-    .delete()
-    .eq('id', id);
+  const { error } = await supabase.from('mkt_message_templates').delete().eq('id', id);
 
   if (error) {
     console.error('Error deleting template:', error);
@@ -164,7 +154,7 @@ export async function syncTemplatesForChannel(channelId: string): Promise<{
   const { getChannelById } = await import('./channels.api');
 
   const channel = await getChannelById(channelId);
-  
+
   if (!channel) {
     throw new Error('Channel not found');
   }
@@ -180,9 +170,7 @@ export async function syncTemplatesForChannel(channelId: string): Promise<{
 /**
  * Sincroniza templates para todos los canales activos de WhatsApp o uno específico
  */
-export async function syncTemplates(params?: {
-  channelId?: string;
-}): Promise<{
+export async function syncTemplates(params?: { channelId?: string }): Promise<{
   success: boolean;
   synced: number;
   errors: number;
@@ -234,7 +222,7 @@ export async function syncTemplates(params?: {
       .map((r, idx) => ({
         channel_id: activeChannels[idx]?.id || '',
         channel_name: activeChannels[idx]?.name || '',
-        error: r.status === 'rejected' ? (r.reason?.message || 'Unknown error') : '',
+        error: r.status === 'rejected' ? r.reason?.message || 'Unknown error' : '',
       }));
 
     console.log('📊 Sync summary:', { synced, errors, channels_processed: activeChannels.length });

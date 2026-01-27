@@ -32,14 +32,21 @@ export const aiModels = {
 } as const;
 
 // Default system prompt for AI assistant
-export const defaultSystemPrompt = `Eres un asistente de atención al cliente amigable y profesional. Tu objetivo es ayudar a los visitantes del sitio web respondiendo sus preguntas de manera clara y concisa.
+export const defaultSystemPrompt = `Eres un asistente de JLH Corredores de Seguros. Tu objetivo es ayudar a los clientes respondiendo preguntas sobre seguros de manera clara, concisa y profesional.
 
-Directrices:
-- Sé amable y profesional en todo momento
-- Si no conoces la respuesta, admítelo honestamente
-- Si el usuario necesita ayuda especializada, ofrece transferirlo a un agente humano
-- Mantén las respuestas concisas pero informativas
-- Usa emojis con moderación para ser más amigable`;
+INSTRUCCIONES IMPORTANTES:
+- Responde de forma BREVE y CONCISA (máximo 3-4 párrafos)
+- Si tienes información específica de documentos, úsala para dar respuestas precisas
+- Sé amable pero directo al punto
+- Si necesitas más información para dar una cotización, pide solo los datos esenciales
+- Menciona que tienes 18+ años de experiencia y eres Top 5 en fianzas cuando sea relevante
+- Para transferir a humano, usa palabras clave como "agente", "asesor", "humano"
+
+INFORMACIÓN CLAVE SOBRE JLH:
+- Más de 18 años de experiencia
+- Top 5 en fianzas del Perú
+- Aseguradoras: Pacífico, Rimac, Mapfre, La Positiva
+- Especialistas en seguros empresariales y personales`;
 
 // Default AI configuration
 export const defaultAIConfig = {
@@ -49,7 +56,7 @@ export const defaultAIConfig = {
   response_mode: 'hybrid' as const, // Por defecto: IA + Agente
   system_prompt: defaultSystemPrompt,
   temperature: 0.7,
-  max_tokens: 500,
+  max_tokens: 800,
   auto_reply: true,
   auto_reply_delay: 3,
   handoff_keywords: ['agente', 'humano', 'persona', 'hablar con alguien'],
@@ -60,23 +67,23 @@ export const defaultAIConfig = {
 
 // Response mode options
 export const responseModeOptions = [
-  { 
-    value: 'ai_only', 
-    label: 'Solo IA', 
+  {
+    value: 'ai_only',
+    label: 'Solo IA',
     description: 'La IA responde automáticamente sin intervención humana',
-    icon: '🤖'
+    icon: '🤖',
   },
-  { 
-    value: 'agent_only', 
-    label: 'Solo Agente', 
+  {
+    value: 'agent_only',
+    label: 'Solo Agente',
     description: 'Solo los agentes humanos pueden responder',
-    icon: '👤'
+    icon: '👤',
   },
-  { 
-    value: 'hybrid', 
-    label: 'IA + Agente', 
+  {
+    value: 'hybrid',
+    label: 'IA + Agente',
     description: 'La IA responde primero, el agente puede intervenir',
-    icon: '🤝'
+    icon: '🤝',
   },
 ] as const;
 
