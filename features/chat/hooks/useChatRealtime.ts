@@ -23,8 +23,21 @@ export function useChatRealtime() {
         const isActive = message.conversation_id === activeConversationId;
 
         queryClient.setQueryData<Message[]>(['messages', message.conversation_id], (old = []) => {
-          const updated = old.some((m) => m.id === message.id) ? old : [...old, message];
-          return updated;
+          // Si el mensaje real ya existe, no hacemos nada
+          if (old.some((m) => m.id === message.id)) return old;
+
+          // Si el mensaje viene con un optimisticId en metadata, 
+          // buscamos el mensaje optimista local para reemplazarlo
+          const optimisticId = message.metadata?.optimistic_id;
+          if (optimisticId) {
+            const exists = old.some((m) => m.id === optimisticId);
+            if (exists) {
+              return old.map((m) => (m.id === optimisticId ? message : m));
+            }
+          }
+
+          // Si no es un reemplazo de uno optimista, lo añadimos al final
+          return [...old, message];
         });
 
         queryClient.invalidateQueries({ queryKey: ['conversations'] });

@@ -11,7 +11,7 @@ export type Conversation = {
   id: string;
   contact_id?: string | null;
   channel_id?: string | null;
-  channel: 'whatsapp' | 'facebook' | 'instagram' | 'website';
+  channel: 'whatsapp' | 'messenger' | 'instagram' | 'website' | 'email';
   status?: 'open' | 'closed' | 'bot' | 'pending' | 'hand_off' | 'agent';
   assigned_to?: string | null;
   last_message_at?: Date | null;

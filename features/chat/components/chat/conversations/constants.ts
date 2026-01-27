@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Users,
   Instagram,
+  Facebook,
   Globe,
   Mail,
   Link,
@@ -16,7 +17,7 @@ import {
 // Iconos por tipo de canal
 export const channelTypeIcons: Record<string, { icon: React.ElementType; bgColor: string }> = {
   whatsapp: { icon: MessageSquare, bgColor: 'bg-emerald-500' },
-  facebook: { icon: Users, bgColor: 'bg-blue-600' },
+  messenger: { icon: Facebook, bgColor: 'bg-blue-600' },
   instagram: { icon: Instagram, bgColor: 'bg-gradient-to-br from-purple-500 to-pink-500' },
   website: { icon: Globe, bgColor: 'bg-sky-500' },
   web: { icon: Globe, bgColor: 'bg-sky-500' },

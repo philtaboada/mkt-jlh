@@ -6,14 +6,12 @@ import type React from 'react';
 import type { Contact, Conversation } from '../../../types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   MoreVertical,
   User,
-  Clock,
   MessageSquare,
-  Users,
   Instagram,
+  Facebook,
   Globe,
   Mail,
   Link,
@@ -28,7 +26,7 @@ interface ChatHeaderProps {
 
 const channelIcons: Record<string, React.ElementType> = {
   whatsapp: MessageSquare,
-  facebook: Users,
+  messenger: Facebook,
   instagram: Instagram,
   web: Globe,
   website: Globe,
@@ -37,7 +35,7 @@ const channelIcons: Record<string, React.ElementType> = {
 
 const channelLabels: Record<string, string> = {
   whatsapp: 'WhatsApp',
-  facebook: 'Facebook',
+  messenger: 'Messenger',
   instagram: 'Instagram',
   web: 'Web',
   website: 'Website',
@@ -46,7 +44,7 @@ const channelLabels: Record<string, string> = {
 
 const channelColors: Record<string, string> = {
   whatsapp: 'bg-emerald-500',
-  facebook: 'bg-blue-600',
+  messenger: 'bg-blue-600',
   instagram: 'bg-gradient-to-br from-purple-500 to-pink-500',
   web: 'bg-sky-500',
   website: 'bg-sky-500',

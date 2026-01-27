@@ -41,8 +41,10 @@ export const useCreateMessage = () => {
 
       const previousMessages = queryClient.getQueryData(['messages', conversationId]);
 
+      const optimisticId = data.metadata?.optimistic_id || crypto.randomUUID();
+
       const optimisticMessage = {
-        id: crypto.randomUUID(),
+        id: optimisticId,
         conversation_id: conversationId,
         ...data,
         created_at: new Date().toISOString(),

@@ -360,7 +360,7 @@ export async function markMessagesAsReadByWatermark(
   const supabase = await createClient();
 
   let contactQuery = supabase.from('mkt_contacts').select('id');
-  if (provider === 'messenger' || provider === 'facebook') contactQuery = contactQuery.eq('fb_id', senderId);
+  if (provider === 'messenger') contactQuery = contactQuery.eq('fb_id', senderId);
   else if (provider === 'instagram') contactQuery = contactQuery.eq('ig_id', senderId);
   else if (provider === 'whatsapp') contactQuery = contactQuery.eq('wa_id', senderId);
   else return; // Unsupported provider

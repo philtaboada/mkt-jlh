@@ -181,17 +181,6 @@ export function ConversationItem({
 
             {/* Footer: Status, channel and unread badge */}
             <div className="flex items-center justify-between mt-1">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  <div
-                    className={cn('w-2 h-2 rounded-full shrink-0 animate-pulse', status.color)}
-                  />
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
-                    {status.label}
-                  </span>
-                </div>
-              </div>
-
               {hasUnread && (
                 <Badge
                   variant="default"

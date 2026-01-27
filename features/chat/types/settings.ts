@@ -1,4 +1,4 @@
-export type ChannelType = 'whatsapp' | 'website' | 'facebook' | 'instagram' | 'email';
+export type ChannelType = 'whatsapp' | 'website' | 'messenger' | 'instagram' | 'email';
 export type ChannelStatus = 'active' | 'inactive' | 'pending';
 export type AgentStatus = 'online' | 'offline' | 'busy';
 export type AgentRole = 'admin' | 'agent' | 'supervisor';
@@ -17,7 +17,7 @@ export interface Channel {
 export type ChannelConfig =
   | WhatsAppConfig
   | WebsiteWidgetConfig
-  | FacebookConfig
+  | MessengerConfig
   | InstagramConfig
   | EmailConfig;
 
@@ -70,7 +70,7 @@ export interface PreChatField {
   options?: string[];
 }
 
-export interface FacebookConfig {
+export interface MessengerConfig {
   page_id: string;
   page_name: string;
   page_access_token?: string;
