@@ -34,7 +34,9 @@ export async function findOrCreateByWhatsApp(waId: string, name: string): Promis
   return newContact;
 }
 
-export async function findOrCreateByFacebook(fbId: string, name?: string): Promise<Contact> {
+import { getFacebookUserProfile } from '@/lib/services/facebook/get-profile';
+
+export async function findOrCreateByFacebook(fbId: string, name?: string, accessToken?: string): Promise<Contact> {
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from('mkt_contacts')
@@ -46,11 +48,28 @@ export async function findOrCreateByFacebook(fbId: string, name?: string): Promi
     return existing;
   }
 
+  let contactName = name || 'Contacto Facebook';
+  let avatarUrl = undefined;
+
+  // Try to fetch real profile if access token is available
+  if (accessToken) {
+    try {
+      const profile = await getFacebookUserProfile(fbId, accessToken);
+      if (profile) {
+        if (profile.name) contactName = profile.name;
+        if (profile.profile_pic) avatarUrl = profile.profile_pic;
+      }
+    } catch (e) {
+      console.error('Error getting FB profile:', e);
+    }
+  }
+
   const { data: newContact, error } = await supabase
     .from('mkt_contacts')
     .insert({
       fb_id: fbId,
-      name: name || 'Contacto Facebook',
+      name: contactName,
+      avatar_url: avatarUrl,
       source: 'facebook',
       status: 'lead',
     })
