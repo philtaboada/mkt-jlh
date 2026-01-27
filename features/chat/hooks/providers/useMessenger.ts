@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { Message, SendMessengerVars } from '../../types/message';
-import { create, updateMessageStatus, setMessageExternalId } from '../../api';
+import { create, updateMessageStatus, setMessageExternalId, markMessageAsFailed } from '../../api';
 import { sendMessenger } from '../../api/providers/messenger';
 
 export function useSendMessenger() {
@@ -35,11 +35,18 @@ export function useSendMessenger() {
         sender_id: dbData.sender_id,
       });
 
-      const sendRes = await sendMessenger(sendRequest);
+      try {
+        const sendRes = await sendMessenger(sendRequest);
 
-      if (sendRes.messageId && created.id) {
-        await setMessageExternalId(created.id, sendRes.messageId, 'messenger');
-        await updateMessageStatus(created.id, 'sent');
+        if (sendRes.messageId && created.id) {
+          await setMessageExternalId(created.id, sendRes.messageId, 'messenger');
+          await updateMessageStatus(created.id, 'sent');
+        }
+      } catch (error) {
+        if (created.id) {
+            await markMessageAsFailed(created.id, error instanceof Error ? error.message : String(error));
+        }
+        throw error;
       }
 
       return { created };

@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { sendWhatsApp } from '@/features/chat/api/providers/whatsapp';
 import type { Message, MessageType, SendWhatsappVars } from '../../types/message';
-import { create, updateMessageStatus, setMessageExternalId } from '../../api';
+import { create, updateMessageStatus, setMessageExternalId, markMessageAsFailed } from '../../api';
 
 export function useSendWhatsapp() {
   const queryClient = useQueryClient();
@@ -33,11 +33,18 @@ export function useSendWhatsapp() {
         sender_id: dbData.sender_id,
       });
 
-      const sendRes = await sendWhatsApp(sendRequest);
+      try {
+        const sendRes = await sendWhatsApp(sendRequest);
 
-      if (sendRes.messageId && created.id) {
-        await setMessageExternalId(created.id, sendRes.messageId, 'whatsapp');
-        await updateMessageStatus(created.id, 'sent');
+        if (sendRes.messageId && created.id) {
+          await setMessageExternalId(created.id, sendRes.messageId, 'whatsapp');
+          await updateMessageStatus(created.id, 'sent');
+        }
+      } catch (error) {
+        if (created.id) {
+            await markMessageAsFailed(created.id, error instanceof Error ? error.message : String(error));
+        }
+        throw error;
       }
 
       return { created };

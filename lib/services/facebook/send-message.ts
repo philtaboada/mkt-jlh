@@ -108,17 +108,15 @@ export async function sendFacebookMessage(
               },
             },
           },
+    // Default to HUMAN_AGENT to allow replying after 24h window
+    tag: tag || 'HUMAN_AGENT', 
   };
-
-  if (tag) {
-    payload.tag = tag;
-  }
 
   /* ========= Request ========= */
 
   try {
     const response = await fetch(
-      `https://graph.facebook.com/v18.0/me/messages?access_token=${accessToken}`,
+      `https://graph.facebook.com/v21.0/me/messages?access_token=${accessToken}`,
       {
         method: 'POST',
         headers: {
@@ -130,10 +128,15 @@ export async function sendFacebookMessage(
 
     const data: {
       message_id?: string;
-      error?: { message?: string };
+      error?: { message?: string; type?: string; code?: number; error_subcode?: number };
     } = await response.json();
 
     if (!response.ok) {
+      console.error('[Messenger API Error]', {
+        status: response.status,
+        error: data?.error,
+        payload,
+      });
       return {
         success: false,
         error: data?.error?.message || 'Failed to send Messenger message',
@@ -145,6 +148,7 @@ export async function sendFacebookMessage(
       messageId: data.message_id,
     };
   } catch (error) {
+    console.error('[Messenger Send Error]', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
