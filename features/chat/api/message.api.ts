@@ -292,6 +292,39 @@ export async function updateStatusMessageExternal(data: UpdateStatusMessage): Pr
   }
 }
 
+// Mark message as failed with error details
+export async function markMessageAsFailed(
+  messageId: string,
+  error: string
+): Promise<void> {
+  const supabase = await createClient();
+
+  const { data: current } = await supabase
+    .from('mkt_messages')
+    .select('metadata')
+    .eq('id', messageId)
+    .single();
+
+  const metadata = current?.metadata || {};
+  
+  const { error: updateError } = await supabase
+    .from('mkt_messages')
+    .update({ 
+        status: 'failed',
+        metadata: {
+            ...metadata,
+            error,
+            failed_at: new Date().toISOString()
+        }
+    })
+    .eq('id', messageId);
+
+  if (updateError) {
+    console.error('Error marking message as failed:', updateError);
+    throw updateError;
+  }
+}
+
 /**
  * Setea el `external_id` de un mensaje y opcionalmente actualiza su estado a `sent`.
  */
@@ -302,7 +335,7 @@ export async function setMessageExternalId(
 ): Promise<void> {
   const supabase = await createClient();
 
-  const updatePayload: any = { external_id: externalId, status: 'sent' };
+  const updatePayload: Record<string, unknown> = { external_id: externalId, status: 'sent' };
   if (provider) {
     updatePayload.provider = provider;
   }

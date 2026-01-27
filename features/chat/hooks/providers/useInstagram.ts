@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { Message, SendInstagramVars } from '../../types/message';
-import { create, updateMessageStatus, setMessageExternalId } from '../../api';
+import { create, updateMessageStatus, setMessageExternalId, markMessageAsFailed } from '../../api';
 import { sendInstagram } from '../../api/providers/instagram';
 
 export function useSendInstagram() {
@@ -34,12 +34,19 @@ export function useSendInstagram() {
       });
 
       /* 2️⃣ Enviar a Instagram */
-      const sendRes = await sendInstagram(sendRequest);
+      try {
+        const sendRes = await sendInstagram(sendRequest);
 
-      /* 3️⃣ Actualizar estado */
-      if (sendRes.messageId && created.id) {
-        await setMessageExternalId(created.id, sendRes.messageId, 'instagram');
-        await updateMessageStatus(created.id, 'sent');
+        /* 3️⃣ Actualizar estado */
+        if (sendRes.messageId && created.id) {
+          await setMessageExternalId(created.id, sendRes.messageId, 'instagram');
+          await updateMessageStatus(created.id, 'sent');
+        }
+      } catch (error) {
+        if (created.id) {
+            await markMessageAsFailed(created.id, error instanceof Error ? error.message : String(error));
+        }
+        throw error;
       }
 
       return { created };
