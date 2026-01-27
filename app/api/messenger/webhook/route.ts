@@ -62,8 +62,11 @@ export async function POST(req: Request) {
                 if (event.message.is_echo) continue;
 
                 // Find Contact & Conversation
-                const contact = await findOrCreateByFacebook(psid);
-                const conversation = await findOrCreate(contact.id, 'facebook', activeChannel?.id);
+                const activeConfig = activeChannel?.config as FacebookConfig | undefined;
+                const accessToken = activeConfig?.page_access_token;
+                
+                const contact = await findOrCreateByFacebook(psid, undefined, accessToken);
+                const conversation = await findOrCreate(contact.id, 'messenger', activeChannel?.id);
                 
                 const msg = event.message;
                 let text = msg.text;

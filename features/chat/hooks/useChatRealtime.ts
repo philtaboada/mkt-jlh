@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { useChatStore } from '../stores/chat.store';
+import type { Message } from '@/features/chat/types/message';
 
 export function useChatRealtime() {
   const queryClient = useQueryClient();
@@ -18,10 +19,10 @@ export function useChatRealtime() {
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'mkt_messages' },
       (payload) => {
-        const message = payload.new;
+        const message = payload.new as Message;
         const isActive = message.conversation_id === activeConversationId;
 
-        queryClient.setQueryData(['messages', message.conversation_id], (old: any[] = []) => {
+        queryClient.setQueryData<Message[]>(['messages', message.conversation_id], (old = []) => {
           const updated = old.some((m) => m.id === message.id) ? old : [...old, message];
           return updated;
         });
@@ -46,21 +47,38 @@ export function useChatRealtime() {
       }
     );
 
-    // 💬 NUEVA CONVERSATION
+    // MESSAGE UPDATES (Status changes: delivered, read, etc)
+    channel.on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'mkt_messages' },
+      (payload) => {
+        const newMessage = payload.new as Message;
+        // Update specific message in cache
+        queryClient.setQueryData<Message[]>(
+          ['messages', newMessage.conversation_id],
+          (old = []) => {
+            if (!old) return [newMessage];
+            return old.map((m) => (m.id === newMessage.id ? { ...m, ...newMessage } : m));
+          }
+        );
+      }
+    );
+
+    // NUEVA CONVERSATION
     channel.on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'mkt_conversations' },
-      (payload) => {
+      () => {
         queryClient.invalidateQueries({ queryKey: ['conversations'] });
         queryClient.invalidateQueries({ queryKey: ['conversation-counts'] });
       }
     );
 
-    // 💬 UPDATE CONVERSATION
+    // UPDATE CONVERSATION
     channel.on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'mkt_conversations' },
-      (payload) => {
+      () => {
         queryClient.invalidateQueries({ queryKey: ['conversations'] });
         queryClient.invalidateQueries({ queryKey: ['conversation-counts'] });
       }
@@ -70,5 +88,5 @@ export function useChatRealtime() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeConversationId, queryClient]);
+  }, [activeConversationId, queryClient, soundEnabled]);
 }
