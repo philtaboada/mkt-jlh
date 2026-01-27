@@ -1,5 +1,5 @@
 /**
- * Facebook Messenger Service
+ * Messenger Service
  * Envía mensajes a un PSID usando Graph API
  */
 
@@ -11,8 +11,9 @@ export type MessengerTag = 'HUMAN_AGENT' | 'POST_PURCHASE_UPDATE' | 'CONFIRMED_E
  * Request / Response
  * ======================= */
 
-export interface SendFacebookMessageParams {
+export interface SendMessengerMessageParams {
   to: string; // PSID
+  pageId: string; // Explicit Page ID
   type?: MessengerMessageType;
   message?: string; // requerido si type === 'text'
   mediaUrl?: string; // requerido si type !== 'text'
@@ -20,7 +21,7 @@ export interface SendFacebookMessageParams {
   accessToken: string;
 }
 
-export interface SendFacebookMessageResult {
+export interface SendMessengerMessageResult {
   success: boolean;
   messageId?: string;
   error?: string;
@@ -32,10 +33,6 @@ export interface SendFacebookMessageResult {
 
 interface MessengerRecipient {
   id: string;
-}
-
-interface MessengerTextMessage {
-  text: string;
 }
 
 interface MessengerAttachmentPayload {
@@ -63,15 +60,19 @@ interface MessengerSendPayload {
  * Main function
  * ======================= */
 
-export async function sendFacebookMessage(
-  params: SendFacebookMessageParams
-): Promise<SendFacebookMessageResult> {
-  const { to, type = 'text', message, mediaUrl, tag, accessToken } = params;
+export async function sendMessengerMessage(
+  params: SendMessengerMessageParams
+): Promise<SendMessengerMessageResult> {
+  const { to, pageId, type = 'text', message, mediaUrl, tag, accessToken } = params;
 
   /* ========= Validaciones ========= */
 
   if (!accessToken) {
-    return { success: false, error: 'Facebook not configured' };
+    return { success: false, error: 'Messenger not configured' };
+  }
+
+  if (!pageId) {
+    return { success: false, error: 'Page ID is required' };
   }
 
   if (!to) {
@@ -109,14 +110,14 @@ export async function sendFacebookMessage(
             },
           },
     // Default to HUMAN_AGENT to allow replying after 24h window
-    tag: tag || 'HUMAN_AGENT', 
+   // tag: tag || 'HUMAN_AGENT', 
   };
 
   /* ========= Request ========= */
 
   try {
     const response = await fetch(
-      `https://graph.facebook.com/v21.0/me/messages?access_token=${accessToken}`,
+      `https://graph.facebook.com/v21.0/${pageId}/messages?access_token=${accessToken}`,
       {
         method: 'POST',
         headers: {

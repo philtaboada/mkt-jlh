@@ -18,7 +18,7 @@ export async function sendInstagramMessage(
 ): Promise<SendInstagramMessageResult> {
   const { to, type, message, mediaUrl, accessToken, instagramBusinessId } = params;
 
-  const payload: any = {
+  const payload: Record<string, unknown> = {
     recipient: { id: to },
   };
 
@@ -38,7 +38,7 @@ export async function sendInstagramMessage(
 
   try {
     const response = await fetch(
-      `https://graph.facebook.com/v18.0/${instagramBusinessId}/messages?access_token=${accessToken}`,
+      `https://graph.facebook.com/v21.0/${instagramBusinessId}/messages?access_token=${accessToken}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
