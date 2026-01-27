@@ -7,7 +7,7 @@ import type {
   InstagramConfig,
 } from '@/features/chat/types/settings';
 
-type ChannelType = 'whatsapp' | 'facebook' | 'instagram';
+type ChannelType = 'whatsapp' | 'messenger' | 'instagram';
 type MediaType = 'image' | 'audio' | 'video' | 'document' | 'sticker';
 
 function getAccessToken(config: ChannelConfig): string | undefined {

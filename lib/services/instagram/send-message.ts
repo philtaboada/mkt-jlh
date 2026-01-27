@@ -1,12 +1,10 @@
-/**
- * Servicio para enviar mensajes de Instagram Direct Messages
- */
-
 export interface SendInstagramMessageParams {
   to: string;
-  message: string;
+  type: 'text' | 'image' | 'video' | 'audio' | 'file';
+  message?: string;
+  mediaUrl?: string;
   accessToken: string;
-  igUserId: string;
+  instagramBusinessId: string;
 }
 
 export interface SendInstagramMessageResult {
@@ -15,42 +13,46 @@ export interface SendInstagramMessageResult {
   error?: string;
 }
 
-/**
- * Envía un mensaje de texto por Instagram Direct Messages
- */
 export async function sendInstagramMessage(
   params: SendInstagramMessageParams
 ): Promise<SendInstagramMessageResult> {
-  const { to, message, accessToken, igUserId } = params;
+  const { to, type, message, mediaUrl, accessToken, instagramBusinessId } = params;
 
-  if (!accessToken || !igUserId) {
-    console.error('Instagram credentials not provided');
-    return { success: false, error: 'Instagram not configured' };
+  const payload: any = {
+    recipient: { id: to },
+  };
+
+  if (type === 'text') {
+    payload.message = { text: message };
+  } else {
+    payload.message = {
+      attachment: {
+        type,
+        payload: {
+          url: mediaUrl,
+          is_reusable: true,
+        },
+      },
+    };
   }
 
-  const apiUrl = `https://graph.instagram.com/v22.0/${igUserId}/messages`;
-
   try {
-    const payload = {
-      recipient: { id: to },
-      message: { text: message },
-    };
-
-    const response = await fetch(`${apiUrl}?access_token=${accessToken}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${instagramBusinessId}/messages?access_token=${accessToken}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }
+    );
 
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('Instagram API error:', data);
+      console.error('[Instagram API error]', data);
       return {
         success: false,
-        error: data.error?.message || 'Failed to send message',
+        error: data?.error?.message || 'Failed to send Instagram message',
       };
     }
 
@@ -59,7 +61,7 @@ export async function sendInstagramMessage(
       messageId: data.message_id,
     };
   } catch (error) {
-    console.error('Error sending Instagram message:', error);
+    console.error('[Instagram send error]', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
