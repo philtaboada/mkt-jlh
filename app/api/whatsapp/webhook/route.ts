@@ -207,6 +207,7 @@ export async function POST(req: Request) {
           type: messageType,
           sender_type: 'user' as const,
           provider: 'whatsapp' as const,
+          external_id: msg.id,
           sender_id: waId,
           media_url: mediaInfo?.url ?? undefined,
           media_mime: mediaInfo?.mime ?? undefined,
