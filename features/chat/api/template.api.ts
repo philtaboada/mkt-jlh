@@ -13,7 +13,7 @@ export async function getTemplatesByChannel(
     .from('mkt_message_templates')
     .select('*')
     .eq('channel_id', channelId)
-    .eq('status', 'approved')
+    .eq('status', 'APPROVED')
     .order('created_at', { ascending: false });
 
   if (provider) {
@@ -224,8 +224,6 @@ export async function syncTemplates(params?: { channelId?: string }): Promise<{
         channel_name: activeChannels[idx]?.name || '',
         error: r.status === 'rejected' ? r.reason?.message || 'Unknown error' : '',
       }));
-
-    console.log('📊 Sync summary:', { synced, errors, channels_processed: activeChannels.length });
 
     return {
       success: true,

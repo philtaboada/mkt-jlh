@@ -1,27 +1,14 @@
 'use client';
 
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useCallback } from 'react';
 import type { Contact } from '@/features/chat/types/contact';
 import type { Conversation } from '@/features/chat/types/conversation';
 import { MessageList } from './MessageList';
 import { ChatHeader } from '../header';
-import { useMessages, useCreateMessage } from '@/features/chat/hooks';
-import { uploadChatAttachment } from '@/features/chat/actions/chat-storage';
-import { toast } from 'sonner';
-
-import { resolveMediaType, resolveWhatsAppType } from '@/features/chat/utils/media-utils';
-import { useUser } from '@/features/auth/hooks/useAuth';
-import {
-  useActivateIAForConversation,
-  useConversation,
-} from '@/features/chat/hooks/useConversations';
+import { useMessages, useChatProvider } from '@/features/chat/hooks';
+import { useActivateIAForConversation } from '@/features/chat/hooks/useConversations';
 import { MessageTemplate } from '@/features/chat/types/template';
-import {
-  sendMessageWithTemplate,
-  sendWhatsAppMediaMessage,
-  sendWhatsAppTextMessage,
-} from '@/features/chat/api';
-import { buildTemplatePreview } from '@/features/chat/utils/templateUtils';
+
 import { MessageInput } from '../input';
 import { TemplateAlert } from '../templates/TemplateAlert';
 
@@ -37,212 +24,74 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
   const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
 
-  const { data: user } = useUser();
-  const { data: messages = [], isLoading } = useMessages(conversation.id || '');
-  const createMessageMutation = useCreateMessage();
+  const { data: messages = [], isLoading } = useMessages(conversation.id);
+  const { sendMessage, isSending } = useChatProvider(conversation, contact);
   const enableIaMutation = useActivateIAForConversation();
-  const { data: updatedConversation } = useConversation(conversation.id || '');
-  const isFirstMessage = useMemo(() => {
-    if (!messages || messages.length === 0) return true;
-    return !messages.some((msg) => msg.sender_type === 'agent');
-  }, [messages]);
 
-  // Calcular si está fuera del horario de envío (más de 24 horas desde el último mensaje inbound)
   const isOutsideHours = useMemo(() => {
     if (!conversation.last_inbound_at) return false;
     const lastInbound = new Date(conversation.last_inbound_at);
-    const now = new Date();
-    const diffHours = (now.getTime() - lastInbound.getTime()) / (1000 * 60 * 60);
+    // eslint-disable-next-line react-hooks/purity
+    const diffHours = (Date.now() - lastInbound.getTime()) / (1000 * 60 * 60);
     return diffHours > 24;
   }, [conversation.last_inbound_at]);
 
-  // Asumir no conectado si el canal no tiene channel_id o status no activo (ajustar según lógica real)
   const isNotConnected = !conversation.channel_id;
 
-  const handleFileDrop = (files: File[]): void => {
+  /**
+   * Handlers
+   */
+  const handleFileDrop = useCallback((files: File[]) => {
     setDroppedFiles((prev) => [...prev, ...files]);
-  };
+  }, []);
 
-  const handleAIAssist = async () => {
+  const handleAIAssist = useCallback(async () => {
+    if (!conversation.id) return;
     await enableIaMutation.mutateAsync(conversation.id);
-  };
-  const handleSendMessage = async (content: string, attachments?: File[]): Promise<void> => {
-    if ((!content.trim() && (!attachments || attachments.length === 0)) || !conversation.id) return;
+  }, [conversation.id, enableIaMutation]);
 
-    console.log('[ChatPanel] Enviando mensaje:', {
-      conversationId: conversation.id,
-      channel: conversation.channel,
-      channelId: conversation.channel_id,
-      contactWaId: contact.wa_id,
-      isFirstMessage,
-      content: content.trim(),
-      attachmentsCount: attachments?.length || 0,
-    });
+  const handleSendMessage = useCallback(
+    async (content: string, attachments?: File[]) => {
+      const hasText = content.trim().length > 0;
+      const hasFiles = attachments && attachments.length > 0;
+      const hasTemplate = !!selectedTemplate;
 
-    if (
-      isFirstMessage &&
-      selectedTemplate &&
-      conversation.channel === 'whatsapp' &&
-      contact.wa_id
-    ) {
-      console.log('[ChatPanel] Enviando primer mensaje con plantilla:', {
-        templateName: selectedTemplate.name,
+      if (!hasText && !hasFiles && !hasTemplate) return;
+
+      const success = await sendMessage({
+        content,
+        files: attachments,
+        template: selectedTemplate || undefined,
         templateParams,
-        to: contact.wa_id,
-        channelId: conversation.channel_id,
       });
 
-      let preview = buildTemplatePreview(selectedTemplate, templateParams);
-      // Guardar mensaje en la base de datos local
-      await createMessageMutation.mutateAsync({
-        conversationId: conversation.id,
-        data: {
-          sender_type: 'agent' as const,
-          sender_id: user?.id ?? 'agent-current',
-          type: 'text' as const,
-          body: preview,
-        },
-      });
-      // Enviar a WhatsApp
-      const result = await sendMessageWithTemplate({
-        to: contact.wa_id,
-        templateName: selectedTemplate.name,
-        channelId: conversation.channel_id || undefined,
-        templateParams: Object.keys(templateParams).length > 0 ? templateParams : undefined,
-      });
-
-      console.log('[ChatPanel] Resultado envío plantilla:', result);
-
-      if (result.success) {
-        toast.success('Mensaje con plantilla enviado');
-        setSelectedTemplate(null);
-        setTemplateParams({});
-      } else {
-        toast.error(result.error || 'Error al enviar plantilla');
-      }
-      return;
-    }
-
-    // Enviar mensaje de texto
-    if (content.trim()) {
-      console.log('[ChatPanel] Enviando mensaje de texto:', {
-        to: contact.wa_id,
-        message: content,
-        channel: conversation.channel,
-      });
-
-      try {
-        await createMessageMutation.mutateAsync({
-          conversationId: conversation.id,
-          data: {
-            sender_type: 'agent' as const,
-            sender_id: user?.id ?? 'agent-current',
-            type: 'text' as const,
-            body: content,
-          },
-        });
-
-        console.log('[ChatPanel] Message saved to DB successfully for website channel');
-      } catch (error) {
-        console.error('[ChatPanel] Error saving message to DB:', error);
-      }
-
-      if (conversation.channel === 'whatsapp' && contact.wa_id) {
-        const result = await sendWhatsAppTextMessage({
-          to: contact.wa_id,
-          message: content,
-        });
-        console.log('[ChatPanel] Resultado envío texto WhatsApp:', result);
-        if (!result.success) {
-          console.error('[whatsapp-send] error:', result.error);
+      if (success) {
+        if (selectedTemplate) {
+          setSelectedTemplate(null);
+          setTemplateParams({});
         }
+
+        requestAnimationFrame(() => {
+          scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+        });
       }
-    }
+    },
+    [sendMessage, selectedTemplate, templateParams]
+  );
 
-    // Procesar adjuntos
-    if (attachments && attachments.length > 0) {
-      console.log(
-        '[ChatPanel] Procesando adjuntos:',
-        attachments.map((f) => ({ name: f.name, type: f.type, size: f.size }))
-      );
-
-      const uploadPromises = attachments.map(async (file) => {
-        try {
-          const formData = new FormData();
-          formData.append('file', file);
-          const uploadResult = await uploadChatAttachment(formData);
-          const mime = uploadResult.mime || file.type || 'application/octet-stream';
-          const type = resolveMediaType({ mime });
-
-          console.log('[ChatPanel] Adjunto subido:', {
-            fileName: file.name,
-            uploadUrl: uploadResult.url,
-            mime,
-            type,
-            whatsappType: resolveWhatsAppType({ type }),
-          });
-
-          if (
-            (file.type.startsWith('image/') ||
-              file.type.startsWith('audio/') ||
-              file.type.startsWith('video/')) &&
-            type === 'file'
-          ) {
-            toast.warning(`WhatsApp no soporta ${file.type}, se enviará como documento`);
-          }
-
-          await createMessageMutation.mutateAsync({
-            conversationId: conversation.id,
-            data: {
-              sender_type: 'agent' as const,
-              sender_id: user?.id ?? 'agent-current',
-              type,
-              media_url: uploadResult.url,
-              media_mime: uploadResult.mime,
-              media_size: uploadResult.size,
-              media_name: uploadResult.name,
-            },
-          });
-
-          if (conversation.channel === 'whatsapp' && contact.wa_id) {
-            const whatsappType = resolveWhatsAppType({ type });
-            const result = await sendWhatsAppMediaMessage({
-              to: contact.wa_id,
-              type: whatsappType,
-              mediaUrl: uploadResult.url,
-              caption: file.name,
-            });
-            console.log('[ChatPanel] Resultado envío medio WhatsApp:', result);
-            if (!result.success) {
-              console.error('[whatsapp-send] media error:', result.error);
-            }
-          }
-        } catch (error) {
-          console.error('[ChatPanel] Error al enviar archivo:', file.name, error);
-          toast.error(`Error al enviar archivo ${file.name}`);
-        }
-      });
-
-      await Promise.all(uploadPromises);
-    }
-
-    setTimeout(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollIntoView({ behavior: 'smooth' });
-      }
-    }, 100);
-  };
-
+  /**
+   * Render
+   */
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
-      {/* Header */}
       <ChatHeader contact={contact} conversation={conversation} />
+
       <TemplateAlert
         isOutsideHours={isOutsideHours}
         isNotConnected={isNotConnected}
         channelId={conversation.channel_id!}
       />
-      {/* Messages */}
+
       <MessageList
         messages={messages}
         isLoading={isLoading}
@@ -253,14 +102,27 @@ export function ChatPanel({ contact, conversation, templateMessage }: ChatPanelP
 
       <MessageInput
         onSendMessage={handleSendMessage}
-        disabled={createMessageMutation.isPending}
+        disabled={isSending}
         initialValue={templateMessage}
         additionalFiles={droppedFiles}
         onFilesCleared={() => setDroppedFiles([])}
-        enableAIAssist={updatedConversation?.ia_enabled ?? conversation.ia_enabled}
+        enableAIAssist={conversation.ia_enabled}
         onAIAssist={handleAIAssist}
         channelId={conversation.channel_id!}
+        
+        selectedTemplate={selectedTemplate}
+        templateParams={templateParams}
+        onClearTemplate={() => {
+          setSelectedTemplate(null);
+          setTemplateParams({});
+        }}
+        onTemplateSelect={(template, params) => {
+          console.debug('[ChatPanel] template selected', { templateId: template.id, params });
+          setSelectedTemplate(template);
+          setTemplateParams(params || {});
+        }}
       />
     </div>
   );
 }
+

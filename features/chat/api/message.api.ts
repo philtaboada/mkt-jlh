@@ -14,6 +14,8 @@ export async function create(conversationId: string, data: Partial<Message>): Pr
     media_mime,
     media_size,
     media_name,
+    provider,
+    external_id,
   } = data;
 
   const { data: newMessage, error } = await supabase
@@ -30,7 +32,8 @@ export async function create(conversationId: string, data: Partial<Message>): Pr
       media_name,
       metadata,
       status: 'sent',
-      provider: data.provider,
+      provider: provider ?? null,
+      external_id: external_id || null,
     })
     .select('*')
     .single();
@@ -286,5 +289,74 @@ export async function updateStatusMessageExternal(data: UpdateStatusMessage): Pr
   if (error) {
     console.error('Error updating message status:', error);
     throw error;
+  }
+}
+
+/**
+ * Setea el `external_id` de un mensaje y opcionalmente actualiza su estado a `sent`.
+ */
+export async function setMessageExternalId(
+  messageId: string,
+  externalId: string,
+  provider?: string
+): Promise<void> {
+  const supabase = await createClient();
+
+  const updatePayload: any = { external_id: externalId, status: 'sent' };
+  if (provider) {
+    updatePayload.provider = provider;
+  }
+
+  const { error } = await supabase
+    .from('mkt_messages')
+    .update(updatePayload)
+    .eq('id', messageId);
+
+  if (error) {
+    console.error('Error setting external_id for message:', error);
+    throw error;
+  }
+}
+
+
+export async function markMessagesAsReadByWatermark(
+  provider: string,
+  senderId: string,
+  watermark: Date
+): Promise<void> {
+  const supabase = await createClient();
+
+  let contactQuery = supabase.from('mkt_contacts').select('id');
+  if (provider === 'messenger' || provider === 'facebook') contactQuery = contactQuery.eq('fb_id', senderId);
+  else if (provider === 'instagram') contactQuery = contactQuery.eq('ig_id', senderId);
+  else if (provider === 'whatsapp') contactQuery = contactQuery.eq('wa_id', senderId);
+  else return; // Unsupported provider
+  
+  const { data: contact } = await contactQuery.single();
+  if (!contact) return;
+
+  const { data: conversations } = await supabase
+    .from('mkt_conversations')
+    .select('id')
+    .eq('contact_id', contact.id);
+
+  if (!conversations?.length) return;
+
+  const conversationIds = conversations.map(c => c.id);
+
+  const { error } = await supabase
+    .from('mkt_messages')
+    .update({ 
+        status: 'read',
+        read_at: watermark.toISOString()
+    })
+    .in('conversation_id', conversationIds)
+    .eq('sender_type', 'agent') 
+    .lte('created_at', watermark.toISOString())
+    .neq('status', 'read');
+
+  if (error) {
+    console.error('Error marking messages as read by watermark:', error);
+    // Don't throw, just log. It's a background sync.
   }
 }

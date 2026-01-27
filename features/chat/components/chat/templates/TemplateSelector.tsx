@@ -55,14 +55,27 @@ export function TemplateSelector({
   const syncMutation = syncWhatsappTemplates(channelId);
 
   const handleSelect = (template: MessageTemplate) => {
+    const placeholders = extractPlaceholders(template);
+    console.debug('[TemplateSelector] handleSelect', {
+      templateId: template.id,
+      templateName: template.name,
+      placeholders,
+      requiresParams: placeholders.length > 0,
+    });
+
     setSelectedTemplate(template);
 
     setTemplateParams({});
     setShowParamsDialog(true);
+    console.debug('[TemplateSelector] requested showParamsDialog = true');
     setCurrentOpen(false);
   };
 
   const handleConfirmParams = () => {
+    console.debug('[TemplateSelector] handleConfirmParams', {
+      selectedTemplateId: selectedTemplate?.id,
+      templateParams,
+    });
     if (!selectedTemplate) return;
     onSelect(selectedTemplate, templateParams);
     setShowParamsDialog(false);

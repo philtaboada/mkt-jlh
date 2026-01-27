@@ -2,6 +2,7 @@
 
 import type React from 'react';
 import { useState, useRef, useEffect } from 'react';
+import type { MessageTemplate } from '@/features/chat/types/template';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -15,14 +16,17 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TemplateSelector } from '../templates/TemplateSelector';
-import { buildTemplateText } from '@/features/chat/utils/templateUtils';
+import { buildTemplatePreview } from '@/features/chat/utils/templateUtils';
 
 interface MessageInputProps {
   onSendMessage: (content: string, attachments?: File[]) => Promise<void>;
   onAttachFile?: (file: File) => void;
   onAttachImage?: (file: File) => void;
   onAIAssist?: () => void;
-  onTemplateSelect?: (template: string) => void;
+  onTemplateSelect?: (template: MessageTemplate, params?: Record<string, string>) => void;
+  selectedTemplate?: MessageTemplate | null;
+  templateParams?: Record<string, string>;
+  onClearTemplate?: () => void;
   disabled?: boolean;
   initialValue?: string;
   additionalFiles?: File[];
@@ -37,6 +41,9 @@ export function MessageInput({
   onAttachImage,
   onAIAssist,
   onTemplateSelect,
+  selectedTemplate,
+  templateParams,
+  onClearTemplate,
   disabled = false,
   initialValue = '',
   additionalFiles = [],
@@ -45,7 +52,7 @@ export function MessageInput({
   channelId,
 }: MessageInputProps) {
   const [message, setMessage] = useState(initialValue);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
@@ -70,12 +77,13 @@ export function MessageInput({
   }, [message]);
 
   const handleSendMessage = async () => {
-    if ((!message.trim() && selectedFiles.length === 0) || disabled || isLoading) return;
+    if ((!message.trim() && selectedFiles.length === 0 && !selectedTemplate) || disabled || isLoading) return;
     setIsLoading(true);
     try {
       await onSendMessage(message.trim(), selectedFiles);
       setMessage('');
       setSelectedFiles([]);
+      onClearTemplate?.();
     } finally {
       setIsLoading(false);
     }
@@ -87,6 +95,12 @@ export function MessageInput({
       handleSendMessage();
     }
   };
+
+  const isSendDisabled =
+    (!message.trim() && selectedFiles.length === 0 && !selectedTemplate) ||
+    disabled ||
+    isLoading ||
+    enableAIAssist;
 
   return (
     <div className="border-t border-border bg-background/80 backdrop-blur-xl px-4 py-3">
@@ -106,6 +120,26 @@ export function MessageInput({
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* TEMPLATE PREVIEW */}
+      {selectedTemplate && (
+        <div className="mb-3 rounded-xl border border-border/30 bg-muted/40 backdrop-blur p-3">
+          <div className="flex items-start justify-between gap-3">
+             <div className="flex-1">
+               <div className="text-sm font-medium">Plantilla: {selectedTemplate.name}</div>
+               <div className="mt-1 text-sm text-muted-foreground">
+                 {buildTemplatePreview(selectedTemplate, templateParams || {})}
+               </div>
+             </div>
+             <button
+               onClick={onClearTemplate}
+               className="text-muted-foreground hover:text-destructive"
+             >
+                <X className="w-4 h-4" />
+             </button>
+          </div>
         </div>
       )}
 
@@ -172,8 +206,12 @@ export function MessageInput({
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-xl text-muted-foreground hover:bg-muted"
+              className={cn(
+                  "rounded-xl text-muted-foreground hover:bg-muted",
+                  selectedTemplate && "text-primary bg-primary/10"
+              )}
               onClick={() => setShowTemplateSelector(true)}
+              disabled={disabled || isLoading || enableAIAssist}
             >
               <MessageSquare className="w-4 h-4" />
             </Button>
@@ -186,15 +224,22 @@ export function MessageInput({
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={enableAIAssist ? 'Modo IA activo...' : 'Escribe tu mensaje'}
+          placeholder={
+            selectedTemplate
+              ? 'Plantilla seleccionada (el texto se enviará como parte de la plantilla si aplica)'
+              : enableAIAssist
+                ? 'Modo IA activo...'
+                : 'Escribe tu mensaje'
+          }
           rows={1}
-          disabled={disabled || isLoading || enableAIAssist}
-          className="
-            flex-1 resize-none bg-transparent px-2 py-1
-            text-[15px] leading-relaxed
-            placeholder:text-muted-foreground/50
-            focus-visible:ring-0
-          "
+          disabled={disabled || isLoading || enableAIAssist || !!selectedTemplate}
+          className={cn(
+            "flex-1 resize-none bg-transparent px-2 py-1",
+            "text-[15px] leading-relaxed",
+            "placeholder:text-muted-foreground/50",
+            "focus-visible:ring-0",
+             !!selectedTemplate && "opacity-50 cursor-not-allowed"
+          )}
         />
 
         {/* RIGHT ACTIONS */}
@@ -209,18 +254,14 @@ export function MessageInput({
                 : 'text-muted-foreground hover:bg-muted'
             )}
             onClick={onAIAssist}
+            disabled={isLoading || disabled || !!selectedTemplate}
           >
             <Sparkles className="w-4 h-4" />
           </Button>
 
           <Button
             onClick={handleSendMessage}
-            disabled={
-              (!message.trim() && selectedFiles.length === 0) ||
-              disabled ||
-              isLoading ||
-              enableAIAssist
-            }
+            disabled={isSendDisabled}
             size="icon"
             className="
               w-11 h-11 rounded-xl
@@ -239,19 +280,21 @@ export function MessageInput({
           </Button>
         </div>
 
-        {showTemplateSelector && (
-          <TemplateSelector
-            open={showTemplateSelector}
-            onOpenChange={setShowTemplateSelector}
-            channelId={channelId}
-            onSelect={(template, params) => {
-              const text = buildTemplateText(template, params);
-              setMessage((p) => (p ? `${p}\n${text}` : text));
-              onTemplateSelect?.(text);
-              setShowTemplateSelector(false);
-            }}
-          />
-        )}
+        <TemplateSelector
+          open={showTemplateSelector}
+          onOpenChange={setShowTemplateSelector}
+          channelId={channelId}
+          onSelect={(template, params) => {
+             console.debug('[MessageInput] onSelect template', {
+               templateId: template.id,
+               params,
+             });
+             // Clear existing text when a template is selected as they are mutually exclusive usually
+             setMessage(''); 
+             onTemplateSelect?.(template, params);
+             setShowTemplateSelector(false);
+          }}
+        />
       </div>
     </div>
   );
