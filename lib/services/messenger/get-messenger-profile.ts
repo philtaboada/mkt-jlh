@@ -1,8 +1,8 @@
 /**
- * Servicio para obtener perfil de usuario de Facebook/Messenger
+ * Servicio para obtener perfil de usuario de Messenger
  */
 
-interface FacebookUserProfile {
+interface MessengerUserProfile {
   id: string; // PSID
   first_name?: string;
   last_name?: string;
@@ -10,21 +10,21 @@ interface FacebookUserProfile {
   name?: string; // Sometimes available
 }
 
-export async function getFacebookUserProfile(
+export async function getMessengerUserProfile(
   psid: string,
   accessToken: string
-): Promise<FacebookUserProfile | null> {
+): Promise<MessengerUserProfile | null> {
   if (!psid || !accessToken) return null;
 
   try {
     const fields = 'first_name,last_name,profile_pic,name';
-    const url = `https://graph.facebook.com/v18.0/${psid}?fields=${fields}&access_token=${accessToken}`;
+    const url = `https://graph.facebook.com/v21.0/${psid}?fields=${fields}&access_token=${accessToken}`;
 
     const response = await fetch(url);
     const data = await response.json();
 
     if (data.error) {
-      console.warn('Error fetching Facebook user profile:', data.error);
+      console.warn('Error fetching Messenger user profile:', data.error);
       return null;
     }
 
@@ -36,7 +36,7 @@ export async function getFacebookUserProfile(
       name: data.name || `${data.first_name || ''} ${data.last_name || ''}`.trim(),
     };
   } catch (error) {
-    console.error('getFacebookUserProfile error:', error);
+    console.error('getMessengerUserProfile error:', error);
     return null;
   }
 }

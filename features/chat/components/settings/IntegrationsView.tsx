@@ -67,9 +67,9 @@ const channelTypes = [
     color: 'bg-green-500/10 text-green-600',
   },
   {
-    type: 'facebook' as ChannelType,
-    name: 'Facebook Messenger',
-    description: 'Atiende mensajes desde tu página de Facebook',
+    type: 'messenger' as ChannelType,
+    name: 'Messenger',
+    description: 'Atiende mensajes desde tu página de Messenger',
     icon: Facebook,
     color: 'bg-indigo-500/10 text-indigo-600',
   },

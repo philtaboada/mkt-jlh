@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { useChannel, useUpdateChannel } from '@/features/chat/hooks';
-import type { FacebookConfig } from '@/features/chat/types/settings';
+import type { MessengerConfig } from '@/features/chat/types/settings';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -36,14 +36,14 @@ export default function FacebookChannelConfigPage({ params }: PageProps) {
   const updateChannelMutation = useUpdateChannel();
 
   const [copied, setCopied] = useState<string | null>(null);
-  const [config, setConfig] = useState<Partial<FacebookConfig>>({});
+  const [config, setConfig] = useState<Partial<MessengerConfig>>({});
 
   useEffect(() => {
     if (channel?.config) {
-      setConfig(channel.config as FacebookConfig);
+      setConfig(channel.config as MessengerConfig);
     }
   }, [channel]);
-  const facebookConfig = config as FacebookConfig;
+  const facebookConfig = config as MessengerConfig;
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tu-dominio.com';
   const webhookUrl = `${baseUrl}/api/messenger/webhook`;
 
@@ -65,7 +65,7 @@ export default function FacebookChannelConfigPage({ params }: PageProps) {
     );
   };
 
-  const updateConfig = (key: keyof FacebookConfig, value: unknown) => {
+  const updateConfig = (key: keyof MessengerConfig, value: unknown) => {
     setConfig((prev) => ({ ...prev, [key]: value }));
   };
 

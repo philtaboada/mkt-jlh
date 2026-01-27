@@ -6,15 +6,15 @@ import { MessageCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useChannel, useUpdateChannel } from '@/features/chat/hooks/useChannels';
 import { toast } from 'sonner';
-import type { FacebookConfig } from '@/features/chat/types/settings';
+import type { MessengerConfig } from '@/features/chat/types/settings';
 
-interface FacebookFormProps {
+interface MessengerFormProps {
   channelId?: string;
 }
 
-export default function FacebookForm({ channelId }: FacebookFormProps) {
+export default function MessengerForm({ channelId }: MessengerFormProps) {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<Partial<FacebookConfig>>({
+  const [formData, setFormData] = useState<Partial<MessengerConfig>>({
     page_id: '',
     page_name: '',
     page_access_token: '',
@@ -26,7 +26,7 @@ export default function FacebookForm({ channelId }: FacebookFormProps) {
 
   useEffect(() => {
     if (channel?.config) {
-      setFormData(channel.config as FacebookConfig);
+      setFormData(channel.config as MessengerConfig);
     }
   }, [channel]);
 
@@ -47,7 +47,7 @@ export default function FacebookForm({ channelId }: FacebookFormProps) {
           },
           {
             onSuccess: () => {
-              toast.success('Configuración de Facebook guardada');
+              toast.success('Configuración de Messenger guardada');
             },
             onError: () => {
               toast.error('Error al guardar configuración');
@@ -68,10 +68,10 @@ export default function FacebookForm({ channelId }: FacebookFormProps) {
       <div>
         <h1 className="text-xl font-bold text-blue-700 dark:text-blue-400 flex items-center gap-2">
           <MessageCircle size={22} className="text-blue-700 dark:text-blue-400" /> Integración
-          Facebook Messenger
+          Messenger
         </h1>
         <p className="text-gray-600 dark:text-gray-300 mt-2 text-sm">
-          Conecta tu página de Facebook para recibir y responder mensajes directamente desde el
+          Conecta tu página de Messenger para recibir y responder mensajes directamente desde el
           panel.
         </p>
       </div>
@@ -123,7 +123,7 @@ export default function FacebookForm({ channelId }: FacebookFormProps) {
             <Input
               type="text"
               name="page_name"
-              placeholder="Mi Página de Facebook"
+              placeholder="Mi Página de Messenger"
               value={formData.page_name || ''}
               onChange={handleChange}
               required

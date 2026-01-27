@@ -3,7 +3,7 @@ import { getChannelsByType } from '@/features/chat/api/channels.api';
 import type {
   ChannelConfig,
   WhatsAppConfig,
-  FacebookConfig,
+  MessengerConfig,
   InstagramConfig,
 } from '@/features/chat/types/settings';
 
@@ -15,7 +15,7 @@ function getAccessToken(config: ChannelConfig): string | undefined {
     return (config as WhatsAppConfig | InstagramConfig).access_token;
   }
   if ('page_access_token' in config) {
-    return (config as FacebookConfig).page_access_token;
+    return (config as MessengerConfig).page_access_token;
   }
   return undefined;
 }

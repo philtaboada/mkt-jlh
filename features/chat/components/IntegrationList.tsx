@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import WhatsAppForm from '@/features/chat/components/integration/WhatsAppForm';
-import FacebookForm from '@/features/chat/components/integration/FacebookForm';
+import MessengerForm from '@/features/chat/components/integration/MessengerForm';
 import InstagramForm from '@/features/chat/components/integration/InstagramForm';
 import EmailForm from '@/features/chat/components/integration/EmailForm';
 
@@ -23,8 +23,8 @@ export function IntegrationList({ integrations }: IntegrationListProps) {
     switch (name) {
       case 'WhatsApp':
         return <WhatsAppForm />;
-      case 'Facebook Messenger':
-        return <FacebookForm />;
+      case 'Messenger':
+        return <MessengerForm />;
       case 'Instagram DM':
         return <InstagramForm />;
       case 'Email SMTP':

@@ -1,6 +1,6 @@
-import type { Channel, FacebookConfig } from '@/features/chat/types/settings';
+import type { Channel, MessengerConfig } from '@/features/chat/types/settings';
 import { getChannelsByType } from '../channels.api';
-import { sendFacebookMessage } from '@/lib/services/facebook';
+import { sendMessengerMessage } from '@/lib/services/messenger/send-messenger';
 
 /* ───────────────────── Types ───────────────────── */
 
@@ -44,7 +44,7 @@ export async function sendMessenger(req: MessengerSendRequest) {
     throw new Error('No active Messenger channel found');
   }
 
-  const config = activeChannel.config as FacebookConfig;
+  const config = activeChannel.config as MessengerConfig;
   const accessToken = config.page_access_token;
   const pageId = config.page_id;
 
@@ -54,8 +54,9 @@ export async function sendMessenger(req: MessengerSendRequest) {
 
   /* ───────── Envío ───────── */
 
-  const result = await sendFacebookMessage({
+  const result = await sendMessengerMessage({
     to,
+    pageId,
     type,
     message,
     mediaUrl,

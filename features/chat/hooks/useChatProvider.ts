@@ -74,6 +74,8 @@ export function useChatProvider(conversation: Conversation, contact: Contact) {
 
         // 2. Text Message
         if (hasText) {
+          const optimisticId = crypto.randomUUID();
+          
           if (activeChannel === 'whatsapp' && contact.wa_id) {
             await sendWhatsappMutation.mutateAsync({
               conversationId,
@@ -87,9 +89,11 @@ export function useChatProvider(conversation: Conversation, contact: Contact) {
                 sender_id: user?.id ?? 'agent-current',
                 type: 'text',
                 body: content,
+                metadata: { optimistic_id: optimisticId },
               },
             });
-          } else if (activeChannel === 'facebook' && contact.fb_id) {
+          } else if (activeChannel === 'messenger' && contact.fb_id) {
+             console.log('[ChatProvider] Sending text to Messenger', { psid: contact.fb_id, textContent: content });
              await sendMessengerMutation.mutateAsync({
                 conversationId,
                 sendRequest: {
@@ -101,10 +105,12 @@ export function useChatProvider(conversation: Conversation, contact: Contact) {
                     sender_type: 'agent',
                     sender_id: user?.id ?? 'agent-current',
                     type: 'text',
-                    body: content
+                    body: content,
+                    metadata: { optimistic_id: optimisticId },
                 }
              })
           } else if (activeChannel === 'instagram' && contact.ig_id) {
+             console.log('[ChatProvider] Sending text to Instagram', { ig_id: contact.ig_id, textContent: content });
              await sendInstagramMutation.mutateAsync({
                 conversationId,
                 instagramBusinessId: conversation.channel_id!, 
@@ -117,10 +123,12 @@ export function useChatProvider(conversation: Conversation, contact: Contact) {
                     sender_type: 'agent',
                     sender_id: user?.id ?? 'agent-current',
                     type: 'text',
-                    body: content
+                    body: content,
+                    metadata: { optimistic_id: optimisticId },
                 }
              })
           } else if (activeChannel === 'website') {
+             console.log('[ChatProvider] Sending text to Website (internal)', { content });
              // Widget / Website channel - Internal only
              await createMessageMutation.mutateAsync({
               conversationId,
@@ -131,9 +139,11 @@ export function useChatProvider(conversation: Conversation, contact: Contact) {
                 body: content,
                 provider: 'website', 
                 status: 'sent', 
+                metadata: { optimistic_id: optimisticId },
               },
             });
           } else {
+            console.log('[ChatProvider] Sending text to Default/Internal block', { activeChannel, hasContactId: !!contact.id, content });
             // Default / Internal
             await createMessageMutation.mutateAsync({
               conversationId,
@@ -142,6 +152,7 @@ export function useChatProvider(conversation: Conversation, contact: Contact) {
                 sender_id: user?.id ?? 'agent-current',
                 type: 'text',
                 body: content,
+                metadata: { optimistic_id: optimisticId },
               },
             });
           }
@@ -152,6 +163,7 @@ export function useChatProvider(conversation: Conversation, contact: Contact) {
           await Promise.all(
             files!.map(async (file) => {
               try {
+                const optimisticId = crypto.randomUUID();
                 const formData = new FormData();
                 formData.append('file', file);
 
@@ -178,9 +190,11 @@ export function useChatProvider(conversation: Conversation, contact: Contact) {
                       media_mime: upload.mime,
                       media_size: upload.size,
                       media_name: upload.name,
+                      metadata: { optimistic_id: optimisticId },
                     },
                   });
-                } else if (activeChannel === 'facebook' && contact.fb_id) {
+                } else if (activeChannel === 'messenger' && contact.fb_id) {
+                    console.log('[ChatProvider] Sending file to Messenger', { psid: contact.fb_id, fileName: file.name });
                     await sendMessengerMutation.mutateAsync({
                         conversationId,
                         sendRequest: {
@@ -196,9 +210,11 @@ export function useChatProvider(conversation: Conversation, contact: Contact) {
                             media_mime: upload.mime,
                             media_size: upload.size,
                             media_name: upload.name,
+                            metadata: { optimistic_id: optimisticId },
                         }
                     })
                 } else if (activeChannel === 'instagram' && contact.ig_id) {
+                    console.log('[ChatProvider] Sending file to Instagram', { ig_id: contact.ig_id, fileName: file.name });
                     await sendInstagramMutation.mutateAsync({
                         conversationId,
                         instagramBusinessId: conversation.channel_id!,
@@ -215,9 +231,11 @@ export function useChatProvider(conversation: Conversation, contact: Contact) {
                             media_mime: upload.mime,
                             media_size: upload.size,
                             media_name: upload.name,
+                            metadata: { optimistic_id: optimisticId },
                         }
                     })
                 } else if (activeChannel === 'website') {
+                    console.log('[ChatProvider] Sending file to Website (internal)', { fileName: file.name });
                     await createMessageMutation.mutateAsync({
                         conversationId,
                         data: {
@@ -230,6 +248,7 @@ export function useChatProvider(conversation: Conversation, contact: Contact) {
                             media_name: upload.name,
                             provider: 'website',
                             status: 'sent',
+                            metadata: { optimistic_id: optimisticId },
                         },
                     });
                 } else {
@@ -243,6 +262,7 @@ export function useChatProvider(conversation: Conversation, contact: Contact) {
                       media_mime: upload.mime,
                       media_size: upload.size,
                       media_name: upload.name,
+                      metadata: { optimistic_id: optimisticId },
                     },
                   });
                 }

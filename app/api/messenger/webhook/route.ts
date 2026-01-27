@@ -5,12 +5,12 @@ import { downloadAndUploadMedia } from '@/lib/storage/media';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-import { findOrCreateByFacebook, updateLastInteraction } from '@/features/chat/api/contact.api';
+import { findOrCreateByMessenger, updateLastInteraction } from '@/features/chat/api/contact.api';
 import { findOrCreate, updateLastMessage } from '@/features/chat/api/conversation.api';
 import { create } from '@/features/chat/api/message.api';
 import { updateStatusMessageExternal, markMessagesAsReadByWatermark } from '@/features/chat/api/message.api';
 import { getChannelsByType } from '@/features/chat/api/channels.api';
-import type { FacebookConfig } from '@/features/chat/types/settings';
+import type { MessengerConfig } from '@/features/chat/types/settings';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
   const messengerChannels = await getChannelsByType('messenger');
   const activeChannel = messengerChannels.find((ch) => ch.status === 'active');
-  const config = activeChannel?.config as FacebookConfig;
+  const config = activeChannel?.config as MessengerConfig;
   const VERIFY_TOKEN = config?.verify_token;
 
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
@@ -62,10 +62,10 @@ export async function POST(req: Request) {
                 if (event.message.is_echo) continue;
 
                 // Find Contact & Conversation
-                const activeConfig = activeChannel?.config as FacebookConfig | undefined;
+                const activeConfig = activeChannel?.config as MessengerConfig | undefined;
                 const accessToken = activeConfig?.page_access_token;
                 
-                const contact = await findOrCreateByFacebook(psid, undefined, accessToken);
+                const contact = await findOrCreateByMessenger(psid, undefined, accessToken);
                 const conversation = await findOrCreate(contact.id, 'messenger', activeChannel?.id);
                 
                 const msg = event.message;

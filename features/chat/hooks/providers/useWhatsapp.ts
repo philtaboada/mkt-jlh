@@ -55,7 +55,7 @@ export function useSendWhatsapp() {
 
       const previousMessages = queryClient.getQueryData<Message[]>(['messages', conversationId]);
 
-      const optimisticId = crypto.randomUUID();
+      const optimisticId = dbData.metadata?.optimistic_id || crypto.randomUUID();
 
       const optimisticMessage: Message = {
         id: optimisticId,
@@ -82,9 +82,15 @@ export function useSendWhatsapp() {
     },
 
     onSuccess: ({ created }, { conversationId }, context) => {
-      queryClient.setQueryData<Message[]>(['messages', conversationId], (old = []) =>
-        old.map((m) => (m.id === context?.optimisticId ? { ...created, optimistic: false } : m))
-      );
+      queryClient.setQueryData<Message[]>(['messages', conversationId], (old = []) => {
+        const exists = old.some((m) => m.id === created.id);
+        if (exists) {
+          return old.filter((m) => m.id !== context?.optimisticId);
+        }
+        return old.map((m) =>
+          m.id === context?.optimisticId ? { ...created, optimistic: false } : m
+        );
+      });
 
       queryClient.invalidateQueries({
         queryKey: ['messages', conversationId],

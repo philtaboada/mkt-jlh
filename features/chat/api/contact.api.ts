@@ -34,9 +34,9 @@ export async function findOrCreateByWhatsApp(waId: string, name: string): Promis
   return newContact;
 }
 
-import { getFacebookUserProfile } from '@/lib/services/facebook/get-profile';
+import { getMessengerUserProfile } from '@/lib/services/messenger/get-messenger-profile';
 
-export async function findOrCreateByFacebook(fbId: string, name?: string, accessToken?: string): Promise<Contact> {
+export async function findOrCreateByMessenger(fbId: string, name?: string, accessToken?: string): Promise<Contact> {
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from('mkt_contacts')
@@ -48,19 +48,19 @@ export async function findOrCreateByFacebook(fbId: string, name?: string, access
     return existing;
   }
 
-  let contactName = name || 'Contacto Facebook';
+  let contactName = name || 'Contacto Messenger';
   let avatarUrl = undefined;
 
   // Try to fetch real profile if access token is available
   if (accessToken) {
     try {
-      const profile = await getFacebookUserProfile(fbId, accessToken);
+      const profile = await getMessengerUserProfile(fbId, accessToken);
       if (profile) {
         if (profile.name) contactName = profile.name;
         if (profile.profile_pic) avatarUrl = profile.profile_pic;
       }
     } catch (e) {
-      console.error('Error getting FB profile:', e);
+      console.error('Error getting Messenger profile:', e);
     }
   }
 
@@ -70,7 +70,7 @@ export async function findOrCreateByFacebook(fbId: string, name?: string, access
       fb_id: fbId,
       name: contactName,
       avatar_url: avatarUrl,
-      source: 'facebook',
+      source: 'messenger',
       status: 'lead',
     })
     .select('*')
