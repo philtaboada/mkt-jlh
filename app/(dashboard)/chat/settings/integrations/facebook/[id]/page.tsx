@@ -43,10 +43,9 @@ export default function FacebookChannelConfigPage({ params }: PageProps) {
       setConfig(channel.config as FacebookConfig);
     }
   }, [channel]);
-
   const facebookConfig = config as FacebookConfig;
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tu-dominio.com';
-  const webhookUrl = `${baseUrl}/api/facebook/webhook`;
+  const webhookUrl = `${baseUrl}/api/messenger/webhook`;
 
   const handleCopy = async (text: string, key: string) => {
     try {
