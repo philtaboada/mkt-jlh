@@ -28,4 +28,5 @@ export type Conversation = {
     origin?: string;
   };
   mkt_contacts?: Contact;
+  last_inbound_at?: string | null;
 };

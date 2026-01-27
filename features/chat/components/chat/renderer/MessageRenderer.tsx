@@ -1,16 +1,7 @@
 'use client';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import {
-  File,
-  Music,
-  Bot,
-  User,
-  Headphones,
-  Check,
-  CheckCheck,
-  Download,
-} from 'lucide-react';
+import { File, Music, Bot, User, Headphones, Check, CheckCheck, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { useState } from 'react';
@@ -18,10 +9,7 @@ import dynamic from 'next/dynamic';
 import { formatLocalTime } from '@/lib/utils/dateFormat';
 import { Message, SenderType } from '@/features/chat/types';
 
-const ReactPlayer = dynamic(
-  () => import('react-player'),
-  { ssr: false }
-) as any;
+const ReactPlayer = dynamic(() => import('react-player'), { ssr: false }) as any;
 
 interface MessageRendererProps {
   message: Message;
@@ -42,17 +30,21 @@ export function MessageRenderer({
 }: MessageRendererProps) {
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleDownload = async (e: React.MouseEvent<HTMLAnchorElement>, url: string, filename: string) => {
+  const handleDownload = async (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    url: string,
+    filename: string
+  ) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error('Error al descargar el archivo');
-      
+
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
-      
+
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = filename || 'archivo';
@@ -60,7 +52,7 @@ export function MessageRenderer({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
     } catch (error) {
       console.error('Error al descargar:', error);
@@ -125,6 +117,8 @@ export function MessageRenderer({
         return <CheckCheck className="w-3 h-3 text-current opacity-70" />;
       case 'read':
         return <CheckCheck className="w-3 h-3 text-sky-400" />;
+      case 'failed':
+        return <span className="text-xs text-red-500 font-bold">error de envio!</span>;
       default:
         return null;
     }
@@ -173,9 +167,7 @@ export function MessageRenderer({
                   <ReactMarkdown>{message.body}</ReactMarkdown>
                 </div>
               ) : (
-                <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                  {message.body}
-                </p>
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.body}</p>
               )}
             </div>
           )}
@@ -198,7 +190,8 @@ export function MessageRenderer({
                         const parent = target.parentElement;
                         if (parent && !parent.querySelector('.image-error')) {
                           const errorDiv = document.createElement('div');
-                          errorDiv.className = 'image-error rounded-xl bg-background/10 p-8 flex flex-col items-center justify-center gap-2 text-current/70';
+                          errorDiv.className =
+                            'image-error rounded-xl bg-background/10 p-8 flex flex-col items-center justify-center gap-2 text-current/70';
                           errorDiv.innerHTML = `
                             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -211,7 +204,9 @@ export function MessageRenderer({
                     />
                     <a
                       href={message.media_url}
-                      onClick={(e) => handleDownload(e, message.media_url!, message.media_name || 'imagen')}
+                      onClick={(e) =>
+                        handleDownload(e, message.media_url!, message.media_name || 'imagen')
+                      }
                       className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-black/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Descargar imagen"
                     >
@@ -230,9 +225,7 @@ export function MessageRenderer({
                   <span className="text-xs">Imagen no disponible</span>
                 </div>
               )}
-              {message.body && (
-                <p className="text-sm p-2.5 leading-relaxed">{message.body}</p>
-              )}
+              {message.body && <p className="text-sm p-2.5 leading-relaxed">{message.body}</p>}
             </div>
           )}
 
@@ -244,12 +237,22 @@ export function MessageRenderer({
               </div>
               {message.media_url ? (
                 <>
-                  <audio controls className="h-8 max-w-[200px]">
-                    <source src={message.media_url} type={message.media_mime} />
-                  </audio>
+                  <div className="max-w-[200px]">
+                    <ReactPlayer
+                      url={message.media_url}
+                      controls={true}
+                      width="200px"
+                      height="40px"
+                      playing={false}
+                      pip={false}
+                      playsinline={true}
+                    />
+                  </div>
                   <a
                     href={message.media_url}
-                    onClick={(e) => handleDownload(e, message.media_url!, message.media_name || 'audio')}
+                    onClick={(e) =>
+                      handleDownload(e, message.media_url!, message.media_name || 'audio')
+                    }
                     className="p-2 hover:bg-background/20 rounded-lg transition-colors"
                     title="Descargar audio"
                   >
@@ -280,7 +283,9 @@ export function MessageRenderer({
                 </div>
                 <a
                   href={message.media_url}
-                  onClick={(e) => handleDownload(e, message.media_url!, message.media_name || 'video')}
+                  onClick={(e) =>
+                    handleDownload(e, message.media_url!, message.media_name || 'video')
+                  }
                   className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-black/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Descargar video"
                 >
@@ -317,7 +322,9 @@ export function MessageRenderer({
               </div>
               <a
                 href={message.media_url}
-                onClick={(e) => handleDownload(e, message.media_url!, message.media_name || 'archivo')}
+                onClick={(e) =>
+                  handleDownload(e, message.media_url!, message.media_name || 'archivo')
+                }
                 className="p-2 hover:bg-background/20 rounded-lg transition-colors shrink-0"
                 title="Descargar archivo"
               >

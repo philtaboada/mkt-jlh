@@ -1,24 +1,38 @@
 'use client';
 
 import type React from 'react';
-
 import { useState, useRef, useEffect } from 'react';
+import type { MessageTemplate } from '@/features/chat/types/template';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Paperclip, Smile, Loader2, Sparkles, Image as ImageIcon, X } from 'lucide-react';
+import {
+  Send,
+  Paperclip,
+  Loader2,
+  Sparkles,
+  Image as ImageIcon,
+  X,
+  MessageSquare,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TemplateSelector } from '../templates/TemplateSelector';
+import { buildTemplatePreview } from '@/features/chat/utils/templateUtils';
 
 interface MessageInputProps {
   onSendMessage: (content: string, attachments?: File[]) => Promise<void>;
   onAttachFile?: (file: File) => void;
   onAttachImage?: (file: File) => void;
   onAIAssist?: () => void;
-  onTemplateSelect?: (template: string) => void;
+  onTemplateSelect?: (template: MessageTemplate, params?: Record<string, string>) => void;
+  selectedTemplate?: MessageTemplate | null;
+  templateParams?: Record<string, string>;
+  onClearTemplate?: () => void;
   disabled?: boolean;
   initialValue?: string;
   additionalFiles?: File[];
   onFilesCleared?: () => void;
   enableAIAssist?: boolean;
+  channelId: string;
 }
 
 export function MessageInput({
@@ -27,23 +41,27 @@ export function MessageInput({
   onAttachImage,
   onAIAssist,
   onTemplateSelect,
+  selectedTemplate,
+  templateParams,
+  onClearTemplate,
   disabled = false,
   initialValue = '',
   additionalFiles = [],
   onFilesCleared,
   enableAIAssist = false,
+  channelId,
 }: MessageInputProps) {
   const [message, setMessage] = useState(initialValue);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    setMessage(initialValue);
-  }, [initialValue]);
+  useEffect(() => setMessage(initialValue), [initialValue]);
 
   useEffect(() => {
     if (additionalFiles.length > 0) {
@@ -52,278 +70,207 @@ export function MessageInput({
     }
   }, [additionalFiles, onFilesCleared]);
 
-  // Auto-resize textarea
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
+    if (!textareaRef.current) return;
+    textareaRef.current.style.height = 'auto';
+    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
   }, [message]);
 
-  const removeFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSendMessage = async (): Promise<void> => {
-    if ((!message.trim() && selectedFiles.length === 0) || disabled || isLoading) return;
-
+  const handleSendMessage = async () => {
+    if ((!message.trim() && selectedFiles.length === 0 && !selectedTemplate) || disabled || isLoading) return;
     setIsLoading(true);
     try {
       await onSendMessage(message.trim(), selectedFiles);
       setMessage('');
-      setSelectedFiles([]); // Limpiar archivos después de enviar
-    } catch {
-      // El toast se maneja en la mutación
+      setSelectedFiles([]);
+      onClearTemplate?.();
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-
-      // Si es una imagen
-      if (item.type.indexOf('image') !== -1) {
-        e.preventDefault();
-        const file = item.getAsFile();
-        if (file) {
-          setSelectedFiles((prev) => [...prev, file]);
-          onAttachImage?.(file);
-        }
-      }
-      // Si es texto, dejar que se pegue normalmente
-    }
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter') {
-      if (e.shiftKey) {
-        return;
-      } else {
-        e.preventDefault();
-        handleSendMessage();
-      }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0 && onAttachFile) {
-      onAttachFile(files[0]);
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFiles((prev) => [...prev, file]);
-      onAttachFile?.(file);
-    }
-    e.target.value = '';
-  };
-
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFiles((prev) => [...prev, file]);
-      onAttachImage?.(file);
-    }
-    e.target.value = '';
-  };
-
-  const handleTemplateInsert = (templateText: string) => {
-    setMessage((prev) => (prev ? `${prev}\n${templateText}` : templateText));
-    onTemplateSelect?.(templateText);
-  };
+  const isSendDisabled =
+    (!message.trim() && selectedFiles.length === 0 && !selectedTemplate) ||
+    disabled ||
+    isLoading ||
+    enableAIAssist;
 
   return (
-    <div className="border-t border-border bg-background/95 backdrop-blur-sm p-4">
-      {/* File Previews */}
+    <div className="border-t border-border bg-background/80 backdrop-blur-xl px-4 py-3">
+      {/* FILE PREVIEWS */}
       {selectedFiles.length > 0 && (
-        <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-xl border border-dashed border-muted-foreground/20 mb-3 max-h-32 overflow-y-auto">
+        <div className="mb-3 flex flex-wrap gap-2 rounded-xl border border-border/30 bg-muted/40 backdrop-blur p-3">
           {selectedFiles.map((file, index) => (
-            <div
-              key={index}
-              className="relative group animate-in slide-in-from-bottom-2 duration-200"
-            >
-              {file.type.startsWith('image/') ? (
-                <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow">
-                  <img
-                    src={URL.createObjectURL(file)}
-                    alt={file.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      // Si falla cargar la imagen (ej: webp no soportado), mostrar placeholder
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const parent = target.parentElement;
-                      if (parent) {
-                        parent.innerHTML = `
-                          <div class="w-full h-full flex items-center justify-center bg-muted">
-                            <span class="text-xs text-muted-foreground">${file.name}</span>
-                          </div>
-                        `;
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => removeFile(index)}
-                    className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : file.type.startsWith('video/') ? (
-                <div className="relative w-32 h-20 rounded-lg overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow">
-                  <video
-                    src={URL.createObjectURL(file)}
-                    className="w-full h-full object-cover"
-                    muted
-                    playsInline
-                    onLoadedMetadata={(e) => {
-                      // Pausar automáticamente después de cargar metadata
-                      const video = e.target as HTMLVideoElement;
-                      video.currentTime = 0.1; // Mostrar primer frame
-                    }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                    <div className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center">
-                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => removeFile(index)}
-                    className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                <div className="relative flex items-center gap-2 p-2 bg-background rounded-lg border border-border shadow-sm hover:shadow-md transition-shadow max-w-xs">
-                  <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm truncate flex-1">{file.name}</span>
-                  <button
-                    onClick={() => removeFile(index)}
-                    className="ml-1 w-4 h-4 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs hover:bg-destructive/80 hover:scale-110 transition-all shrink-0"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
+            <div key={index} className="relative group">
+              <div className="flex items-center gap-2 rounded-lg bg-background px-3 py-2 shadow-md shadow-black/10">
+                <span className="text-sm truncate max-w-[140px]">{file.name}</span>
+                <button
+                  onClick={() => setSelectedFiles((prev) => prev.filter((_, i) => i !== index))}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
+      {/* TEMPLATE PREVIEW */}
+      {selectedTemplate && (
+        <div className="mb-3 rounded-xl border border-border/30 bg-muted/40 backdrop-blur p-3">
+          <div className="flex items-start justify-between gap-3">
+             <div className="flex-1">
+               <div className="text-sm font-medium">Plantilla: {selectedTemplate.name}</div>
+               <div className="mt-1 text-sm text-muted-foreground">
+                 {buildTemplatePreview(selectedTemplate, templateParams || {})}
+               </div>
+             </div>
+             <button
+               onClick={onClearTemplate}
+               className="text-muted-foreground hover:text-destructive"
+             >
+                <X className="w-4 h-4" />
+             </button>
+          </div>
+        </div>
+      )}
+
+      {/* INPUT */}
       <div
         className={cn(
-          'relative flex items-end gap-3 p-3 rounded-2xl border-2 transition-all duration-200 bg-background shadow-sm',
-          isDragging
-            ? 'border-primary bg-primary/5 shadow-lg scale-[1.02]'
-            : 'border-border hover:border-muted-foreground/50 hover:shadow-md'
+          'relative flex items-end gap-2 rounded-2xl px-3 py-2',
+          'border border-border/60 bg-background/90',
+          'shadow-md shadow-black/5 transition-all',
+          'focus-within:border-primary/60 focus-within:shadow-primary/10',
+          isDragging && 'scale-[1.02] border-primary bg-primary/5'
         )}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
       >
+        {/* LEFT ACTIONS */}
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-primary hover:bg-primary/10 w-9 h-9 rounded-xl transition-all hover:scale-105"
+            className="rounded-xl text-muted-foreground hover:bg-muted"
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled || isLoading || enableAIAssist}
           >
             <Paperclip className="w-4 h-4" />
           </Button>
+
           <input
             ref={fileInputRef}
             type="file"
             className="hidden"
-            onChange={handleFileSelect}
-            disabled={disabled || isLoading || enableAIAssist}
+            onChange={(e) => {
+              if (e.target.files?.[0]) {
+                setSelectedFiles((p) => [...p, e.target.files![0]]);
+                onAttachFile?.(e.target.files![0]);
+              }
+              e.target.value = '';
+            }}
           />
 
           <Button
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-primary hover:bg-primary/10 w-9 h-9 rounded-xl transition-all hover:scale-105"
+            className="rounded-xl text-muted-foreground hover:bg-muted"
             onClick={() => imageInputRef.current?.click()}
             disabled={disabled || isLoading || enableAIAssist}
           >
             <ImageIcon className="w-4 h-4" />
           </Button>
+
           <input
             ref={imageInputRef}
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={handleImageSelect}
-            disabled={disabled || isLoading || enableAIAssist}
+            onChange={(e) => {
+              if (e.target.files?.[0]) {
+                setSelectedFiles((p) => [...p, e.target.files![0]]);
+                onAttachImage?.(e.target.files![0]);
+              }
+              e.target.value = '';
+            }}
           />
+
+          {channelId && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                  "rounded-xl text-muted-foreground hover:bg-muted",
+                  selectedTemplate && "text-primary bg-primary/10"
+              )}
+              onClick={() => setShowTemplateSelector(true)}
+              disabled={disabled || isLoading || enableAIAssist}
+            >
+              <MessageSquare className="w-4 h-4" />
+            </Button>
+          )}
         </div>
 
+        {/* TEXTAREA */}
         <Textarea
           ref={textareaRef}
-          placeholder={
-            enableAIAssist
-              ? 'Modo IA activo - Solo respuestas automáticas'
-              : 'Escribe tu mensaje...'
-          }
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          className="flex-1 border-0 bg-transparent p-0 px-1 resize-none min-h-8 max-h-32 overflow-y-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base placeholder:text-muted-foreground/70"
-          disabled={disabled || isLoading || enableAIAssist}
+          placeholder={
+            selectedTemplate
+              ? 'Plantilla seleccionada (el texto se enviará como parte de la plantilla si aplica)'
+              : enableAIAssist
+                ? 'Modo IA activo...'
+                : 'Escribe tu mensaje'
+          }
           rows={1}
+          disabled={disabled || isLoading || enableAIAssist || !!selectedTemplate}
+          className={cn(
+            "flex-1 resize-none bg-transparent px-2 py-1",
+            "text-[15px] leading-relaxed",
+            "placeholder:text-muted-foreground/50",
+            "focus-visible:ring-0",
+             !!selectedTemplate && "opacity-50 cursor-not-allowed"
+          )}
         />
 
+        {/* RIGHT ACTIONS */}
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
             className={cn(
-              'w-9 h-9 rounded-xl transition-all hover:scale-105',
+              'rounded-xl',
               enableAIAssist
-                ? 'text-amber-500 bg-amber-50 border border-amber-200'
-                : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-50'
+                ? 'bg-amber-100 text-amber-600'
+                : 'text-muted-foreground hover:bg-muted'
             )}
             onClick={onAIAssist}
-            disabled={disabled || isLoading}
-            title={
-              enableAIAssist ? 'Modo IA activo - Click para desactivar' : 'Activar Asistente IA'
-            }
+            disabled={isLoading || disabled || !!selectedTemplate}
           >
             <Sparkles className="w-4 h-4" />
           </Button>
+
           <Button
             onClick={handleSendMessage}
-            disabled={
-              (!message.trim() && selectedFiles.length === 0) ||
-              disabled ||
-              isLoading ||
-              enableAIAssist
-            }
-            className="bg-primary hover:bg-primary/90 hover:scale-105 w-10 h-10 rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            disabled={isSendDisabled}
             size="icon"
+            className="
+              w-11 h-11 rounded-xl
+              bg-primary text-primary-foreground
+              shadow-lg shadow-primary/25
+              transition-all
+              hover:scale-110 hover:bg-primary/90
+              active:scale-95
+            "
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -332,16 +279,23 @@ export function MessageInput({
             )}
           </Button>
         </div>
-      </div>
 
-      {isDragging && (
-        <div className="absolute inset-0 bg-primary/10 rounded-2xl border-2 border-dashed border-primary flex items-center justify-center pointer-events-none">
-          <div className="text-center">
-            <ImageIcon className="w-8 h-8 text-primary mx-auto mb-2" />
-            <p className="text-sm font-medium text-primary">Suelta los archivos aquí</p>
-          </div>
-        </div>
-      )}
+        <TemplateSelector
+          open={showTemplateSelector}
+          onOpenChange={setShowTemplateSelector}
+          channelId={channelId}
+          onSelect={(template, params) => {
+             console.debug('[MessageInput] onSelect template', {
+               templateId: template.id,
+               params,
+             });
+             // Clear existing text when a template is selected as they are mutually exclusive usually
+             setMessage(''); 
+             onTemplateSelect?.(template, params);
+             setShowTemplateSelector(false);
+          }}
+        />
+      </div>
     </div>
   );
 }

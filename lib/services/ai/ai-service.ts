@@ -2,6 +2,7 @@ import { generateText, streamText, type ModelMessage } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { generateEmbedding, searchRelevantChunks } from '@/features/chat/api/embbeding';
 import { AIConfig } from '@/features/chat/types/settings';
 import { decryptApiKey } from '@/lib/utils/encryption';
 import { Message } from '@/features/chat/types/message';
@@ -49,8 +50,8 @@ function formatMessages(context?: ConversationContext): ModelMessage[] {
     return [];
   }
 
-  // Tomar los últimos 5 mensajes para contexto (reducido para velocidad)
-  const recentMessages = context.messages.slice(-5);
+  // Tomar los últimos 10 mensajes para mejor contexto/memoria
+  const recentMessages = context.messages.slice(-10);
 
   return recentMessages
     .filter((msg) => msg.body) // Solo mensajes con contenido
@@ -151,13 +152,39 @@ export class AIService {
   }
 
   /**
+   * Busca chunks relevantes usando embeddings y RAG
+   */
+  private async searchRelevantChunks(query: string, topK: number = 3): Promise<string[]> {
+    console.log('🔍 RAG: Buscando chunks relevantes para query:', query.substring(0, 100) + '...');
+    const results = await searchRelevantChunks(query, topK);
+    console.log(`📊 RAG: Encontrados ${results.length} chunks relevantes de ${topK} solicitados`);
+    if (results.length > 0) {
+      console.log('📄 RAG: Primer chunk encontrado:', results[0].content.substring(0, 200) + '...');
+    }
+    return results.map((r) => r.content);
+  }
+
+  /**
    * Genera una respuesta de IA (sin streaming)
    */
   async generateResponse(userMessage: string, context?: ConversationContext): Promise<AIResponse> {
     try {
-      let knowledgeBaseContent = '';
-      if (this.config.knowledge_base_enabled && this.config.knowledge_base_urls?.length) {
-        knowledgeBaseContent = await this.fetchKnowledgeBaseContent();
+      console.log(
+        '🤖 AI: Generando respuesta para mensaje:',
+        userMessage.substring(0, 100) + '...'
+      );
+
+      // Buscar chunks relevantes en lugar de fetch URLs
+      const relevantChunks = await this.searchRelevantChunks(userMessage);
+      const knowledgeBaseContent =
+        relevantChunks.length > 0
+          ? `\n\nInformación relevante de documentos:\n${relevantChunks.join('\n\n')}`
+          : '';
+
+      if (knowledgeBaseContent) {
+        console.log('📚 AI: Usando RAG - agregando contexto de base de conocimientos');
+      } else {
+        console.log('📚 AI: No se encontró información relevante en la base de conocimientos');
       }
 
       const userMessageWithContext = knowledgeBaseContent
@@ -174,15 +201,18 @@ export class AIService {
         system: this.config.system_prompt,
         messages,
         temperature: this.config.temperature,
-        maxOutputTokens: this.config.max_tokens,
+        maxOutputTokens: this.config.max_tokens || 800,
       });
-      console.log('AI generation result:', result);
+      console.log(
+        '✅ AI: Respuesta generada exitosamente, tokens usados:',
+        result.usage?.totalTokens
+      );
       return {
         content: result.text,
         tokensUsed: result.usage?.totalTokens,
       };
     } catch (error) {
-      console.error('AI generation error:', error);
+      console.error('❌ AI: Error generando respuesta:', error);
       return {
         content: '',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -198,9 +228,22 @@ export class AIService {
     userMessage: string,
     context?: ConversationContext
   ): Promise<ReadableStream<string>> {
-    let knowledgeBaseContent = '';
-    if (this.config.knowledge_base_enabled && this.config.knowledge_base_urls?.length) {
-      knowledgeBaseContent = await this.fetchKnowledgeBaseContent();
+    console.log(
+      '🎯 AI Stream: Iniciando generación de respuesta streaming para:',
+      userMessage.substring(0, 100) + '...'
+    );
+
+    // Buscar chunks relevantes
+    const relevantChunks = await this.searchRelevantChunks(userMessage);
+    const knowledgeBaseContent =
+      relevantChunks.length > 0
+        ? `\n\nInformación relevante de documentos:\n${relevantChunks.join('\n\n')}`
+        : '';
+
+    if (knowledgeBaseContent) {
+      console.log('📚 AI Stream: Usando RAG - contexto agregado para respuesta streaming');
+    } else {
+      console.log('📚 AI Stream: Sin información relevante de base de conocimientos');
     }
 
     const userMessageWithContext = knowledgeBaseContent
@@ -212,12 +255,13 @@ export class AIService {
       { role: 'user', content: userMessageWithContext },
     ];
 
+    console.log('🚀 AI Stream: Iniciando streaming de respuesta...');
     const result = streamText({
       model: this.model,
       system: this.config.system_prompt,
       messages,
       temperature: this.config.temperature,
-      maxOutputTokens: this.config.max_tokens,
+      maxOutputTokens: this.config.max_tokens || 800,
     });
 
     return result.textStream;

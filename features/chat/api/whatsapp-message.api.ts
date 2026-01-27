@@ -78,9 +78,9 @@ function buildTemplateComponents(
 }
 
 /**
- * Envía el primer mensaje de una conversación usando un template de WhatsApp
+ * Envía un mensaje usando un template de WhatsApp
  */
-export async function sendFirstMessageWithTemplate(params: {
+export async function sendMessageWithTemplate(params: {
   to: string;
   templateName: string;
   channelId?: string;

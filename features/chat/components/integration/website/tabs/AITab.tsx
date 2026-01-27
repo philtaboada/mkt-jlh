@@ -18,12 +18,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { WebsiteWidgetConfig, AIConfig } from '@/features/chat/types/settings';
-import { aiModels, defaultSystemPrompt, defaultAIConfig, responseModeOptions } from '@/features/chat/constants';
 import { validateApiKeyFormat } from '@/lib/utils/encryption';
+import {
+  aiModels,
+  defaultSystemPrompt,
+  defaultAIConfig,
+  responseModeOptions,
+} from '@/features/chat/constants';
+import { useProcessDocuments, useKnowledgeBaseStats } from '@/features/chat/hooks/useEmbbding';
 
-/**
- * Encripta una API key llamando a la API del servidor
- */
 async function encryptApiKeyViaApi(apiKey: string): Promise<string> {
   const response = await fetch('/api/encrypt', {
     method: 'POST',
@@ -88,10 +91,6 @@ export function AITab({ widgetConfig, updateConfig, updateAIConfig }: AITabProps
   );
 }
 
-// ============================================================================
-// AI Sub-components
-// ============================================================================
-
 interface AICardProps {
   widgetConfig: WebsiteWidgetConfig;
   updateAIConfig: (updates: Partial<AIConfig>) => void;
@@ -103,12 +102,8 @@ function AIResponseModeCard({ widgetConfig, updateAIConfig }: AICardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          🎯 Modo de Respuesta
-        </CardTitle>
-        <CardDescription>
-          Define quién responderá a los mensajes de los clientes
-        </CardDescription>
+        <CardTitle className="text-lg flex items-center gap-2">🎯 Modo de Respuesta</CardTitle>
+        <CardDescription>Define quién responderá a los mensajes de los clientes</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-3">
@@ -252,7 +247,14 @@ function AIProviderCard({ widgetConfig, updateAIConfig }: AICardProps) {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Key className="w-4 h-4" />
-            <Label>API Key de {currentProvider === 'openai' ? 'OpenAI' : currentProvider === 'anthropic' ? 'Anthropic' : 'Google'}</Label>
+            <Label>
+              API Key de{' '}
+              {currentProvider === 'openai'
+                ? 'OpenAI'
+                : currentProvider === 'anthropic'
+                  ? 'Anthropic'
+                  : 'Google'}
+            </Label>
           </div>
 
           {hasApiKey ? (
@@ -278,7 +280,13 @@ function AIProviderCard({ widgetConfig, updateAIConfig }: AICardProps) {
                     placeholder={getApiKeyPlaceholder()}
                     value={apiKeyInput}
                     onChange={(e) => handleApiKeyChange(e.target.value)}
-                    className={isValidKey === false ? 'border-red-500' : isValidKey === true ? 'border-green-500' : ''}
+                    className={
+                      isValidKey === false
+                        ? 'border-red-500'
+                        : isValidKey === true
+                          ? 'border-green-500'
+                          : ''
+                    }
                   />
                   <button
                     type="button"
@@ -288,10 +296,7 @@ function AIProviderCard({ widgetConfig, updateAIConfig }: AICardProps) {
                     {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <Button 
-                  onClick={handleSaveApiKey} 
-                  disabled={!isValidKey || isSaving}
-                >
+                <Button onClick={handleSaveApiKey} disabled={!isValidKey || isSaving}>
                   {isSaving ? 'Guardando...' : 'Guardar'}
                 </Button>
               </div>
@@ -450,14 +455,23 @@ function AIAutoReplyCard({ widgetConfig, updateAIConfig }: AICardProps) {
 }
 
 function AIKnowledgeBaseCard({ widgetConfig, updateAIConfig }: AICardProps) {
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const processDocumentsMutation = useProcessDocuments();
+  const statsQuery = useKnowledgeBaseStats(widgetConfig?.ai_config?.knowledge_base_enabled);
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    const validFiles = files.filter((file) => file.type === 'text/markdown');
+    setSelectedFiles(validFiles);
+  };
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg">Base de Conocimientos</CardTitle>
+            <CardTitle className="text-lg">Base de Conocimientos con Embeddings</CardTitle>
             <CardDescription>
-              URLs que la IA puede consultar para responder preguntas
+              Sube archivos MD para crear embeddings y mejorar las respuestas de la IA
             </CardDescription>
           </div>
           <Switch
@@ -467,22 +481,60 @@ function AIKnowledgeBaseCard({ widgetConfig, updateAIConfig }: AICardProps) {
         </div>
       </CardHeader>
       {widgetConfig?.ai_config?.knowledge_base_enabled && (
-        <CardContent>
-          <Textarea
-            placeholder="https://tu-sitio.com/faq&#10;https://tu-sitio.com/docs"
-            className="min-h-[100px]"
-            value={widgetConfig?.ai_config?.knowledge_base_urls?.join('\n') || ''}
-            onChange={(e) =>
-              updateAIConfig({
-                knowledge_base_urls: e.target.value
-                  .split('\n')
-                  .map((u) => u.trim())
-                  .filter(Boolean),
-              })
-            }
-          />
-          <p className="text-xs text-muted-foreground mt-2">
-            Una URL por línea. La IA usará este contenido como contexto para responder.
+        <CardContent className="space-y-4">
+          {/* Stats Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Estadísticas de la Base de Conocimientos</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => statsQuery.refetch()}
+                disabled={statsQuery.isFetching}
+              >
+                {statsQuery.isFetching ? 'Cargando...' : 'Actualizar'}
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="p-3 bg-muted rounded-lg">
+                <div className="font-medium">Total Chunks</div>
+                <div className="text-2xl font-bold text-primary">
+                  {statsQuery.data?.totalChunks || 0}
+                </div>
+              </div>
+              <div className="p-3 bg-muted rounded-lg">
+                <div className="font-medium">Archivos Procesados</div>
+                <div className="text-2xl font-bold text-primary">
+                  {statsQuery.data?.totalFiles || 0}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label>Seleccionar archivos</Label>
+            <Input type="file" multiple accept=".md" onChange={handleFileSelect} />
+            {selectedFiles.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                {selectedFiles.length} archivo(s) seleccionado(s):{' '}
+                {selectedFiles.map((f) => f.name).join(', ')}
+              </div>
+            )}
+          </div>
+
+          <Button
+            onClick={() => processDocumentsMutation.mutate(selectedFiles)}
+            disabled={selectedFiles.length === 0 || processDocumentsMutation.isPending}
+            className="w-full"
+          >
+            {processDocumentsMutation.isPending ? 'Procesando...' : 'Realizar Embeddings'}
+          </Button>
+
+          <p className="text-xs text-muted-foreground">
+            Los archivos MD se procesarán en chunks, se generarán embeddings y se almacenarán en la
+            base de datos vectorial para búsquedas rápidas.
           </p>
         </CardContent>
       )}

@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 import { findOrCreateByWhatsApp, updateLastInteraction } from '@/features/chat/api/contact.api';
 import { findOrCreate, updateLastMessage } from '@/features/chat/api/conversation.api';
 import { create } from '@/features/chat/api/message.api';
+import { updateStatusMessageExternal } from '@/features/chat/api/message.api';
 import { getChannelsByType } from '@/features/chat/api/channels.api';
 import type { WhatsAppConfig } from '@/features/chat/types/settings';
 
@@ -89,23 +90,47 @@ export async function POST(req: Request) {
           timestamp: status.timestamp,
           errors: status.errors,
         });
+
+        // Update message status in database
+        if (status.id && status.status) {
+          try {
+            const readAt =
+              status.status === 'read' && status.timestamp
+                ? new Date(parseInt(status.timestamp) * 1000)
+                : undefined;
+
+            await updateStatusMessageExternal({
+              provider: 'whatsapp',
+              external_id: status.id,
+              status: status.status,
+              read_at: readAt,
+            });
+
+            console.info('[whatsapp-webhook] status updated successfully', {
+              external_id: status.id,
+              status: status.status,
+            });
+          } catch (error) {
+            console.error('[whatsapp-webhook] error updating status', {
+              external_id: status.id,
+              status: status.status,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
       }
     }
 
     if (value?.messages?.length > 0) {
       const whatsappChannels = await getChannelsByType('whatsapp');
       const activeChannel = whatsappChannels.find((ch) => ch.status === 'active');
-      
+
       for (const msg of value.messages) {
         const waId = msg.from;
         const name = value.contacts?.[0]?.profile?.name || null;
 
         const contact = await findOrCreateByWhatsApp(waId, name);
-        const conversation = await findOrCreate(
-          contact.id,
-          'whatsapp',
-          activeChannel?.id
-        );
+        const conversation = await findOrCreate(contact.id, 'whatsapp', activeChannel?.id);
 
         let text = msg.text?.body ?? msg[msg.type]?.caption ?? null;
         let mediaInfo = null;
@@ -141,7 +166,7 @@ export async function POST(req: Request) {
                 url: mediaInfo?.url,
                 hasCaption: Boolean(caption),
               });
-              
+
               // Solo establecer messageType como media si la descarga fue exitosa
               if (msg.type === 'image') messageType = 'image';
               else if (msg.type === 'audio') messageType = 'audio';
@@ -149,7 +174,8 @@ export async function POST(req: Request) {
               else if (msg.type === 'document') messageType = 'file';
               else if (msg.type === 'sticker') messageType = 'image';
             } catch (mediaError) {
-              const errorMessage = mediaError instanceof Error ? mediaError.message : String(mediaError);
+              const errorMessage =
+                mediaError instanceof Error ? mediaError.message : String(mediaError);
               console.error('[whatsapp-webhook] media download/upload error', {
                 waId,
                 mediaId,
@@ -180,6 +206,8 @@ export async function POST(req: Request) {
           body: text,
           type: messageType,
           sender_type: 'user' as const,
+          provider: 'whatsapp' as const,
+          external_id: msg.id,
           sender_id: waId,
           media_url: mediaInfo?.url ?? undefined,
           media_mime: mediaInfo?.mime ?? undefined,

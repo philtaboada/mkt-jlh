@@ -5,12 +5,12 @@ import { downloadAndUploadMedia } from '@/lib/storage/media';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-import { findOrCreateByInstagram, updateLastInteraction } from '@/features/chat/api/contact.api';
+import { findOrCreateByFacebook, updateLastInteraction } from '@/features/chat/api/contact.api';
 import { findOrCreate, updateLastMessage } from '@/features/chat/api/conversation.api';
 import { create } from '@/features/chat/api/message.api';
 import { updateStatusMessageExternal, markMessagesAsReadByWatermark } from '@/features/chat/api/message.api';
 import { getChannelsByType } from '@/features/chat/api/channels.api';
-import type { InstagramConfig } from '@/features/chat/types/settings';
+import type { FacebookConfig } from '@/features/chat/types/settings';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -18,9 +18,9 @@ export async function GET(req: Request) {
   const token = searchParams.get('hub.verify_token');
   const challenge = searchParams.get('hub.challenge');
 
-  const instagramChannels = await getChannelsByType('instagram');
-  const activeChannel = instagramChannels.find((ch) => ch.status === 'active');
-  const config = activeChannel?.config as InstagramConfig;
+  const messengerChannels = await getChannelsByType('messenger');
+  const activeChannel = messengerChannels.find((ch) => ch.status === 'active');
+  const config = activeChannel?.config as FacebookConfig;
   const VERIFY_TOKEN = config?.verify_token;
 
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
@@ -43,12 +43,12 @@ export async function POST(req: Request) {
 
     const body = JSON.parse(rawBody);
 
-    if (body.object !== 'instagram') {
-      return new Response('Not an instagram event', { status: 404 });
+    if (body.object !== 'page') {
+      return new Response('Not a page event', { status: 404 });
     }
 
-    const instagramChannels = await getChannelsByType('instagram');
-    const activeChannel = instagramChannels.find((ch) => ch.status === 'active');
+    const messengerChannels = await getChannelsByType('messenger');
+    const activeChannel = messengerChannels.find((ch) => ch.status === 'active');
 
     for (const entry of body.entry || []) {
         const messaging = entry.messaging || [];
@@ -56,13 +56,14 @@ export async function POST(req: Request) {
             
             // 1. Message Received
             if (event.message) {
-                const ig_id = event.sender.id; // IGSID
+                const psid = event.sender.id;
                 
+                // Ignorar mensajes enviados por la propia página (echo)
                 if (event.message.is_echo) continue;
 
                 // Find Contact & Conversation
-                const contact = await findOrCreateByInstagram(ig_id);
-                const conversation = await findOrCreate(contact.id, 'instagram', activeChannel?.id);
+                const contact = await findOrCreateByFacebook(psid);
+                const conversation = await findOrCreate(contact.id, 'facebook', activeChannel?.id);
                 
                 const msg = event.message;
                 let text = msg.text;
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
 
                 if (hasMedia) {
                     const attachment = msg.attachments[0];
-                    const type = attachment.type; 
+                    const type = attachment.type; // image, video, audio, file
                     const url = attachment.payload.url;
                     
                     if (type === 'image') messageType = 'image';
@@ -81,10 +82,9 @@ export async function POST(req: Request) {
                     else messageType = 'file';
 
                     try {
-                         // Instagram media URLs are usually accessible or temporary.
-                         mediaInfo = await downloadAndUploadMedia(url, type, 'instagram');
+                         mediaInfo = await downloadAndUploadMedia(url, type, 'messenger');
                     } catch (e) {
-                         console.error('Error uploading instagram media', e);
+                         console.error('Error uploading messenger media', e);
                          text = `[Error uploading media] ${url}`;
                     }
                 }
@@ -93,9 +93,9 @@ export async function POST(req: Request) {
                   body: text,
                   type: messageType,
                   sender_type: 'user' as const,
-                  provider: 'instagram' as const,
+                  provider: 'messenger' as const,
                   external_id: msg.mid,
-                  sender_id: ig_id,
+                  sender_id: psid,
                   media_url: mediaInfo?.url ?? undefined,
                   media_mime: mediaInfo?.mime ?? undefined,
                   media_size: mediaInfo?.size ?? undefined,
@@ -110,12 +110,12 @@ export async function POST(req: Request) {
                 await updateLastInteraction(contact.id);
             } 
             
-            // 2. Delivery / Read Receipts (Instagram supports read/delivery via webhooks too)
+            // 2. Delivery / Read Receipts
             else if (event.delivery || event.read) {
-                 if (event.delivery) {
+                if (event.delivery) {
                     for (const mid of event.delivery.mids || []) {
                         await updateStatusMessageExternal({
-                            provider: 'instagram',
+                            provider: 'messenger',
                             external_id: mid,
                             status: 'delivered',
                         });
@@ -125,15 +125,16 @@ export async function POST(req: Request) {
                 if (event.read) {
                     const watermark = new Date(event.read.watermark);
                     const senderId = event.sender.id;
-                    await markMessagesAsReadByWatermark('instagram', senderId, watermark);
+                    await markMessagesAsReadByWatermark('messenger', senderId, watermark);
                 }
             }
         }
     }
 
+
     return NextResponse.json({ status: 'ok' });
   } catch (err) {
-    console.error('[instagram-webhook] ERROR', err);
+    console.error('[messenger-webhook] ERROR', err);
     return new Response('Internal Server Error', { status: 500 });
   }
 }

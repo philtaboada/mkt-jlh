@@ -1,12 +1,23 @@
 /**
- * Servicio para enviar mensajes de Facebook
+ * Facebook Messenger Service
+ * Envía mensajes a un PSID usando Graph API
  */
 
+export type MessengerMessageType = 'text' | 'image' | 'audio' | 'video' | 'file';
+
+export type MessengerTag = 'HUMAN_AGENT' | 'POST_PURCHASE_UPDATE' | 'CONFIRMED_EVENT_UPDATE';
+
+/* =======================
+ * Request / Response
+ * ======================= */
+
 export interface SendFacebookMessageParams {
-  to: string;
-  message: string;
+  to: string; // PSID
+  type?: MessengerMessageType;
+  message?: string; // requerido si type === 'text'
+  mediaUrl?: string; // requerido si type !== 'text'
+  tag?: MessengerTag;
   accessToken: string;
-  pageId: string;
 }
 
 export interface SendFacebookMessageResult {
@@ -15,42 +26,117 @@ export interface SendFacebookMessageResult {
   error?: string;
 }
 
-/**
- * Envía un mensaje de texto por Facebook Messenger
- */
+/* =======================
+ * Messenger Payload Types
+ * ======================= */
+
+interface MessengerRecipient {
+  id: string;
+}
+
+interface MessengerTextMessage {
+  text: string;
+}
+
+interface MessengerAttachmentPayload {
+  url: string;
+  is_reusable?: boolean;
+}
+
+interface MessengerAttachment {
+  type: Exclude<MessengerMessageType, 'text'>;
+  payload: MessengerAttachmentPayload;
+}
+
+interface MessengerMessage {
+  text?: string;
+  attachment?: MessengerAttachment;
+}
+
+interface MessengerSendPayload {
+  recipient: MessengerRecipient;
+  message: MessengerMessage;
+  tag?: MessengerTag;
+}
+
+/* =======================
+ * Main function
+ * ======================= */
+
 export async function sendFacebookMessage(
   params: SendFacebookMessageParams
 ): Promise<SendFacebookMessageResult> {
-  const { to, message, accessToken, pageId } = params;
+  const { to, type = 'text', message, mediaUrl, tag, accessToken } = params;
 
-  if (!accessToken || !pageId) {
-    console.error('Facebook credentials not provided');
+  /* ========= Validaciones ========= */
+
+  if (!accessToken) {
     return { success: false, error: 'Facebook not configured' };
   }
 
-  const apiUrl = `https://graph.instagram.com/v22.0/${pageId}/messages`;
+  if (!to) {
+    return { success: false, error: 'Recipient PSID is required' };
+  }
+
+  if (type === 'text' && !message) {
+    return {
+      success: false,
+      error: 'Text message is required when type is "text"',
+    };
+  }
+
+  if (type !== 'text' && !mediaUrl) {
+    return {
+      success: false,
+      error: `mediaUrl is required when type is "${type}"`,
+    };
+  }
+
+  /* ========= Payload ========= */
+
+  const payload: MessengerSendPayload = {
+    recipient: { id: to },
+    message:
+      type === 'text'
+        ? { text: message! }
+        : {
+            attachment: {
+              type,
+              payload: {
+                url: mediaUrl!,
+                is_reusable: true,
+              },
+            },
+          },
+  };
+
+  if (tag) {
+    payload.tag = tag;
+  }
+
+  /* ========= Request ========= */
 
   try {
-    const payload = {
-      recipient: { id: to },
-      message: { text: message },
-    };
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/me/messages?access_token=${accessToken}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      }
+    );
 
-    const response = await fetch(`${apiUrl}?access_token=${accessToken}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
+    const data: {
+      message_id?: string;
+      error?: { message?: string };
+    } = await response.json();
 
     if (!response.ok) {
-      console.error('Facebook API error:', data);
       return {
         success: false,
-        error: data.error?.message || 'Failed to send message',
+        error: data?.error?.message || 'Failed to send Messenger message',
       };
     }
 
@@ -59,7 +145,6 @@ export async function sendFacebookMessage(
       messageId: data.message_id,
     };
   } catch (error) {
-    console.error('Error sending Facebook message:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

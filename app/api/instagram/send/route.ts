@@ -30,18 +30,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Instagram configuration not complete' }, { status: 400 });
     }
 
-    const result = await sendInstagramMessage({
-      to,
-      message,
-      accessToken,
-      igUserId,
-    });
-
-    if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
-    }
-
-    return NextResponse.json({ success: true, messageId: result.messageId });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Instagram send error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

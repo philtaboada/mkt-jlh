@@ -3,10 +3,7 @@
  */
 
 // Formatos de imagen soportados por WhatsApp Cloud API
-const WHATSAPP_SUPPORTED_IMAGE_MIMES = [
-  'image/jpeg',
-  'image/png',
-] as const;
+const WHATSAPP_SUPPORTED_IMAGE_MIMES = ['image/jpeg', 'image/png'] as const;
 
 // Formatos de audio soportados por WhatsApp Cloud API
 const WHATSAPP_SUPPORTED_AUDIO_MIMES = [
@@ -19,28 +16,32 @@ const WHATSAPP_SUPPORTED_AUDIO_MIMES = [
 ] as const;
 
 // Formatos de video soportados por WhatsApp Cloud API
-const WHATSAPP_SUPPORTED_VIDEO_MIMES = [
-  'video/mp4',
-  'video/3gp',
-  'video/3gpp',
-] as const;
+const WHATSAPP_SUPPORTED_VIDEO_MIMES = ['video/mp4', 'video/3gp', 'video/3gpp'] as const;
 
 // Formatos de documento soportados (más flexibles)
 const WHATSAPP_SUPPORTED_DOCUMENT_EXTENSIONS = [
-  '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt', '.csv',
+  '.pdf',
+  '.doc',
+  '.docx',
+  '.ppt',
+  '.pptx',
+  '.xls',
+  '.xlsx',
+  '.txt',
+  '.csv',
 ] as const;
 
 function isWhatsAppSupportedMedia(params: { type: string; mimeOrUrl: string }): boolean {
   const { type, mimeOrUrl } = params;
   const lowerMime = mimeOrUrl.toLowerCase();
-  
+
   switch (type) {
     case 'image':
-      return WHATSAPP_SUPPORTED_IMAGE_MIMES.some(mime => lowerMime.includes(mime));
+      return WHATSAPP_SUPPORTED_IMAGE_MIMES.some((mime) => lowerMime.includes(mime));
     case 'audio':
-      return WHATSAPP_SUPPORTED_AUDIO_MIMES.some(mime => lowerMime.includes(mime));
+      return WHATSAPP_SUPPORTED_AUDIO_MIMES.some((mime) => lowerMime.includes(mime));
     case 'video':
-      return WHATSAPP_SUPPORTED_VIDEO_MIMES.some(mime => lowerMime.includes(mime));
+      return WHATSAPP_SUPPORTED_VIDEO_MIMES.some((mime) => lowerMime.includes(mime));
     case 'document':
       return true; // WhatsApp es más flexible con documentos
     case 'sticker':
@@ -107,25 +108,23 @@ interface WhatsAppTemplatePayload {
   };
 }
 
-function buildWhatsAppErrorMessage(params: { status: number; error?: WhatsAppApiError }): string {
-  const { status, error } = params;
-  if (!error?.message) {
-    return `Failed to send message (status ${status})`;
-  }
-  if (!error.code) {
-    return error.message;
-  }
-  return `(#${error.code}) ${error.message}`;
-}
-
 /**
  * Envía un mensaje (texto o multimedia) por WhatsApp
  */
 export async function sendWhatsAppMessage(
   params: SendWhatsAppMessageParams
 ): Promise<SendWhatsAppMessageResult> {
-  const { to, message, type = 'text', mediaUrl, caption, filename, accessToken, phoneNumberId } = params;
-  
+  const {
+    to,
+    message,
+    type = 'text',
+    mediaUrl,
+    caption,
+    filename,
+    accessToken,
+    phoneNumberId,
+  } = params;
+
   if (!accessToken || !phoneNumberId) {
     console.error('WhatsApp credentials not provided');
     return { success: false, error: 'WhatsApp not configured' };
@@ -145,12 +144,12 @@ export async function sendWhatsAppMessage(
       payload.text = { body: message };
     } else if (['image', 'audio', 'video', 'document', 'sticker'].includes(type)) {
       if (!mediaUrl) throw new Error(`Media URL is required for ${type} messages`);
-      
+
       // Verificar que la URL sea accesible
       const mediaHeadResponse: Response = await fetch(mediaUrl, { method: 'HEAD' });
       const contentType = mediaHeadResponse.headers.get('content-type') || '';
       const contentLength = mediaHeadResponse.headers.get('content-length');
-      
+
       console.info('[whatsapp-send] media head', {
         to,
         type,
@@ -159,21 +158,24 @@ export async function sendWhatsAppMessage(
         contentLength,
         url: mediaUrl,
       });
-      
+
       if (!mediaHeadResponse.ok) {
         return {
           success: false,
           error: `Media URL not accessible (status ${mediaHeadResponse.status})`,
         };
       }
-      
+
       // Verificar formato soportado por WhatsApp
       const urlExtension = extractExtensionFromUrl({ url: mediaUrl });
-      const isSupported = isWhatsAppSupportedMedia({ type, mimeOrUrl: contentType || urlExtension });
-      
+      const isSupported = isWhatsAppSupportedMedia({
+        type,
+        mimeOrUrl: contentType || urlExtension,
+      });
+
       // Determinar si el caption es válido para este tipo de media
       const canHaveCaption = type !== 'audio' && type !== 'sticker';
-      
+
       if (!isSupported && type !== 'document') {
         console.warn('[whatsapp-send] unsupported media format, falling back to document', {
           to,
@@ -327,4 +329,15 @@ export async function sendWhatsAppTemplate(params: {
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
+}
+
+function buildWhatsAppErrorMessage(params: { status: number; error?: WhatsAppApiError }): string {
+  const { status, error } = params;
+  if (!error?.message) {
+    return `Failed to send message (status ${status})`;
+  }
+  if (!error.code) {
+    return error.message;
+  }
+  return `(#${error.code}) ${error.message}`;
 }

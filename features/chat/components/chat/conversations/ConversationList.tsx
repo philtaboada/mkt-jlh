@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { usePathname } from 'next/navigation';
+import type { UIEvent as ReactUIEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import {
   useConversationCounts,
@@ -13,20 +14,22 @@ import {
 } from '@/features/chat/hooks/useConversations';
 import { useActiveChannels } from '@/features/chat/hooks/useChannels';
 
-import { ConversationHeader } from '@/features/chat/components/chat/conversations/ConversationHeader';
-import { ConversationFilters } from '@/features/chat/components/chat/conversations/ConversationFilters';
-import { ConversationItem } from '@/features/chat/components/chat/conversations/ConversationItem';
-import { CreateConversationDialog } from '@/features/chat/components/chat/conversations/CreateConversationDialog';
+import { ConversationHeader } from './ConversationHeader';
+import { ConversationFilters } from './ConversationFilters';
+import { ConversationItem } from './ConversationItem';
+import { CreateConversationDialog } from './CreateConversationDialog';
 import { useChatStore } from '@/features/chat/stores/chat.store';
 
-interface ConversationListProps {
-  onSelectConversation: (id: string) => void;
-}
+type Channel = {
+  id: string;
+  name: string;
+  type: string;
+};
 
-export function ConversationList({ onSelectConversation }: ConversationListProps) {
+export function ConversationList() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const pathname = usePathname();
+  const router = useRouter();
 
   const {
     filters,
@@ -37,7 +40,7 @@ export function ConversationList({ onSelectConversation }: ConversationListProps
     setActiveConversationId,
   } = useChatStore();
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, error } =
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useConversations(20);
 
   const { data: activeChannels = [] } = useActiveChannels();
@@ -46,8 +49,35 @@ export function ConversationList({ onSelectConversation }: ConversationListProps
 
   const conversations = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
 
+  useEffect(() => {
+    const storeIds = storeActiveChannels.map((c) => c.id).join(',');
+    const apiIds = activeChannels.map((c) => c.id).join(',');
+
+    if (storeIds !== apiIds) {
+      setActiveChannels(activeChannels);
+    }
+  }, [activeChannels, storeActiveChannels, setActiveChannels]);
+
+  const handleScroll = useCallback(
+    (event: ReactUIEvent<HTMLDivElement>) => {
+      const el = event.currentTarget as HTMLElement;
+
+      if (
+        el.scrollHeight - el.scrollTop - el.clientHeight < 200 &&
+        hasNextPage &&
+        !isFetchingNextPage
+      ) {
+        fetchNextPage();
+      }
+    },
+    [hasNextPage, isFetchingNextPage, fetchNextPage]
+  );
+
   const mappedConversationCounts = useMemo(() => {
-    if (!conversationCounts) return { all: 0, open: 0, pending: 0, resolved: 0, snoozed: 0 };
+    if (!conversationCounts) {
+      return { all: 0, open: 0, pending: 0, resolved: 0, snoozed: 0 };
+    }
+
     return {
       all:
         (conversationCounts.inbox || 0) +
@@ -60,44 +90,17 @@ export function ConversationList({ onSelectConversation }: ConversationListProps
     };
   }, [conversationCounts]);
 
-  useEffect(() => {
-    if (JSON.stringify(activeChannels) !== JSON.stringify(storeActiveChannels)) {
-      setActiveChannels(activeChannels);
-    }
-  }, [activeChannels, storeActiveChannels, setActiveChannels]);
-
-  const handleScroll = useCallback(
-    (event: Event) => {
-      const el = event.target as HTMLDivElement;
-      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
-
-      if (nearBottom && hasNextPage && !isFetchingNextPage) {
-        fetchNextPage();
-      }
-    },
-    [hasNextPage, isFetchingNextPage, fetchNextPage]
+  const channelsMap = useMemo<Record<string, Channel>>(
+    () => Object.fromEntries(activeChannels.map((ch) => [ch.id, ch])),
+    [activeChannels]
   );
 
-  useEffect(() => {
-    const root = scrollAreaRef.current;
-    if (!root) return;
-
-    const viewport = root.querySelector('[data-radix-scroll-area-viewport]');
-    if (!viewport) return;
-
-    viewport.addEventListener('scroll', handleScroll, { passive: true });
-    return () => viewport.removeEventListener('scroll', handleScroll);
-  }, [handleScroll]);
-
-  const channelsMap = useMemo(() => {
-    return Object.fromEntries(
-      activeChannels.map((ch: any) => [ch.id, { id: ch.id, name: ch.name, type: ch.type }])
-    );
-  }, [activeChannels]);
+  if (error) {
+    return <div className="w-80 p-4 text-sm text-destructive">Error cargando conversaciones</div>;
+  }
 
   return (
     <div className="w-80 bg-card border-r border-border flex flex-col h-full">
-      {/* Header */}
       <ConversationHeader
         totalUnread={totalUnread || 0}
         sortBy={filters.sortBy}
@@ -107,7 +110,6 @@ export function ConversationList({ onSelectConversation }: ConversationListProps
         onSearchChange={(searchQuery) => setFilters({ searchQuery })}
       />
 
-      {/* Filters */}
       <ConversationFilters
         activeChannels={activeChannels}
         channelFilter={filters.channel}
@@ -117,23 +119,16 @@ export function ConversationList({ onSelectConversation }: ConversationListProps
         conversationCounts={mappedConversationCounts}
       />
 
-      {/* Result info */}
       <div className="px-4 py-2 border-b border-border">
-        <span className="text-xs text-muted-foreground">
-          {conversations.length} conversaciones
-          {hasNextPage && !isFetchingNextPage && (
-            <span className="ml-1">(scroll para cargar más)</span>
-          )}
-        </span>
+        <span className="text-xs text-muted-foreground">{conversations.length} conversaciones</span>
       </div>
 
-      {/* List */}
       <div className="flex-1 min-h-0">
         <ScrollArea ref={scrollAreaRef} className="h-full">
-          <div className="flex flex-col pb-2">
+          <div className="flex flex-col pb-2" onScroll={handleScroll}>
             {isLoading ? (
-              <div className="p-12 text-center">
-                <p className="text-sm text-muted-foreground">Cargando conversaciones...</p>
+              <div className="p-12 text-center text-sm text-muted-foreground">
+                Cargando conversaciones...
               </div>
             ) : conversations.length === 0 ? (
               <div className="p-12 text-center">
@@ -151,7 +146,7 @@ export function ConversationList({ onSelectConversation }: ConversationListProps
               </div>
             ) : (
               <>
-                {conversations.map((conv: any) => (
+                {conversations.map((conv) => (
                   <ConversationItem
                     key={conv.id}
                     conversation={conv}
@@ -159,7 +154,7 @@ export function ConversationList({ onSelectConversation }: ConversationListProps
                     isSelected={activeConversationId === conv.id}
                     onClick={() => {
                       setActiveConversationId(conv.id);
-                      onSelectConversation(conv.id);
+                      router.push(`/chat/inbox/${conv.id}`);
                     }}
                   />
                 ))}
@@ -180,7 +175,7 @@ export function ConversationList({ onSelectConversation }: ConversationListProps
         onOpenChange={setShowCreateDialog}
         onCreated={(id) => {
           setActiveConversationId(id);
-          onSelectConversation(id);
+          router.push(`/chat/inbox/${id}`);
           setShowCreateDialog(false);
         }}
       />
