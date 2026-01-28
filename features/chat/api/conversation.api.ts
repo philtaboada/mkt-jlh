@@ -315,7 +315,7 @@ export async function findWidgetConversation(
 
   const { data: conversations, error } = await supabase
     .from('mkt_conversations')
-    .select('id, created_at, last_message_at')
+    .select('id, created_at, last_message_at, ia_enabled')
     .eq('channel_id', params.channelId)
     .eq('status', 'open')
     .filter('metadata->>visitor_id', 'eq', params.visitorId)
@@ -354,6 +354,7 @@ export async function createWidgetConversation(
       channel: 'website',
       contact_id: contactId,
       status: params.status || 'open',
+      ia_enabled: params.ia_enabled || false,
       // priority: 'medium',
       metadata: {
         visitor_id: params.visitorId,
