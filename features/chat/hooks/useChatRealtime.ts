@@ -6,10 +6,13 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { useChatStore } from '../stores/chat.store';
 import type { Message } from '@/features/chat/types/message';
+import { usePathname, useRouter } from 'next/navigation';
 
 export function useChatRealtime() {
   const queryClient = useQueryClient();
   const { activeConversationId, soundEnabled } = useChatStore();
+  const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
@@ -23,11 +26,8 @@ export function useChatRealtime() {
         const isActive = message.conversation_id === activeConversationId;
 
         queryClient.setQueryData<Message[]>(['messages', message.conversation_id], (old = []) => {
-          // Si el mensaje real ya existe, no hacemos nada
           if (old.some((m) => m.id === message.id)) return old;
 
-          // Si el mensaje viene con un optimisticId en metadata, 
-          // buscamos el mensaje optimista local para reemplazarlo
           const optimisticId = message.metadata?.optimistic_id;
           if (optimisticId) {
             const exists = old.some((m) => m.id === optimisticId);
@@ -36,13 +36,14 @@ export function useChatRealtime() {
             }
           }
 
-          // Si no es un reemplazo de uno optimista, lo añadimos al final
           return [...old, message];
         });
 
         queryClient.invalidateQueries({ queryKey: ['conversations'] });
 
-        if (!isActive && message.sender_type !== 'bot') {
+        const isInChatRoute = pathname?.startsWith('/chat');
+
+        if (!isActive && message.sender_type !== 'bot' && !isInChatRoute) {
           if (soundEnabled) {
             const audio = new Audio('/sounds/chat-notification.mp3');
             audio.play().catch(() => {});
@@ -55,6 +56,11 @@ export function useChatRealtime() {
           toast.success(`${truncatedText}`, {
             description: 'Nuevo mensaje recibido',
             duration: 4000,
+            action: {
+              label: 'Abrir',
+              onClick: () =>
+                router.push(`/chat/inbox/${encodeURIComponent(String(message.conversation_id))}`),
+            },
           });
         }
       }
@@ -66,7 +72,6 @@ export function useChatRealtime() {
       { event: 'UPDATE', schema: 'public', table: 'mkt_messages' },
       (payload) => {
         const newMessage = payload.new as Message;
-        // Update specific message in cache
         queryClient.setQueryData<Message[]>(
           ['messages', newMessage.conversation_id],
           (old = []) => {
@@ -101,5 +106,5 @@ export function useChatRealtime() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeConversationId, queryClient, soundEnabled]);
+  }, [activeConversationId, queryClient, soundEnabled, pathname]);
 }

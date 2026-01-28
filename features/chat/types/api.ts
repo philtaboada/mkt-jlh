@@ -53,7 +53,8 @@ export interface CreateWidgetConversationParams {
   visitorInfo?: WidgetVisitorInfo;
   userAgent?: string | null;
   origin?: string | null;
-  status?: 'open' | 'closed'|'blocked'|'bot'|'agent'
+  status?: 'open' | 'closed' | 'blocked' | 'bot' | 'agent';
+  ia_enabled?: boolean;
 }
 
 export interface CreateWidgetMessageParams {
@@ -72,7 +73,6 @@ export interface GetMessagesAfterParams {
 // ============================================================================
 // Contact API Types
 // ============================================================================
-
 export interface FindOrCreateContactParams {
   email: string;
   name?: string;
