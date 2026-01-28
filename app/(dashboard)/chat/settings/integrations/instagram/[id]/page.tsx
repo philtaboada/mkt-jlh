@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { useChannel, useUpdateChannel } from '@/features/chat/hooks';
+import InstagramForm from '@/features/chat/components/integration/InstagramForm';
 import type { InstagramConfig } from '@/features/chat/types/settings';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -177,49 +178,12 @@ export default function InstagramChannelConfigPage({ params }: PageProps) {
                 </AlertDescription>
               </Alert>
 
-              <div className="space-y-2">
-                <Label className="text-base font-semibold">ID de la Cuenta de Instagram</Label>
-                <p className="text-xs text-muted-foreground">
-                  Lo encontrarás en Meta Business Suite → Instagram → Configuración → ID de la
-                  cuenta
-                </p>
-                <Input
-                  placeholder="Ej: 17841400000000000"
-                  value={instagramConfig?.account_id || ''}
-                  onChange={(e) => updateConfig('account_id', e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-base font-semibold">Nombre de usuario</Label>
-                <p className="text-xs text-muted-foreground">
-                  El nombre de tu cuenta de Instagram (ejemplo: @miempresa)
-                </p>
-                <Input
-                  placeholder="@miempresa"
-                  value={instagramConfig?.username || ''}
-                  onChange={(e) => updateConfig('username', e.target.value)}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-base font-semibold">
-                  <Key className="w-4 h-4" />
-                  Access Token
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Generado en Meta for Developers → Tu App → Configuración → Tokens de acceso del
-                  sistema
-                </p>
-                <Input
-                  type="password"
-                  placeholder="IGQxxxxxxx..."
-                  value={instagramConfig?.access_token || ''}
-                  onChange={(e) => updateConfig('access_token', e.target.value)}
-                />
-              </div>
+              <InstagramForm
+                channelId={id}
+                embedded
+                value={config}
+                onChange={(partial) => setConfig((prev) => ({ ...(prev || {}), ...partial }))}
+              />
             </CardContent>
           </Card>
 
