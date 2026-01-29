@@ -3,6 +3,7 @@ export type Contact = {
   wa_id?: string;
   fb_id?: string;
   ig_id?: string;
+  tiktok_id?: string;
   name?: string;
   email?: string;
   phone?: string;

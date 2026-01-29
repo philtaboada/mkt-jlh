@@ -4,7 +4,14 @@ import { WhatsAppSendRequest } from '../api/providers/whatsapp';
 
 export type SenderType = 'user' | 'agent' | 'bot' | 'system';
 export type MessageType = 'text' | 'image' | 'audio' | 'video' | 'file';
-export type ChannelType = 'whatsapp' | 'messenger' | 'instagram' | 'telegram' | 'webchat' | 'email';
+export type ChannelType =
+  | 'whatsapp'
+  | 'messenger'
+  | 'instagram'
+  | 'telegram'
+  | 'webchat'
+  | 'email'
+  | 'tiktok';
 export type StatusMessage = 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
 export type Message = {
   id?: string;
@@ -69,6 +76,28 @@ export type SendInstagramVars = {
   conversationId: string;
   instagramBusinessId: string;
   sendRequest: InstagramSendRequest;
+  dbData: {
+    sender_id: string;
+    sender_type: 'agent' | 'user';
+    body?: string;
+    type?: Message['type'];
+    media_url?: string;
+    media_name?: string;
+    media_mime?: string;
+    media_size?: number;
+    metadata?: Record<string, any>;
+  };
+};
+
+export type SendTikTokVars = {
+  conversationId: string;
+  sendRequest: {
+    to: string;
+    type?: 'text' | 'image' | 'video' | 'file';
+    message?: string;
+    mediaUrl?: string;
+    caption?: string;
+  };
   dbData: {
     sender_id: string;
     sender_type: 'agent' | 'user';

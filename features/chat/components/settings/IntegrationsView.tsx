@@ -10,6 +10,7 @@ import {
   Smartphone,
   Facebook,
   Instagram,
+  Music,
   Mail,
   MoreVertical,
   Settings2,
@@ -79,6 +80,13 @@ const channelTypes = [
     description: 'Conecta tu cuenta de Instagram Business',
     icon: Instagram,
     color: 'bg-pink-500/10 text-pink-600',
+  },
+  {
+    type: 'tiktok' as ChannelType,
+    name: 'TikTok',
+    description: 'Conecta tu cuenta de TikTok',
+    icon: Music,
+    color: 'bg-orange-500/10 text-orange-600',
   },
   {
     type: 'email' as ChannelType,

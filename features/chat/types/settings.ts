@@ -1,4 +1,4 @@
-export type ChannelType = 'whatsapp' | 'website' | 'messenger' | 'instagram' | 'email';
+export type ChannelType = 'whatsapp' | 'website' | 'messenger' | 'instagram' | 'email' | 'tiktok';
 export type ChannelStatus = 'active' | 'inactive' | 'pending';
 export type AgentStatus = 'online' | 'offline' | 'busy';
 export type AgentRole = 'admin' | 'agent' | 'supervisor';
@@ -19,7 +19,8 @@ export type ChannelConfig =
   | WebsiteWidgetConfig
   | MessengerConfig
   | InstagramConfig
-  | EmailConfig;
+  | EmailConfig
+  | TikTokConfig;
 
 export interface WhatsAppConfig {
   phone_number_id: string;
@@ -92,6 +93,15 @@ export interface EmailConfig {
   smtp_port: number;
   username: string;
   password?: string;
+}
+
+export interface TikTokConfig {
+  account_id?: string;
+  username?: string;
+  app_id?: string;
+  app_secret?: string;
+  access_token?: string;
+  verify_token?: string;
 }
 
 // Agent types
