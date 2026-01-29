@@ -36,7 +36,11 @@ export async function findOrCreateByWhatsApp(waId: string, name: string): Promis
 
 import { getMessengerUserProfile } from '@/lib/services/messenger/get-messenger-profile';
 
-export async function findOrCreateByMessenger(fbId: string, name?: string, accessToken?: string): Promise<Contact> {
+export async function findOrCreateByMessenger(
+  fbId: string,
+  name?: string,
+  accessToken?: string
+): Promise<Contact> {
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from('mkt_contacts')
@@ -101,6 +105,36 @@ export async function findOrCreateByInstagram(igId: string, name?: string): Prom
       ig_id: igId,
       name: name || 'Contacto Instagram',
       source: 'instagram',
+      status: 'lead',
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return newContact;
+}
+
+export async function findOrCreateByTikTok(ttId: string, name?: string): Promise<Contact> {
+  const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from('mkt_contacts')
+    .select('*')
+    .eq('tiktok_id', ttId)
+    .single();
+
+  if (existing) {
+    return existing;
+  }
+
+  const { data: newContact, error } = await supabase
+    .from('mkt_contacts')
+    .insert({
+      tiktok_id: ttId,
+      name: name || 'Contacto TikTok',
+      source: 'tiktok',
       status: 'lead',
     })
     .select('*')
@@ -235,6 +269,7 @@ export async function createContact(contact: Partial<Contact>): Promise<Contact>
   if (contact.wa_id) insertData.wa_id = contact.wa_id;
   if (contact.fb_id) insertData.fb_id = contact.fb_id;
   if (contact.ig_id) insertData.ig_id = contact.ig_id;
+  if (contact.tiktok_id) insertData.tiktok_id = contact.tiktok_id;
   if (contact.avatar_url) insertData.avatar_url = contact.avatar_url;
   if (contact.source) insertData.source = contact.source;
 
@@ -254,12 +289,10 @@ export async function createContact(contact: Partial<Contact>): Promise<Contact>
 export async function updateContact(id: string, updates: Partial<Contact>): Promise<Contact> {
   const supabase = await createClient();
 
-  // Build update object, removing empty string values
   const updateData: any = {
     updated_at: new Date().toISOString(),
   };
 
-  // Only include fields that have non-empty values
   Object.entries(updates).forEach(([key, value]) => {
     if (value !== '' && value !== null && value !== undefined) {
       updateData[key] = value;

@@ -293,10 +293,7 @@ export async function updateStatusMessageExternal(data: UpdateStatusMessage): Pr
 }
 
 // Mark message as failed with error details
-export async function markMessageAsFailed(
-  messageId: string,
-  error: string
-): Promise<void> {
+export async function markMessageAsFailed(messageId: string, error: string): Promise<void> {
   const supabase = await createClient();
 
   const { data: current } = await supabase
@@ -306,16 +303,16 @@ export async function markMessageAsFailed(
     .single();
 
   const metadata = current?.metadata || {};
-  
+
   const { error: updateError } = await supabase
     .from('mkt_messages')
-    .update({ 
-        status: 'failed',
-        metadata: {
-            ...metadata,
-            error,
-            failed_at: new Date().toISOString()
-        }
+    .update({
+      status: 'failed',
+      metadata: {
+        ...metadata,
+        error,
+        failed_at: new Date().toISOString(),
+      },
     })
     .eq('id', messageId);
 
@@ -340,17 +337,13 @@ export async function setMessageExternalId(
     updatePayload.provider = provider;
   }
 
-  const { error } = await supabase
-    .from('mkt_messages')
-    .update(updatePayload)
-    .eq('id', messageId);
+  const { error } = await supabase.from('mkt_messages').update(updatePayload).eq('id', messageId);
 
   if (error) {
     console.error('Error setting external_id for message:', error);
     throw error;
   }
 }
-
 
 export async function markMessagesAsReadByWatermark(
   provider: string,
@@ -364,7 +357,7 @@ export async function markMessagesAsReadByWatermark(
   else if (provider === 'instagram') contactQuery = contactQuery.eq('ig_id', senderId);
   else if (provider === 'whatsapp') contactQuery = contactQuery.eq('wa_id', senderId);
   else return; // Unsupported provider
-  
+
   const { data: contact } = await contactQuery.single();
   if (!contact) return;
 
@@ -375,16 +368,16 @@ export async function markMessagesAsReadByWatermark(
 
   if (!conversations?.length) return;
 
-  const conversationIds = conversations.map(c => c.id);
+  const conversationIds = conversations.map((c) => c.id);
 
   const { error } = await supabase
     .from('mkt_messages')
-    .update({ 
-        status: 'read',
-        read_at: watermark.toISOString()
+    .update({
+      status: 'read',
+      read_at: watermark.toISOString(),
     })
     .in('conversation_id', conversationIds)
-    .eq('sender_type', 'agent') 
+    .eq('sender_type', 'agent')
     .lte('created_at', watermark.toISOString())
     .neq('status', 'read');
 
