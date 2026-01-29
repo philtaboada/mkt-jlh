@@ -7,7 +7,7 @@ import type {
   InstagramConfig,
 } from '@/features/chat/types/settings';
 
-type ChannelType = 'whatsapp' | 'messenger' | 'instagram';
+type ChannelType = 'whatsapp' | 'messenger' | 'instagram' | 'tiktok';
 type MediaType = 'image' | 'audio' | 'video' | 'document' | 'sticker';
 
 function getAccessToken(config: ChannelConfig): string | undefined {
@@ -38,7 +38,7 @@ export async function downloadAndUploadMedia(
   channelType: ChannelType = 'whatsapp'
 ) {
   console.info('[media-download] starting', { mediaId, mediaType, channelType });
-  
+
   const channels = await getChannelsByType(channelType);
   const activeChannel = channels.find((ch) => ch.status === 'active');
 
@@ -64,7 +64,7 @@ export async function downloadAndUploadMedia(
     channelType,
     status: urlRes.status,
   });
-  
+
   if (!urlRes.ok) {
     const errorText = await urlRes.text();
     console.error('[media-download] meta API error', {
@@ -74,7 +74,7 @@ export async function downloadAndUploadMedia(
     });
     throw new Error(`Failed to get media URL from Meta API: ${urlRes.status}`);
   }
-  
+
   const meta = await urlRes.json();
   console.info('[media-download] meta payload', {
     mediaId,
@@ -83,7 +83,7 @@ export async function downloadAndUploadMedia(
     mime: meta.mime_type,
     fileSize: meta.file_size,
   });
-  
+
   if (!meta.url) {
     console.error('[media-download] no URL in meta response', { mediaId, meta });
     return null;
